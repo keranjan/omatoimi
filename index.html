@@ -1,0 +1,1456 @@
+<!DOCTYPE html>
+<html lang="fi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Omatoimitreenit</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #F1F3EF;
+    --surface: #FFFFFF;
+    --ink: #15201B;
+    --ink-soft: #5C665E;
+    --ink-faint: #8A938B;
+    --line: #E3E6DF;
+    --brand: #0E5E3A;
+    --accent: #C5F23E;
+    --accent-ink: #1A2A10;
+    --radius: 14px;
+    --cat-laukaukset: #0E5E3A;
+    --cat-syottely: #2563B0;
+    --cat-kuljetus: #0E8F8A;
+    --cat-pallotaito: #6A4BD6;
+    --cat-nopeus: #DD5A1E;
+    --cat-voima: #C0356A;
+    --cat-kestavyys: #B07A12;
+    --cat-liikkuvuus: #5B7B95;
+    --cat-muu: #6B746C;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Barlow', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    padding: 24px 16px 64px;
+  }
+
+  .wrap { max-width: 760px; margin: 0 auto; }
+
+  /* Header */
+  .topbar {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 22px;
+  }
+  .eyebrow {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    font-size: 13px;
+    color: var(--brand);
+  }
+  .topbar h1 {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 700;
+    font-size: 26px;
+    letter-spacing: -0.01em;
+    color: var(--ink-soft);
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 22px;
+    margin-bottom: 18px;
+  }
+
+  /* Hero / scoreboard */
+  .hero { display: grid; grid-template-columns: 1.1fr 1fr; gap: 8px; align-items: stretch; }
+  .hero-main { padding-right: 18px; border-right: 1px solid var(--line); }
+  .hero-label {
+    font-family: 'Barlow Condensed', sans-serif;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-size: 13px;
+    color: var(--ink-soft);
+    font-weight: 600;
+  }
+  .hero-number {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 700;
+    font-size: 78px;
+    line-height: 0.92;
+    letter-spacing: -0.02em;
+    margin: 6px 0 2px;
+    font-variant-numeric: tabular-nums;
+  }
+  .hero-number .unit { font-size: 26px; color: var(--ink-soft); margin-left: 4px; }
+  .hero-sub { font-size: 14px; color: var(--ink-soft); }
+  .hero-side { display: flex; flex-direction: column; justify-content: center; padding-left: 18px; gap: 14px; }
+  .stat-row { display: flex; align-items: baseline; gap: 8px; }
+  .stat-big {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 700;
+    font-size: 30px;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+  }
+  .stat-cap { font-size: 13px; color: var(--ink-soft); }
+
+  /* Section headings */
+  .sec-head {
+    display: flex; align-items: baseline; justify-content: space-between;
+    margin-bottom: 14px;
+  }
+  .sec-head h2 {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 600; font-size: 19px;
+    text-transform: uppercase; letter-spacing: 0.04em;
+  }
+  .sec-head .hint { font-size: 13px; color: var(--ink-faint); }
+
+  /* Category breakdown bars */
+  .bars { display: flex; flex-direction: column; gap: 12px; }
+  .bar-row { display: grid; grid-template-columns: 124px 1fr 70px; align-items: center; gap: 12px; }
+  .bar-label { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 500; white-space: nowrap; }
+  .dot { width: 10px; height: 10px; border-radius: 3px; flex: none; }
+  .bar-track { height: 10px; background: var(--bg); border-radius: 6px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 6px; width: 0; transition: width 0.5s ease; }
+  .bar-val { font-size: 13px; color: var(--ink-soft); text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .empty-note { font-size: 14px; color: var(--ink-faint); padding: 6px 0; }
+
+  /* Period selector */
+  .period-bar { margin-bottom: 18px; }
+  #periodSelect {
+    font-family: 'Barlow Condensed', sans-serif; font-weight: 600; font-size: 17px;
+    text-transform: uppercase; letter-spacing: 0.03em; color: var(--ink);
+    background-color: var(--bg); border: 1px solid var(--line); border-radius: 10px;
+    padding: 9px 38px 9px 14px; cursor: pointer; -webkit-appearance: none; appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2 4l4 4 4-4' stroke='%235C665E' stroke-width='1.6' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 13px center;
+  }
+  #periodSelect:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
+
+  /* Per-month rows (clickable) */
+  .month-row {
+    width: 100%; text-align: left;
+    background: none; border: none; font-family: inherit; cursor: pointer;
+    padding: 5px 6px; margin: 0 -6px; border-radius: 8px; transition: background 0.12s;
+  }
+  .month-row:hover { background: var(--bg); }
+  .month-row.active { background: var(--bg); }
+  .month-row.active .bar-label { color: var(--brand); }
+  .month-row:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
+  .month-row .bar-label {
+    font-family: 'Barlow Condensed', sans-serif; text-transform: capitalize;
+    font-size: 15px; font-weight: 600; color: var(--ink);
+  }
+
+  /* Form */
+  label.fld { display: block; margin-bottom: 14px; }
+  .fld > span {
+    display: block; font-size: 13px; font-weight: 500; color: var(--ink-soft);
+    margin-bottom: 6px;
+  }
+  input[type="date"], input[type="number"], input[type="text"] {
+    width: 100%; font-family: inherit; font-size: 15px; color: var(--ink);
+    background: var(--bg); border: 1px solid var(--line); border-radius: 10px;
+    padding: 11px 13px; -webkit-appearance: none;
+  }
+  input:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip-groups { display: flex; flex-direction: column; gap: 14px; }
+  .chip-group-label {
+    font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em;
+    color: var(--ink-faint); margin-bottom: 8px;
+  }
+  .chip {
+    font-family: inherit; font-size: 14px; font-weight: 500;
+    background: var(--bg); border: 1.5px solid var(--line); color: var(--ink-soft);
+    padding: 8px 13px; border-radius: 999px; cursor: pointer;
+    display: flex; align-items: center; gap: 7px; transition: border-color 0.15s, color 0.15s;
+  }
+  .chip .dot { width: 9px; height: 9px; }
+  .chip[aria-pressed="true"] { color: var(--ink); border-color: var(--ink); background: var(--surface); }
+  .chip:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
+
+  .btn {
+    font-family: 'Barlow Condensed', sans-serif; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.05em; font-size: 16px;
+    background: var(--accent); color: var(--accent-ink); border: none;
+    padding: 13px 20px; border-radius: 11px; cursor: pointer; width: 100%;
+    margin-top: 4px; transition: filter 0.15s;
+  }
+  .btn:hover { filter: brightness(0.96); }
+  .btn:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+
+  /* List */
+  .log { display: flex; flex-direction: column; }
+  .log-item {
+    display: grid; grid-template-columns: 60px 1fr auto auto; align-items: center;
+    gap: 12px; padding: 13px 0; border-top: 1px solid var(--line);
+  }
+  .log-item:first-child { border-top: none; }
+  .log-date {
+    font-family: 'Barlow Condensed', sans-serif; font-weight: 600; font-size: 15px;
+    color: var(--ink-soft); text-transform: capitalize; line-height: 1.1;
+  }
+  .log-date small { display: block; font-size: 12px; color: var(--ink-faint); font-weight: 500; }
+  .log-cat { display: flex; align-items: center; gap: 9px; font-size: 15px; font-weight: 500; }
+  .log-note { font-size: 13px; color: var(--ink-faint); font-weight: 400; }
+  .log-dur {
+    font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 18px;
+    font-variant-numeric: tabular-nums;
+  }
+  .log-dur small { font-size: 12px; color: var(--ink-soft); font-weight: 500; margin-left: 2px; }
+  .del {
+    background: none; border: none; color: var(--ink-faint); cursor: pointer;
+    font-size: 20px; line-height: 1; padding: 4px 6px; border-radius: 7px;
+  }
+  .del:hover { color: var(--cat-voima); background: var(--bg); }
+  .del:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
+  .del-area { display: flex; justify-content: flex-end; }
+  .confirm { display: inline-flex; gap: 6px; align-items: center; }
+  .confirm-yes, .confirm-no {
+    font-family: inherit; font-size: 13px; font-weight: 500; cursor: pointer;
+    padding: 6px 11px; border-radius: 8px; border: 1px solid var(--line);
+    transition: filter 0.12s;
+  }
+  .confirm-yes { background: var(--cat-voima); color: #fff; border-color: var(--cat-voima); }
+  .confirm-yes:hover { filter: brightness(0.94); }
+  .confirm-no { background: var(--bg); color: var(--ink-soft); }
+  .confirm-no:hover { color: var(--ink); }
+  .confirm-yes:focus-visible, .confirm-no:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
+  .log-empty { font-size: 14px; color: var(--ink-faint); padding: 8px 0; }
+
+  /* View tabs */
+  .viewtabs {
+    display: inline-flex; gap: 4px; background: var(--surface);
+    border: 1px solid var(--line); border-radius: 12px; padding: 4px; margin-bottom: 18px;
+  }
+  .vtab {
+    font-family: 'Barlow Condensed', sans-serif; font-weight: 600; font-size: 15px;
+    text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-soft);
+    background: none; border: none; padding: 8px 18px; border-radius: 9px; cursor: pointer;
+    transition: background 0.12s, color 0.12s;
+  }
+  .vtab.active { background: var(--ink); color: #fff; }
+  .vtab:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+  .view[hidden] { display: none; }
+
+  /* Exercise bank */
+  .bank-list { display: flex; flex-direction: column; gap: 22px; }
+  .bank-head {
+    display: flex; align-items: center; gap: 9px; margin-bottom: 10px;
+    font-family: 'Barlow Condensed', sans-serif; font-weight: 600; font-size: 17px;
+    text-transform: uppercase; letter-spacing: 0.03em;
+  }
+  .bank-items { display: flex; flex-direction: column; gap: 8px; }
+  .bank-item {
+    width: 100%; text-align: left; font-family: inherit; cursor: pointer;
+    background: var(--bg); border: 1px solid var(--line); border-radius: 11px; padding: 12px 14px;
+    transition: border-color 0.12s, background 0.12s;
+  }
+  .bank-item:hover { border-color: var(--ink-soft); background: var(--surface); }
+  .bank-item:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
+  .bank-name { font-size: 15px; font-weight: 500; color: var(--ink); }
+  .bank-desc { font-size: 13px; color: var(--ink-soft); margin-top: 3px; }
+
+  /* Goal card */
+  .goal-intro { font-size: 14px; color: var(--ink-soft); margin-bottom: 16px; }
+  .goal-setup-cats { margin-bottom: 14px; }
+  .goal-list { display: flex; flex-direction: column; gap: 18px; margin-bottom: 16px; }
+  .goal-row-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+  .goal-row-label { display: flex; align-items: center; gap: 9px; font-size: 15px; font-weight: 500; }
+  .goal-row-target {
+    font-family: 'Barlow Condensed', sans-serif; font-weight: 600; font-size: 14px; color: var(--ink-faint);
+    text-transform: uppercase; letter-spacing: 0.03em; margin-left: 2px;
+  }
+  .goal-row.achieved .goal-row-label { color: var(--brand); }
+  .goal-streak {
+    font-family: 'Barlow Condensed', sans-serif; font-weight: 600; font-size: 12px;
+    text-transform: uppercase; letter-spacing: 0.04em; color: var(--cat-nopeus);
+    background: #FBEEE4; padding: 2px 9px; border-radius: 999px;
+  }
+  .goal-badge {
+    display: inline-flex; align-items: center; justify-content: center; width: 19px; height: 19px;
+    background: var(--brand); color: #fff; border-radius: 50%; font-size: 12px; font-weight: 700;
+    animation: goalpop 0.35s ease;
+  }
+  @keyframes goalpop { from { transform: scale(0); } to { transform: scale(1); } }
+  .goal-remove {
+    background: none; border: none; color: var(--ink-faint); cursor: pointer;
+    font-size: 18px; line-height: 1; padding: 2px 7px; border-radius: 6px;
+  }
+  .goal-remove:hover { color: var(--cat-voima); background: var(--bg); }
+  .goal-remove:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
+  .goal-bar { height: 12px; background: var(--bg); border-radius: 7px; overflow: hidden; margin-bottom: 8px; }
+  .goal-bar-fill { height: 100%; border-radius: 7px; width: 0; transition: width 0.5s ease; }
+  .goal-nums { font-size: 13px; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+  .goal-encour { font-size: 14px; color: var(--ink); font-weight: 500; margin-top: 8px; }
+  .goal-row.achieved .goal-encour { color: var(--brand); font-weight: 600; }
+  .goal-nudge { font-size: 13px; color: var(--ink-faint); margin-top: 4px; }
+  .goal-msg { font-size: 14px; color: var(--ink); font-weight: 500; }
+  .achieved-msg { color: var(--brand); font-weight: 600; margin-bottom: 16px; }
+  .goal-add { border-top: 1px solid var(--line); padding-top: 16px; }
+  .goal-add-first { border-top: none; padding-top: 0; }
+  .goal-hours-fld { display: block; margin-bottom: 14px; max-width: 220px; }
+  .goal-add-label {
+    font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em;
+    color: var(--ink-faint); margin-bottom: 10px;
+  }
+  .goal-add-row { display: flex; gap: 10px; align-items: center; }
+  .goal-add-row input { flex: 1; max-width: 220px; }
+  .goal-add-btn { width: auto; margin-top: 0; padding: 11px 20px; white-space: nowrap; }
+
+  /* Goals in calendar */
+  .cal-goal-list { display: flex; flex-direction: column; gap: 12px; }
+  .cal-goal-row { display: grid; grid-template-columns: 116px 1fr 120px; align-items: center; gap: 12px; }
+  .cal-goal-label { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 500; white-space: nowrap; }
+  .cal-goal-val { font-size: 13px; color: var(--ink-soft); text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+  /* Calendar */
+  .cal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+  .cal-title { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 23px; text-transform: capitalize; }
+  .cal-nav {
+    font-size: 22px; line-height: 1; background: var(--bg); border: 1px solid var(--line);
+    color: var(--ink); width: 42px; height: 42px; border-radius: 11px; cursor: pointer;
+  }
+  .cal-nav:hover { background: var(--surface); border-color: var(--ink-soft); }
+  .cal-nav:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
+  .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+  .cal-dow { margin-bottom: 6px; }
+  .cal-dow div {
+    text-align: center; font-size: 12px; font-weight: 600; color: var(--ink-faint);
+    text-transform: uppercase; letter-spacing: 0.05em; padding: 2px 0;
+  }
+  .cal-day {
+    min-height: 92px; border: 1px solid var(--line); border-radius: 11px; padding: 8px;
+    background: var(--surface); cursor: pointer; font-family: inherit; text-align: left;
+    display: flex; flex-direction: column; gap: 6px; transition: border-color 0.12s, background 0.12s;
+  }
+  .cal-day.empty { background: transparent; border: none; cursor: default; }
+  .cal-day:not(.empty):hover { border-color: var(--ink-soft); }
+  .cal-day .dnum {
+    font-family: 'Barlow Condensed', sans-serif; font-weight: 600; font-size: 15px; color: var(--ink-soft);
+  }
+  .cal-day.thisweek { background: #F4FAF6; }
+  .cal-day.today { border-color: var(--brand); }
+  .cal-day.today .dnum { color: var(--brand); }
+  .cal-day.sel { border-color: var(--ink); background: var(--bg); }
+  .cal-day.sel .dnum { color: var(--ink); }
+  .cal-dots { display: flex; flex-wrap: wrap; gap: 4px; margin-top: auto; }
+  .cal-dots .dot { width: 9px; height: 9px; border-radius: 3px; }
+  .cal-more { font-size: 11px; color: var(--ink-faint); font-weight: 500; }
+
+  /* Day panel */
+  .day-panel-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 12px; }
+  .day-panel-head h2 { font-family: 'Barlow Condensed', sans-serif; font-weight: 600; font-size: 19px; text-transform: capitalize; }
+  .day-sessions { display: flex; flex-direction: column; }
+  .day-row {
+    display: grid; grid-template-columns: 1fr auto auto; gap: 12px;
+    padding: 13px 0; border-top: 1px solid var(--line); align-items: start;
+  }
+  .day-row:first-child { border-top: none; }
+  .day-cat { display: flex; align-items: center; gap: 9px; font-size: 15px; font-weight: 500; }
+  .day-note { font-size: 13px; color: var(--ink-faint); margin-top: 3px; padding-left: 19px; }
+  .day-dur {
+    font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 18px;
+    font-variant-numeric: tabular-nums; white-space: nowrap;
+  }
+  .day-dur small { font-size: 12px; color: var(--ink-soft); font-weight: 500; margin-left: 2px; }
+  .day-empty { font-size: 14px; color: var(--ink-faint); padding: 6px 0; }
+
+  /* Custom date picker (Finnish, replaces native date input) */
+  .date-fld { display: block; margin-bottom: 14px; position: relative; }
+  .date-btn {
+    width: 100%; font-family: inherit; font-size: 15px; color: var(--ink); text-align: left;
+    background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 11px 13px;
+    cursor: pointer; text-transform: capitalize;
+  }
+  .date-btn:hover { border-color: var(--ink-soft); }
+  .date-btn:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
+  .date-pop {
+    position: absolute; z-index: 30; top: calc(100% + 6px); left: 0; width: 300px; max-width: 88vw;
+    background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px;
+    box-shadow: 0 8px 24px rgba(20, 32, 27, 0.12);
+  }
+  .date-pop[hidden] { display: none; }
+  .dp-head { margin-bottom: 10px; }
+  .dp-head .cal-title { font-size: 18px; }
+  .dp-head .cal-nav { width: 34px; height: 34px; font-size: 18px; border-radius: 9px; }
+  .dp-dow { margin-bottom: 4px; }
+  .dp-dow div { font-size: 11px; padding: 0; }
+  .dp-grid { gap: 3px; }
+  .dp-cell {
+    aspect-ratio: 1 / 1; display: flex; align-items: center; justify-content: center;
+    font-family: 'Barlow Condensed', sans-serif; font-weight: 600; font-size: 14px; color: var(--ink-soft);
+    background: none; border: 1px solid transparent; border-radius: 8px; cursor: pointer;
+  }
+  .dp-cell.empty { cursor: default; }
+  .dp-cell:not(.empty):hover { background: var(--bg); }
+  .dp-cell.today { color: var(--brand); }
+  .dp-cell.sel { background: var(--ink); color: #fff; }
+
+  @media (min-width: 720px) {
+    .wrap.wide { max-width: 920px; }
+  }
+
+  @media (max-width: 560px) {
+    .viewtabs { display: flex; }
+    .vtab { flex: 1; padding: 8px 6px; font-size: 13px; text-align: center; }
+    .hero { grid-template-columns: 1fr; }
+    .hero-main { border-right: none; border-bottom: 1px solid var(--line); padding: 0 0 16px; }
+    .hero-side { padding: 16px 0 0; flex-direction: row; gap: 28px; }
+    .hero-number { font-size: 64px; }
+    .bar-row { grid-template-columns: 112px 1fr 62px; }
+    .log-item { grid-template-columns: 52px 1fr auto auto; }
+    .cal-grid { gap: 4px; }
+    .cal-day { min-height: 60px; padding: 5px; border-radius: 8px; gap: 4px; }
+    .cal-day .dnum { font-size: 13px; }
+    .cal-dots .dot { width: 7px; height: 7px; }
+    .cal-dow div { font-size: 11px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .bar-fill { transition: none; }
+    .goal-bar-fill { transition: none; }
+    .goal-badge { animation: none; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="topbar">
+    <div>
+      <h1>Omatoimitreenit</h1>
+    </div>
+  </div>
+
+  <div class="viewtabs" role="tablist">
+    <button class="vtab active" id="tabDash" type="button">Päiväkirja</button>
+    <button class="vtab" id="tabCal" type="button">Kalenteri</button>
+    <button class="vtab" id="tabBank" type="button">Harjoitepankki</button>
+  </div>
+
+  <div id="viewDash" class="view">
+
+  <!-- Kirjauslomake -->
+  <div class="card">
+    <div class="sec-head"><h2>Kirjaa harjoitus</h2></div>
+    <div class="row2">
+      <div class="fld date-fld"><span>Päivämäärä</span>
+        <button type="button" class="date-btn" id="dateBtn"></button>
+        <div class="date-pop" id="datePop" hidden>
+          <div class="cal-head dp-head">
+            <button class="cal-nav" id="dpPrev" type="button" aria-label="Edellinen kuukausi">‹</button>
+            <div class="cal-title" id="dpTitle"></div>
+            <button class="cal-nav" id="dpNext" type="button" aria-label="Seuraava kuukausi">›</button>
+          </div>
+          <div class="cal-grid cal-dow dp-dow">
+            <div>Ma</div><div>Ti</div><div>Ke</div><div>To</div><div>Pe</div><div>La</div><div>Su</div>
+          </div>
+          <div class="cal-grid dp-grid" id="dpDays"></div>
+        </div>
+      </div>
+      <label class="fld"><span>Kesto (min)</span><input type="number" id="inDuration" min="1" max="600" placeholder="esim. 30"></label>
+    </div>
+    <label class="fld" style="margin-bottom:12px"><span>Kategoria</span></label>
+    <div class="chip-groups" id="chipGroups" style="margin-bottom:16px"></div>
+    <label class="fld"><span>Muistiinpano (valinnainen)</span><input type="text" id="inNote" maxlength="80" placeholder="esim. potkutarkkuus, 50 toistoa"></label>
+    <button class="btn" id="saveBtn">Tallenna kirjaus</button>
+  </div>
+
+  <!-- Hero: valitun jakson yhteenveto -->
+  <div class="card">
+    <div class="period-bar">
+      <select id="periodSelect" aria-label="Valitse jakso"></select>
+    </div>
+    <div class="hero">
+      <div class="hero-main">
+        <div class="hero-label" id="heroMonth">Harjoitusaikaa</div>
+        <div class="hero-number"><span id="heroHours">0</span><span class="unit">h</span></div>
+        <div class="hero-sub" id="heroSub">Ei kirjauksia tällä jaksolla</div>
+      </div>
+      <div class="hero-side">
+        <div>
+          <div class="stat-row"><span class="stat-big" id="statSessions">0</span><span class="stat-cap">harjoitusta</span></div>
+        </div>
+        <div>
+          <div class="stat-row"><span class="stat-big" id="statTop">–</span></div>
+          <div class="stat-cap">eniten harjoiteltu</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tavoite -->
+  <div class="card" id="goalCard"></div>
+
+  <!-- Kategoriajakauma -->
+  <div class="card">
+    <div class="sec-head">
+      <h2>Jakauma kategorioittain</h2>
+      <span class="hint" id="barsPeriod">tässä kuussa</span>
+    </div>
+    <div class="bars" id="bars"></div>
+  </div>
+
+  <!-- Kuukausittain (koko historia) -->
+  <div class="card" id="monthsCard" style="display:none">
+    <div class="sec-head">
+      <h2>Kuukausittain</h2>
+      <span class="hint">napauta valitaksesi</span>
+    </div>
+    <div class="bars" id="monthBars"></div>
+  </div>
+
+  <!-- Lista -->
+  <div class="card">
+    <div class="sec-head">
+      <h2>Viimeisimmät</h2>
+      <span class="hint" id="listCount"></span>
+    </div>
+    <div class="log" id="log"></div>
+  </div>
+
+  </div><!-- /viewDash -->
+
+  <!-- Kalenterinäkymä -->
+  <div id="viewCalendar" class="view" hidden>
+    <div class="card cal-goals" id="calGoals" hidden>
+      <div class="sec-head">
+        <h2>Tämän viikon tavoitteet</h2>
+        <span class="hint" id="calGoalsHint">ma–su</span>
+      </div>
+      <div class="cal-goal-list" id="calGoalList"></div>
+    </div>
+    <div class="card cal-card">
+      <div class="cal-head">
+        <button class="cal-nav" id="calPrev" type="button" aria-label="Edellinen kuukausi">‹</button>
+        <div class="cal-title" id="calTitle"></div>
+        <button class="cal-nav" id="calNext" type="button" aria-label="Seuraava kuukausi">›</button>
+      </div>
+      <div class="cal-grid cal-dow">
+        <div>Ma</div><div>Ti</div><div>Ke</div><div>To</div><div>Pe</div><div>La</div><div>Su</div>
+      </div>
+      <div class="cal-grid" id="calDays"></div>
+    </div>
+    <div class="card day-panel">
+      <div class="day-panel-head">
+        <h2 id="dayTitle">Valitse päivä</h2>
+        <span class="hint" id="dayTotal"></span>
+      </div>
+      <div class="day-sessions" id="daySessions"></div>
+    </div>
+  </div>
+
+  <!-- Harjoitepankki -->
+  <div id="viewBank" class="view" hidden>
+    <div class="card">
+      <div class="sec-head">
+        <h2>Harjoitepankki</h2>
+        <span class="hint">valitse harjoite</span>
+      </div>
+      <div class="bank-list" id="bankList"></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+/* =========================================================================
+   DATAKERROS
+   Tämä on ainoa osa, jonka vaihdat kun liität sovelluksen Supabaseen.
+   Funktiot ovat tarkoituksella async, jotta Supabase-kutsut sopivat
+   suoraan tilalle ilman muutoksia muuhun koodiin.
+   Supabase-versio + SQL-skeema löytyvät tiedoston lopusta kommentista.
+   ========================================================================= */
+const store = (() => {
+  let entries = [];                      // muistinvarainen lista (nollautuu sivun latauksessa)
+  let nextId = 1;
+  return {
+    async getEntries() {
+      return [...entries].sort((a, b) => b.date.localeCompare(a.date) || b.id - a.id);
+    },
+    async addEntry(entry) {
+      const row = { id: nextId++, ...entry };
+      entries.push(row);
+      return row;
+    },
+    async deleteEntry(id) {
+      entries = entries.filter(e => e.id !== id);
+    }
+  };
+})();
+
+/* Viikkotavoitteet – lista, jossa voi olla useita { category, hours }.
+   Supabasessa tämä on goals-taulu: yksi rivi per käyttäjä+kategoria. */
+const goalStore = (() => {
+  let goals = [];
+  return {
+    async get() { return [...goals]; },
+    async set(list) { goals = [...list]; return [...goals]; }
+  };
+})();
+
+/* ---- Kategoriat (muokkaa vapaasti) ---- */
+const CATEGORIES = [
+  { id: 'laukaukset',  label: 'Laukaukset',  group: 'Tekniset', color: 'var(--cat-laukaukset)' },
+  { id: 'syottely',    label: 'Syöttely',    group: 'Tekniset', color: 'var(--cat-syottely)' },
+  { id: 'kuljetus',    label: 'Kuljetus',    group: 'Tekniset', color: 'var(--cat-kuljetus)' },
+  { id: 'pallotaito',  label: 'Pallotaito',  group: 'Tekniset', color: 'var(--cat-pallotaito)' },
+  { id: 'nopeus',      label: 'Nopeus',      group: 'Fyysiset', color: 'var(--cat-nopeus)' },
+  { id: 'voima',       label: 'Voima',       group: 'Fyysiset', color: 'var(--cat-voima)' },
+  { id: 'kestavyys',   label: 'Kestävyys',   group: 'Fyysiset', color: 'var(--cat-kestavyys)' },
+  { id: 'liikkuvuus',  label: 'Liikkuvuus',  group: 'Fyysiset', color: 'var(--cat-liikkuvuus)' },
+  { id: 'muu',         label: 'Muu',         group: 'Muu',      color: 'var(--cat-muu)' },
+];
+const catById = id => CATEGORIES.find(c => c.id === id) || CATEGORIES[CATEGORIES.length - 1];
+
+/* ---- Harjoitepankki (oletuskestoa ei ole – käyttäjä syöttää keston itse) ---- */
+const EXERCISES = [
+  // Laukaukset
+  { category: 'laukaukset', name: 'Seinälaukaukset', desc: 'Lauko seinään molemmilla jaloilla; tarkkuus ja ensikosketus paluupallosta.' },
+  { category: 'laukaukset', name: 'Tarkkuuslaukaukset kohteisiin', desc: 'Kohteet maalin kulmiin, laukaukset eri etäisyyksiltä.' },
+  { category: 'laukaukset', name: 'Ensikosketus + laukaus', desc: 'Ota syöttö haltuun ja laukaise nopeasti; vaihtele kulmaa.' },
+  { category: 'laukaukset', name: 'Ilmalaukaukset (volley)', desc: 'Pudota pallo ja laukaise ilmasta keskeltä palloa.' },
+  // Syöttely
+  { category: 'syottely', name: 'Seinäsyötöt', desc: 'Matalat, napakat syötöt seinään molemmilla jaloilla.' },
+  { category: 'syottely', name: 'Pitkän syötön tarkkuus', desc: 'Pitkä syöttö kohteeseen kentän poikki.' },
+  { category: 'syottely', name: 'Yhden kosketuksen syötöt', desc: 'Haltuunotto ja syöttö yhdellä kosketuksella.' },
+  { category: 'syottely', name: 'Kartioporttisyötöt', desc: 'Syötä kartioiden väleistä eri etäisyyksiltä.' },
+  // Kuljetus
+  { category: 'kuljetus', name: 'Kartiopujottelu', desc: 'Tiukka rata molemmilla jaloilla, pallo lähellä.' },
+  { category: 'kuljetus', name: '1v1-harhautukset', desc: 'Veto-työntö, kroketti yms. kartiota vastaan + kiihdytys ohi.' },
+  { category: 'kuljetus', name: 'Suunnanmuutoskuljetus', desc: 'Nopeat suunnanvaihdot merkeillä, molemmat jalkaterät.' },
+  { category: 'kuljetus', name: 'Vauhtikuljetus halliten', desc: 'Pitkä matka maksimivauhtia pallo hallinnassa.' },
+  // Pallotaito
+  { category: 'pallotaito', name: 'Pallottelu (jonglööraus)', desc: 'Pallo ilmassa eri kehonosilla; tavoittele toistoennätyksiä.' },
+  { category: 'pallotaito', name: 'Jalkapohjarullaukset & toe taps', desc: 'Nopeat kosketukset ja rullaukset paikallaan.' },
+  { category: 'pallotaito', name: 'Kosketusyhdistelmät', desc: 'Sisä-ulko, V-veto yms. molemmilla jaloilla.' },
+  { category: 'pallotaito', name: 'Pallonhallinta paikallaan', desc: 'Kosketukset sisä-, ulko- ja jalkapohjalla.' },
+  // Nopeus
+  { category: 'nopeus', name: 'Kiihdytykset 10–30 m', desc: 'Täysi teho, täysi palautus välissä.' },
+  { category: 'nopeus', name: 'Ketteryystikkaat', desc: 'Askelkuviot nopeudella ja rytmillä.' },
+  { category: 'nopeus', name: 'Suunnanmuutos 5-10-5', desc: 'Kartioiden välillä nopeat käännökset.' },
+  { category: 'nopeus', name: 'Reaktiolähdöt', desc: 'Lähtö merkistä eri asennoista.' },
+  // Voima
+  { category: 'voima', name: 'Kyykyt & askelkyykyt', desc: 'Kehonpaino tai lisäpaino, jalkojen voima.' },
+  { category: 'voima', name: 'Ponnistushypyt (plyometria)', desc: 'Loikat ja hypyt räjähtävyyteen.' },
+  { category: 'voima', name: 'Keskivartalo (core)', desc: 'Lankku, sivulankku, vatsaliikkeet.' },
+  { category: 'voima', name: 'Takaketju: lantionnostot & sillat', desc: 'Pakara- ja takareisivoima, vammojen ehkäisy.' },
+  // Kestävyys
+  { category: 'kestavyys', name: 'Intervallijuoksu 4×4 min', desc: 'Kovaa, palautus välissä.' },
+  { category: 'kestavyys', name: 'Peruskestävyyslenkki', desc: 'Rauhallinen tasavauhtinen lenkki.' },
+  { category: 'kestavyys', name: 'Mäkivedot', desc: 'Lyhyet kovat ylämäkivedot.' },
+  { category: 'kestavyys', name: 'Pallolliset vetointervallit', desc: 'Kuljetusvedot kovaa + palautuskävely.' },
+  // Liikkuvuus
+  { category: 'liikkuvuus', name: 'Dynaaminen alkulämmittely', desc: 'Jalan heilautukset, lonkka-avaukset ennen treeniä.' },
+  { category: 'liikkuvuus', name: 'Staattinen venyttely', desc: 'Päälihasryhmät treenin jälkeen.' },
+  { category: 'liikkuvuus', name: 'Lonkan & nilkan liikkuvuus', desc: 'Kohdennetut liikkeet jalkapalloilijan niveliin.' },
+  { category: 'liikkuvuus', name: 'Foam roller -palautus', desc: 'Rullaus ja kevyt liike palautumispäivänä.' },
+  // Muu
+  { category: 'muu', name: 'Ottelun analysointi (video)', desc: 'Oma tai huippupelaajan peli; poimi opittavaa.' },
+  { category: 'muu', name: 'Mielikuvaharjoittelu', desc: 'Visualisointi ja keskittyminen.' },
+  { category: 'muu', name: 'Säännöt & taktiikka', desc: 'Opiskele pelipaikan rooleja ja tilanteita.' },
+];
+
+/* ---- Apurit ---- */
+const pad = n => String(n).padStart(2, '0');
+const todayISO = () => { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; };
+const fmtHours = min => {
+  const h = Math.floor(min / 60), m = min % 60;
+  if (h === 0) return `${m} min`;
+  if (m === 0) return `${h} h`;
+  return `${h} h ${m} min`;
+};
+const monthKey = iso => iso.slice(0, 7);
+const dayFmt = new Intl.DateTimeFormat('fi-FI', { weekday: 'short' });
+const dateFmt = new Intl.DateTimeFormat('fi-FI', { day: 'numeric', month: 'numeric' });
+const monthName = new Intl.DateTimeFormat('fi-FI', { month: 'long', year: 'numeric' });
+
+/* ---- Lomakkeen tila ---- */
+let selectedCat = CATEGORIES[0].id;
+
+/* ---- Tavoitteiden tila ---- */
+let currentGoals = [];               // [{ category, hours }]
+let goalSetupCat = null;             // lisäyslomakkeessa valittu kategoria
+
+/* ---- Valittu jakso: 'all' tai 'YYYY-MM' ---- */
+let selectedPeriod = monthKey(todayISO());
+
+/* ---- Näkymä ja kalenteri ---- */
+let currentView = 'dash';
+const _now = new Date();
+let calY = _now.getFullYear();
+let calM = _now.getMonth();          // 0–11
+let selectedDay = todayISO();        // ISO-päivä kalenterissa
+let lastAll = [];                    // viimeksi haettu data (kalenterin navigointia varten)
+
+/* ---- Lomakkeen päivämäärä (oma suomenkielinen valitsin) ---- */
+let formDate = todayISO();
+let dpY, dpM;                        // valitsimessa näkyvä kuukausi
+const btnDateFmt = new Intl.DateTimeFormat('fi-FI', { weekday: 'short', day: 'numeric', month: 'numeric', year: 'numeric' });
+
+/* ---- Renderöinti ---- */
+function renderChips() {
+  const box = document.getElementById('chipGroups');
+  box.innerHTML = '';
+  const groups = [...new Set(CATEGORIES.map(c => c.group))];
+  groups.forEach(g => {
+    const wrap = document.createElement('div');
+    wrap.className = 'chip-group';
+    const lbl = document.createElement('div');
+    lbl.className = 'chip-group-label';
+    lbl.textContent = g;
+    const row = document.createElement('div');
+    row.className = 'chips';
+    CATEGORIES.filter(c => c.group === g).forEach(c => {
+      const b = document.createElement('button');
+      b.className = 'chip';
+      b.type = 'button';
+      b.setAttribute('aria-pressed', String(c.id === selectedCat));
+      b.innerHTML = `<span class="dot" style="background:${c.color}"></span>${c.label}`;
+      b.onclick = () => { selectedCat = c.id; renderChips(); };
+      row.appendChild(b);
+    });
+    wrap.appendChild(lbl);
+    wrap.appendChild(row);
+    box.appendChild(wrap);
+  });
+}
+
+/* ---- Jaksot ---- */
+function labelForMonth(key) {
+  const [y, m] = key.split('-').map(Number);
+  const s = new Intl.DateTimeFormat('fi-FI', { month: 'long', year: 'numeric' }).format(new Date(y, m - 1, 1));
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+function periodLabel(p) { return p === 'all' ? 'Kaikki ajat' : labelForMonth(p); }
+
+function monthsWithData(all) {
+  return [...new Set(all.map(e => monthKey(e.date)))].sort().reverse();
+}
+function availableMonths(all) {
+  const set = new Set(all.map(e => monthKey(e.date)));
+  set.add(monthKey(todayISO()));            // nykyinen kuukausi aina valittavissa
+  return [...set].sort().reverse();
+}
+function renderPeriodSelect(all) {
+  const sel = document.getElementById('periodSelect');
+  const months = availableMonths(all);
+  if (selectedPeriod !== 'all' && !months.includes(selectedPeriod)) selectedPeriod = monthKey(todayISO());
+  sel.innerHTML = '';
+  sel.add(new Option('Kaikki ajat', 'all'));
+  months.forEach(m => sel.add(new Option(labelForMonth(m), m)));
+  sel.value = selectedPeriod;
+}
+
+async function renderAll() {
+  const all = await store.getEntries();
+  lastAll = all;
+  currentGoals = await goalStore.get();
+  renderPeriodSelect(all);
+  const isAll = selectedPeriod === 'all';
+  const periodEntries = isAll ? all : all.filter(e => monthKey(e.date) === selectedPeriod);
+
+  /* Hero */
+  const totalMin = periodEntries.reduce((s, e) => s + e.duration, 0);
+  const totalH = (totalMin / 60);
+  document.getElementById('heroMonth').textContent = isAll ? 'Kaikkien aikojen yhteensä' : 'Harjoitusaikaa';
+  document.getElementById('heroHours').textContent =
+    totalMin === 0 ? '0' : (Number.isInteger(totalH) ? totalH : totalH.toFixed(1).replace('.', ','));
+  document.getElementById('heroSub').textContent =
+    totalMin === 0 ? 'Ei kirjauksia tällä jaksolla' : `Yhteensä ${fmtHours(totalMin)}`;
+  document.getElementById('statSessions').textContent = periodEntries.length;
+
+  /* Per-kategoria summat valitulla jaksolla */
+  const byCat = {};
+  periodEntries.forEach(e => { byCat[e.category] = (byCat[e.category] || 0) + e.duration; });
+  const topCat = Object.entries(byCat).sort((a, b) => b[1] - a[1])[0];
+  document.getElementById('statTop').textContent = topCat ? catById(topCat[0]).label : '–';
+
+  /* Palkit */
+  document.getElementById('barsPeriod').textContent = periodLabel(selectedPeriod).toLowerCase();
+  const maxMin = Math.max(1, ...Object.values(byCat));
+  const bars = document.getElementById('bars');
+  if (periodEntries.length === 0) {
+    bars.innerHTML = '<div class="empty-note">Ei kirjauksia tällä jaksolla.</div>';
+  } else {
+    bars.innerHTML = '';
+    CATEGORIES.forEach(c => {
+      const min = byCat[c.id] || 0;
+      if (min === 0) return;
+      const row = document.createElement('div');
+      row.className = 'bar-row';
+      row.innerHTML = `
+        <div class="bar-label"><span class="dot" style="background:${c.color}"></span>${c.label}</div>
+        <div class="bar-track"><div class="bar-fill" style="background:${c.color}"></div></div>
+        <div class="bar-val">${fmtHours(min)}</div>`;
+      bars.appendChild(row);
+      requestAnimationFrame(() => {
+        row.querySelector('.bar-fill').style.width = (min / maxMin * 100) + '%';
+      });
+    });
+  }
+
+  renderMonthBars(all);
+  renderGoal();
+  renderCalendar();
+  renderDayPanel();
+
+  /* Lista (vain 10 viimeisintä) */
+  const log = document.getElementById('log');
+  const recent = all.slice(0, 10);
+  document.getElementById('listCount').textContent =
+    all.length === 0 ? '' : (all.length > 10 ? `uusimmat 10 / ${all.length}` : `${all.length} kpl`);
+  if (all.length === 0) {
+    log.innerHTML = '<div class="log-empty">Ei vielä harjoituksia. Lisää ensimmäinen yllä.</div>';
+    return;
+  }
+  log.innerHTML = '';
+  recent.forEach(e => {
+    const c = catById(e.category);
+    const d = new Date(e.date + 'T00:00:00');
+    const item = document.createElement('div');
+    item.className = 'log-item';
+    item.innerHTML = `
+      <div class="log-date">${dayFmt.format(d)}<small>${dateFmt.format(d)}</small></div>
+      <div>
+        <div class="log-cat"><span class="dot" style="background:${c.color}"></span>${c.label}</div>
+        ${e.note ? `<div class="log-note">${escapeHtml(e.note)}</div>` : ''}
+      </div>
+      <div class="log-dur">${e.duration}<small>min</small></div>
+      <div class="del-area"></div>`;
+    setupDelete(item.querySelector('.del-area'), e);
+    log.appendChild(item);
+  });
+}
+
+/* Poisto kahdessa vaiheessa: × → "Poista / Peru" */
+function setupDelete(area, entry) {
+  area.innerHTML = '<button class="del" title="Poista" aria-label="Poista kirjaus">×</button>';
+  area.querySelector('.del').onclick = () => {
+    area.innerHTML = `
+      <span class="confirm">
+        <button class="confirm-yes" type="button">Poista</button>
+        <button class="confirm-no" type="button">Peru</button>
+      </span>`;
+    area.querySelector('.confirm-yes').onclick = async () => { await store.deleteEntry(entry.id); renderAll(); };
+    area.querySelector('.confirm-no').onclick = () => setupDelete(area, entry);
+  };
+}
+
+function escapeHtml(s) {
+  return s.replace(/[&<>"]/g, ch => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[ch]));
+}
+
+/* ---- Kuukausittain (koko historia, klikattava) ---- */
+function renderMonthBars(all) {
+  const card = document.getElementById('monthsCard');
+  const months = monthsWithData(all);
+  if (months.length <= 1) { card.style.display = 'none'; return; }
+  card.style.display = '';
+
+  const totals = months.map(m => ({
+    key: m,
+    min: all.filter(e => monthKey(e.date) === m).reduce((s, e) => s + e.duration, 0)
+  }));
+  const max = Math.max(1, ...totals.map(t => t.min));
+  const box = document.getElementById('monthBars');
+  box.innerHTML = '';
+  totals.forEach(t => {
+    const row = document.createElement('button');
+    row.type = 'button';
+    row.className = 'bar-row month-row' + (selectedPeriod === t.key ? ' active' : '');
+    row.innerHTML = `
+      <div class="bar-label">${labelForMonth(t.key)}</div>
+      <div class="bar-track"><div class="bar-fill" style="background:var(--brand)"></div></div>
+      <div class="bar-val">${fmtHours(t.min)}</div>`;
+    row.onclick = () => { selectedPeriod = t.key; renderAll(); };
+    box.appendChild(row);
+    requestAnimationFrame(() => {
+      row.querySelector('.bar-fill').style.width = (t.min / max * 100) + '%';
+    });
+  });
+}
+
+/* ---- Näkymänvaihto ---- */
+function switchView(v) {
+  currentView = v;
+  document.getElementById('viewDash').hidden = (v !== 'dash');
+  document.getElementById('viewCalendar').hidden = (v !== 'cal');
+  document.getElementById('viewBank').hidden = (v !== 'bank');
+  document.getElementById('tabDash').classList.toggle('active', v === 'dash');
+  document.getElementById('tabCal').classList.toggle('active', v === 'cal');
+  document.getElementById('tabBank').classList.toggle('active', v === 'bank');
+  document.querySelector('.wrap').classList.toggle('wide', v === 'cal');
+  if (v === 'cal') { renderCalendar(); renderDayPanel(); }
+  if (v === 'bank') renderBank();
+}
+
+/* ---- Harjoitepankki ---- */
+function renderBank() {
+  const box = document.getElementById('bankList');
+  box.innerHTML = '';
+  CATEGORIES.forEach(c => {
+    const exs = EXERCISES.filter(e => e.category === c.id);
+    if (!exs.length) return;
+    const group = document.createElement('div');
+    group.className = 'bank-group';
+    group.innerHTML = `<div class="bank-head"><span class="dot" style="background:${c.color}"></span>${c.label}</div>`;
+    const list = document.createElement('div');
+    list.className = 'bank-items';
+    exs.forEach(ex => {
+      const row = document.createElement('button');
+      row.type = 'button';
+      row.className = 'bank-item';
+      row.innerHTML = `<div class="bank-name">${escapeHtml(ex.name)}</div><div class="bank-desc">${escapeHtml(ex.desc)}</div>`;
+      row.onclick = () => selectExercise(ex);
+      list.appendChild(row);
+    });
+    group.appendChild(list);
+    box.appendChild(group);
+  });
+}
+
+function selectExercise(ex) {
+  selectedCat = ex.category;
+  renderChips();
+  document.getElementById('inNote').value = ex.name;
+  document.getElementById('inDuration').value = '';
+  switchView('dash');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  document.getElementById('inDuration').focus();
+}
+
+/* ---- Tavoitteet (useita per viikko) ---- */
+function weekRangeISO(d = new Date()) {
+  const day = (d.getDay() + 6) % 7;                 // ma=0 … su=6
+  const mon = new Date(d); mon.setDate(d.getDate() - day);
+  const sun = new Date(mon); sun.setDate(mon.getDate() + 6);
+  const iso = x => `${x.getFullYear()}-${pad(x.getMonth() + 1)}-${pad(x.getDate())}`;
+  return { mondayISO: iso(mon), sundayISO: iso(sun) };
+}
+function hoursShort(h) {
+  const s = Number.isInteger(h) ? String(h) : h.toFixed(1).replace('.', ',');
+  return `${s} h`;
+}
+function goalProgress(goal) {
+  const { mondayISO, sundayISO } = weekRangeISO();
+  const doneMin = lastAll
+    .filter(e => e.category === goal.category && e.date >= mondayISO && e.date <= sundayISO)
+    .reduce((s, e) => s + e.duration, 0);
+  const targetMin = Math.round(goal.hours * 60);
+  const pct = targetMin ? Math.min(1, doneMin / targetMin) : 0;
+  return { doneMin, targetMin, pct, achieved: doneMin >= targetMin };
+}
+
+/* Kannustuslauseet edistymisen mukaan */
+const GOAL_PHRASES = {
+  start: [
+    'Uusi viikko, uusi mahdollisuus – aloita tästä!',
+    'Hyvä hetki aloittaa. Sinä pystyt tähän!',
+    'Ensimmäinen treeni vie jo kohti tavoitetta.'
+  ],
+  early: [
+    'Hyvä alku! Pidä vauhti yllä.',
+    'Hienoa, olet liikkeellä – jatka samaan malliin!',
+    'Hyvää työtä, tavoite lähestyy askel kerrallaan.'
+  ],
+  mid: [
+    'Puoliväli ylitetty – loistavaa!',
+    'Hieno suoritus, olet jo pitkällä!',
+    'Vauhti on hyvä, pidä se yllä!'
+  ],
+  almost: [
+    'Enää vähän! Tavoite on käden ulottuvilla.',
+    'Melkein perillä – viimeinen rutistus!',
+    'Niin lähellä! Yksi treeni vielä.'
+  ],
+  achieved: [
+    'Tavoite saavutettu – hienoa työtä!',
+    'Mahtavaa, viikkotavoite täynnä!',
+    'Loistavaa – sinä teit sen!'
+  ],
+  exceeded: [
+    'Tavoite ylitetty – uskomatonta sisua!',
+    'Yli tavoitteen, olet tulessa!',
+    'Huippusuoritus – ylitit tavoitteesi!'
+  ]
+};
+function pickPhrase(arr, seed) {
+  let h = 0;
+  for (const ch of seed) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  return arr[h % arr.length];
+}
+function goalMessage(g, p) {
+  const seed = g.category + weekRangeISO().mondayISO;
+  const raw = p.targetMin ? p.doneMin / p.targetMin : 0;
+  let arr;
+  if (p.doneMin === 0) arr = GOAL_PHRASES.start;
+  else if (p.doneMin > p.targetMin) arr = GOAL_PHRASES.exceeded;
+  else if (p.achieved) arr = GOAL_PHRASES.achieved;
+  else if (raw >= 0.85) arr = GOAL_PHRASES.almost;
+  else if (raw >= 0.5) arr = GOAL_PHRASES.mid;
+  else arr = GOAL_PHRASES.early;
+  return pickPhrase(arr, seed);
+}
+function goalNudge(g, p) {
+  if (p.achieved) return '';
+  const remMin = p.targetMin - p.doneMin;
+  if (remMin <= 0) return '';
+  const dow = (new Date().getDay() + 6) % 7;   // ma=0 … su=6
+  const remDays = 7 - dow;                       // tämä päivä mukaan luettuna
+  if (remDays <= 0) return '';
+  const perDay = Math.ceil(remMin / remDays);
+  return `Noin ${perDay} min päivässä loppuviikon ajan riittää tavoitteeseen.`;
+}
+function goalStreak(goal) {
+  const targetMin = Math.round(goal.hours * 60);
+  let streak = 0;
+  for (let i = 0; i < 104; i++) {
+    const ref = new Date(); ref.setDate(ref.getDate() - i * 7);
+    const { mondayISO, sundayISO } = weekRangeISO(ref);
+    const min = lastAll
+      .filter(e => e.category === goal.category && e.date >= mondayISO && e.date <= sundayISO)
+      .reduce((s, e) => s + e.duration, 0);
+    if (i === 0) { if (min >= targetMin) streak++; }   // kesken oleva viikko ei katkaise putkea
+    else { if (min >= targetMin) streak++; else break; }
+  }
+  return streak;
+}
+
+function renderGoal() {
+  const card = document.getElementById('goalCard');
+  card.className = 'card';
+  const usedIds = currentGoals.map(g => g.category);
+  const remaining = CATEGORIES.filter(c => c.id !== 'muu' && !usedIds.includes(c.id));
+  const allAchieved = currentGoals.length > 0 && currentGoals.every(g => goalProgress(g).achieved);
+
+  let html = `<div class="sec-head"><h2>Viikkotavoitteet</h2>${currentGoals.length ? `<span class="hint">${currentGoals.filter(g => goalProgress(g).achieved).length} / ${currentGoals.length} saavutettu</span>` : ''}</div>`;
+
+  if (!currentGoals.length) {
+    html += `<p class="goal-intro">Aseta yksi tai useampi viikkotavoite (ma–su): valitse kategoria ja kuinka monta tuntia haluat sitä treenata. Voit lisätä useita tavoitteita eri kategorioille.</p>`;
+  } else {
+    html += `<div class="goal-list">`;
+    currentGoals.forEach((g, i) => {
+      const c = catById(g.category);
+      const p = goalProgress(g);
+      const rawPct = p.targetMin ? Math.round(p.doneMin / p.targetMin * 100) : 0;
+      const streak = goalStreak(g);
+      const nudge = goalNudge(g, p);
+      html += `
+        <div class="goal-row${p.achieved ? ' achieved' : ''}">
+          <div class="goal-row-top">
+            <span class="goal-row-label">
+              <span class="dot" style="background:${c.color}"></span>${c.label}
+              <span class="goal-row-target">${hoursShort(g.hours)} / vko</span>
+              ${streak >= 2 ? `<span class="goal-streak">${streak} vko putkeen</span>` : ''}
+              ${p.achieved ? `<span class="goal-badge" title="Saavutettu">✓</span>` : ''}
+            </span>
+            <button class="goal-remove" data-i="${i}" type="button" aria-label="Poista tavoite">×</button>
+          </div>
+          <div class="goal-bar"><div class="goal-bar-fill" data-pct="${p.pct}" style="width:0; background:${p.achieved ? 'var(--accent)' : c.color}"></div></div>
+          <div class="goal-nums">${fmtHours(p.doneMin)} / ${fmtHours(p.targetMin)} · ${rawPct} %</div>
+          <div class="goal-encour">${goalMessage(g, p)}</div>
+          ${nudge ? `<div class="goal-nudge">${nudge}</div>` : ''}
+        </div>`;
+    });
+    html += `</div>`;
+    if (allAchieved) html += `<div class="goal-msg achieved-msg">Kaikki viikkotavoitteet saavutettu – mahtavaa työtä!</div>`;
+  }
+
+  if (remaining.length) {
+    if (!goalSetupCat || !remaining.some(c => c.id === goalSetupCat)) goalSetupCat = remaining[0].id;
+    if (currentGoals.length === 0) {
+      html += `
+        <div class="goal-add goal-add-first">
+          <div class="goal-add-label">Valitse kategoria</div>
+          <div class="chips goal-setup-cats" id="goalChips"></div>
+          <label class="fld goal-hours-fld"><span>Tuntia viikossa</span>
+            <input type="number" id="goalHours" min="0.5" max="40" step="0.5" placeholder="esim. 3">
+          </label>
+          <button class="btn" id="goalAddBtn" type="button">Aseta tavoite</button>
+        </div>`;
+    } else {
+      html += `
+        <div class="goal-add">
+          <div class="goal-add-label">Lisää tavoite</div>
+          <div class="chips goal-setup-cats" id="goalChips"></div>
+          <div class="goal-add-row">
+            <input type="number" id="goalHours" min="0.5" max="40" step="0.5" placeholder="tuntia / viikko">
+            <button class="btn goal-add-btn" id="goalAddBtn" type="button">Lisää</button>
+          </div>
+        </div>`;
+    }
+  }
+
+  card.innerHTML = html;
+
+  card.querySelectorAll('.goal-bar-fill').forEach(f => {
+    const pct = parseFloat(f.dataset.pct);
+    requestAnimationFrame(() => { f.style.width = (pct * 100) + '%'; });
+  });
+  card.querySelectorAll('.goal-remove').forEach(btn => {
+    btn.onclick = async () => {
+      const i = parseInt(btn.dataset.i, 10);
+      await goalStore.set(currentGoals.filter((_, idx) => idx !== i));
+      renderAll();
+    };
+  });
+  const chipBox = card.querySelector('#goalChips');
+  if (chipBox) {
+    remaining.forEach(c => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'chip goal-chip';
+      b.dataset.cat = c.id;
+      b.setAttribute('aria-pressed', String(c.id === goalSetupCat));
+      b.innerHTML = `<span class="dot" style="background:${c.color}"></span>${c.label}`;
+      b.onclick = () => {
+        goalSetupCat = c.id;
+        chipBox.querySelectorAll('.goal-chip').forEach(x =>
+          x.setAttribute('aria-pressed', String(x.dataset.cat === goalSetupCat)));
+      };
+      chipBox.appendChild(b);
+    });
+    card.querySelector('#goalAddBtn').onclick = async () => {
+      const hrs = parseFloat(card.querySelector('#goalHours').value);
+      if (!hrs || hrs <= 0) { card.querySelector('#goalHours').focus(); return; }
+      await goalStore.set([...currentGoals, { category: goalSetupCat, hours: hrs }]);
+      goalSetupCat = null;
+      renderAll();
+    };
+  }
+}
+
+/* Tämän viikon tavoitteet kalenterinäkymässä */
+function renderCalGoals() {
+  const card = document.getElementById('calGoals');
+  const box = document.getElementById('calGoalList');
+  if (!currentGoals.length) { card.hidden = true; return; }
+  card.hidden = false;
+  document.getElementById('calGoalsHint').textContent =
+    `${currentGoals.filter(g => goalProgress(g).achieved).length} / ${currentGoals.length} saavutettu`;
+  box.innerHTML = '';
+  currentGoals.forEach(g => {
+    const c = catById(g.category);
+    const p = goalProgress(g);
+    const rawPct = p.targetMin ? Math.round(p.doneMin / p.targetMin * 100) : 0;
+    const streak = goalStreak(g);
+    const nudge = goalNudge(g, p);
+    const row = document.createElement('div');
+    row.className = 'cal-goal-item' + (p.achieved ? ' achieved' : '');
+    row.innerHTML = `
+      <div class="cal-goal-head">
+        <span class="cal-goal-label">
+          <span class="dot" style="background:${c.color}"></span>${c.label}
+          ${streak >= 2 ? `<span class="goal-streak">${streak} vko putkeen</span>` : ''}
+          ${p.achieved ? `<span class="goal-badge" title="Saavutettu">✓</span>` : ''}
+        </span>
+        <span class="cal-goal-val">${fmtHours(p.doneMin)} / ${fmtHours(p.targetMin)} · ${rawPct} %</span>
+      </div>
+      <div class="bar-track"><div class="bar-fill" data-pct="${p.pct}" style="width:0; background:${p.achieved ? 'var(--accent)' : c.color}"></div></div>
+      <div class="goal-encour">${goalMessage(g, p)}</div>
+      ${nudge ? `<div class="goal-nudge">${nudge}</div>` : ''}`;
+    box.appendChild(row);
+    const f = row.querySelector('.bar-fill');
+    requestAnimationFrame(() => { f.style.width = (p.pct * 100) + '%'; });
+  });
+  if (currentGoals.every(g => goalProgress(g).achieved)) {
+    const msg = document.createElement('div');
+    msg.className = 'goal-msg achieved-msg cal-goal-allmsg';
+    msg.textContent = 'Kaikki viikkotavoitteet saavutettu – mahtavaa työtä!';
+    box.appendChild(msg);
+  }
+}
+
+/* ---- Kalenteri ---- */
+const longDateFmt = new Intl.DateTimeFormat('fi-FI', { weekday: 'long', day: 'numeric', month: 'numeric', year: 'numeric' });
+
+function renderCalendar() {
+  renderCalGoals();
+  document.getElementById('calTitle').textContent = labelForMonth(`${calY}-${pad(calM + 1)}`);
+  const grid = document.getElementById('calDays');
+  grid.innerHTML = '';
+
+  const firstDow = (new Date(calY, calM, 1).getDay() + 6) % 7;   // ma=0 … su=6
+  const daysInMonth = new Date(calY, calM + 1, 0).getDate();
+  const today = todayISO();
+  const { mondayISO, sundayISO } = weekRangeISO();
+
+  for (let i = 0; i < firstDow; i++) {
+    const blank = document.createElement('div');
+    blank.className = 'cal-day empty';
+    grid.appendChild(blank);
+  }
+
+  for (let day = 1; day <= daysInMonth; day++) {
+    const iso = `${calY}-${pad(calM + 1)}-${pad(day)}`;
+    const dayEntries = lastAll.filter(e => e.date === iso);
+    const cats = CATEGORIES.filter(c => dayEntries.some(e => e.category === c.id));
+
+    const cell = document.createElement('button');
+    cell.type = 'button';
+    cell.className = 'cal-day'
+      + (iso >= mondayISO && iso <= sundayISO ? ' thisweek' : '')
+      + (iso === today ? ' today' : '')
+      + (iso === selectedDay ? ' sel' : '');
+
+    const shown = cats.slice(0, 5);
+    const extra = cats.length - shown.length;
+    const dotsHtml = shown.map(c => `<span class="dot" style="background:${c.color}"></span>`).join('')
+      + (extra > 0 ? `<span class="cal-more">+${extra}</span>` : '');
+
+    cell.innerHTML = `<span class="dnum">${day}</span><span class="cal-dots">${dotsHtml}</span>`;
+    cell.onclick = () => { selectedDay = iso; renderCalendar(); renderDayPanel(); };
+    grid.appendChild(cell);
+  }
+}
+
+function renderDayPanel() {
+  const titleEl = document.getElementById('dayTitle');
+  const totalEl = document.getElementById('dayTotal');
+  const box = document.getElementById('daySessions');
+
+  if (!selectedDay) {
+    titleEl.textContent = 'Valitse päivä';
+    totalEl.textContent = '';
+    box.innerHTML = '<div class="day-empty">Napauta kalenterista päivää nähdäksesi sen harjoitukset.</div>';
+    return;
+  }
+
+  const d = new Date(selectedDay + 'T00:00:00');
+  let label = longDateFmt.format(d);
+  label = label.charAt(0).toUpperCase() + label.slice(1);
+  titleEl.textContent = label;
+
+  const dayEntries = lastAll.filter(e => e.date === selectedDay);
+  const totalMin = dayEntries.reduce((s, e) => s + e.duration, 0);
+  totalEl.textContent = dayEntries.length ? fmtHours(totalMin) : '';
+
+  if (dayEntries.length === 0) {
+    box.innerHTML = '<div class="day-empty">Ei harjoituksia tänä päivänä.</div>';
+    return;
+  }
+
+  box.innerHTML = '';
+  dayEntries.forEach(e => {
+    const c = catById(e.category);
+    const row = document.createElement('div');
+    row.className = 'day-row';
+    row.innerHTML = `
+      <div>
+        <div class="day-cat"><span class="dot" style="background:${c.color}"></span>${c.label}</div>
+        ${e.note ? `<div class="day-note">${escapeHtml(e.note)}</div>` : ''}
+      </div>
+      <div class="day-dur">${e.duration}<small>min</small></div>
+      <div class="del-area"></div>`;
+    setupDelete(row.querySelector('.del-area'), e);
+    box.appendChild(row);
+  });
+}
+
+function calStep(delta) {
+  calM += delta;
+  if (calM < 0) { calM = 11; calY--; }
+  else if (calM > 11) { calM = 0; calY++; }
+  renderCalendar();
+}
+
+/* ---- Päivämäärävalitsin (lomake) ---- */
+function updateDateBtn() {
+  const d = new Date(formDate + 'T00:00:00');
+  const s = btnDateFmt.format(d);
+  document.getElementById('dateBtn').textContent = s.charAt(0).toUpperCase() + s.slice(1);
+}
+function renderDatePicker() {
+  document.getElementById('dpTitle').textContent = labelForMonth(`${dpY}-${pad(dpM + 1)}`);
+  const grid = document.getElementById('dpDays');
+  grid.innerHTML = '';
+  const firstDow = (new Date(dpY, dpM, 1).getDay() + 6) % 7;
+  const dim = new Date(dpY, dpM + 1, 0).getDate();
+  const today = todayISO();
+  for (let i = 0; i < firstDow; i++) {
+    const b = document.createElement('div');
+    b.className = 'dp-cell empty';
+    grid.appendChild(b);
+  }
+  for (let day = 1; day <= dim; day++) {
+    const iso = `${dpY}-${pad(dpM + 1)}-${pad(day)}`;
+    const cell = document.createElement('button');
+    cell.type = 'button';
+    cell.className = 'dp-cell' + (iso === today ? ' today' : '') + (iso === formDate ? ' sel' : '');
+    cell.textContent = day;
+    cell.onclick = () => { formDate = iso; updateDateBtn(); closeDatePicker(); };
+    grid.appendChild(cell);
+  }
+}
+function openDatePicker() {
+  const [y, m] = formDate.split('-').map(Number);
+  dpY = y; dpM = m - 1;
+  renderDatePicker();
+  document.getElementById('datePop').hidden = false;
+}
+function closeDatePicker() { document.getElementById('datePop').hidden = true; }
+function dpStep(delta) {
+  dpM += delta;
+  if (dpM < 0) { dpM = 11; dpY--; }
+  else if (dpM > 11) { dpM = 0; dpY++; }
+  renderDatePicker();
+}
+
+/* ---- Tallennus ---- */
+async function save() {
+  const date = formDate;
+  const duration = parseInt(document.getElementById('inDuration').value, 10);
+  const note = document.getElementById('inNote').value.trim();
+  if (!date) { return; }
+  if (!duration || duration < 1) { document.getElementById('inDuration').focus(); return; }
+  await store.addEntry({ date, category: selectedCat, duration, note });
+  document.getElementById('inDuration').value = '';
+  document.getElementById('inNote').value = '';
+  renderAll();
+}
+
+/* ---- Käynnistys ---- */
+async function seed() {
+  // Esimerkkidataa usealta kuukaudelta, jotta selailu ja yhteenveto näkyvät heti.
+  // Voit poistaa koko seed()-kutsun init-funktiosta kun oikea data tulee Supabasesta.
+  const base = new Date();
+  const iso = back => { const d = new Date(base); d.setDate(d.getDate() - back); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; };
+  const prevMonth = off => {
+    const d = new Date(base.getFullYear(), base.getMonth() - off, 14);
+    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+  };
+  const shift = (isoStr, days) => { const d = new Date(isoStr + 'T00:00:00'); d.setDate(d.getDate() + days); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; };
+  const m1 = prevMonth(1), m2 = prevMonth(2);
+  const demo = [
+    // tämä kuukausi
+    { date: iso(0), category: 'laukaukset',  duration: 35, note: 'Potkutarkkuus seinään' },
+    { date: iso(1), category: 'nopeus',      duration: 25, note: '' },
+    { date: iso(2), category: 'kuljetus',    duration: 20, note: '1v1-harhautukset' },
+    { date: iso(3), category: 'syottely',    duration: 40, note: 'Seinäsyötöt' },
+    { date: iso(5), category: 'liikkuvuus',  duration: 30, note: '' },
+    // edellinen kuukausi
+    { date: shift(m1, 0),  category: 'pallotaito', duration: 45, note: '' },
+    { date: shift(m1, -6), category: 'nopeus',     duration: 30, note: 'Kiihdytykset' },
+    { date: shift(m1, -9), category: 'voima',      duration: 25, note: '' },
+    { date: shift(m1, 4),  category: 'kestavyys',  duration: 35, note: 'Intervallit' },
+    // kaksi kuukautta sitten
+    { date: shift(m2, 0),  category: 'laukaukset', duration: 50, note: 'Maalinteko' },
+    { date: shift(m2, -7), category: 'voima',       duration: 40, note: '' },
+    { date: shift(m2, 5),  category: 'syottely',    duration: 20, note: '' },
+  ];
+  for (const d of demo) await store.addEntry(d);
+}
+
+(async function init() {
+  updateDateBtn();
+  document.getElementById('saveBtn').onclick = save;
+  document.getElementById('dateBtn').onclick = e => {
+    e.stopPropagation();
+    const pop = document.getElementById('datePop');
+    if (pop.hidden) openDatePicker(); else closeDatePicker();
+  };
+  document.getElementById('dpPrev').onclick = () => dpStep(-1);
+  document.getElementById('dpNext').onclick = () => dpStep(1);
+  document.addEventListener('click', e => {
+    const fld = document.getElementById('dateBtn').closest('.date-fld');
+    if (!document.getElementById('datePop').hidden && !fld.contains(e.target)) closeDatePicker();
+  });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDatePicker(); });
+  document.getElementById('periodSelect').onchange = e => { selectedPeriod = e.target.value; renderAll(); };
+  document.getElementById('tabDash').onclick = () => switchView('dash');
+  document.getElementById('tabCal').onclick = () => switchView('cal');
+  document.getElementById('tabBank').onclick = () => switchView('bank');
+  document.getElementById('calPrev').onclick = () => calStep(-1);
+  document.getElementById('calNext').onclick = () => calStep(1);
+  renderChips();
+  await seed();
+  renderAll();
+})();
+</script>
+
+<!--
+=============================================================================
+ SUPABASE-INTEGRAATIO  —  näin liität tämän olemassa olevaan Supabaseesi
+=============================================================================
+
+1) TAULU (aja SQL-editorissa). Tämä on version 1 tarvitsema taulu.
+   Käyttäjät, joukkueet ja harjoitekirjasto tulevat myöhemmissä vaiheissa.
+
+   create table training_logs (
+     id          bigint generated always as identity primary key,
+     user_id     uuid references auth.users (id) default auth.uid(),
+     date        date    not null,
+     category    text    not null,
+     duration    integer not null check (duration > 0),
+     note        text,
+     created_at  timestamptz default now()
+   );
+
+   -- Row Level Security: jokainen näkee vain omat kirjauksensa
+   alter table training_logs enable row level security;
+
+   create policy "omat kirjaukset" on training_logs
+     for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+   (Valmentajan oikeus nähdä joukkueensa pelaajien rivit lisätään
+    vaiheessa 4 erillisellä policyllä, joka tarkistaa joukkuejäsenyyden.)
+
+2) LISÄÄ KIRJASTO <head>-osioon:
+
+   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+3) KORVAA yllä oleva `store`-objekti tällä:
+
+   const sb = supabase.createClient('https://OMA-PROJEKTI.supabase.co', 'OMA-ANON-AVAIN');
+
+   const store = {
+     async getEntries() {
+       const { data, error } = await sb
+         .from('training_logs')
+         .select('id, date, category, duration, note')
+         .order('date', { ascending: false });
+       if (error) { console.error(error); return []; }
+       return data;
+     },
+     async addEntry(entry) {
+       const { data, error } = await sb
+         .from('training_logs')
+         .insert({ date: entry.date, category: entry.category, duration: entry.duration, note: entry.note || null })
+         .select().single();
+       if (error) { console.error(error); return null; }
+       return data;
+     },
+     async deleteEntry(id) {
+       const { error } = await sb.from('training_logs').delete().eq('id', id);
+       if (error) console.error(error);
+     }
+   };
+
+4) Poista `seed()`-kutsu init-funktiosta kun oikea data tulee Supabasesta.
+
+   Koska sovelluksen muu koodi käyttää vain store.getEntries / addEntry /
+   deleteEntry -funktioita, mitään muuta ei tarvitse muuttaa.
+=============================================================================
+-->
+</body>
+</html>
