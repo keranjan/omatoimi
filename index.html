@@ -66,6 +66,101 @@
     letter-spacing: -0.01em;
     color: var(--ink-soft);
   }
+  .userbar { display: flex; align-items: center; gap: 12px; }
+  .user-chip {
+    font-family: 'Barlow Condensed', sans-serif; font-weight: 600; font-size: 14px;
+    text-transform: uppercase; letter-spacing: 0.03em; color: var(--ink);
+    background: var(--surface); border: 1px solid var(--line); border-radius: 999px; padding: 5px 13px;
+  }
+  .logout-btn {
+    font-family: inherit; font-size: 13px; font-weight: 500; color: var(--ink-soft);
+    background: none; border: 1px solid var(--line); border-radius: 9px; padding: 6px 12px; cursor: pointer;
+  }
+  .logout-btn:hover { color: var(--ink); border-color: var(--ink-soft); }
+  .logout-btn:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
+  .coach-tag {
+    display: inline-block; margin-top: 4px; font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em;
+    color: #fff; background: var(--brand); padding: 2px 9px; border-radius: 999px;
+  }
+
+  /* Coach view */
+  .coach-add-row { display: flex; gap: 10px; align-items: center; }
+  .coach-add-row input { flex: 1; min-width: 0; }
+  .coach-add-row .btn { flex: none; width: auto; margin-top: 0; padding: 11px 18px; white-space: nowrap; }
+  .coach-empty { font-size: 14px; color: var(--ink-faint); padding: 12px 0 2px; }
+  .coach-msg { font-size: 13px; margin-top: 8px; }
+  .coach-msg.error { color: var(--cat-voima); }
+  .player-list { display: flex; flex-direction: column; margin-top: 14px; }
+  .player-row { padding: 13px 0; border-top: 1px solid var(--line); }
+  .player-row:first-child { border-top: none; }
+  .player-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .player-name { font-size: 15px; font-weight: 600; }
+  .player-stats { font-size: 13px; color: var(--ink-soft); margin-top: 3px; font-variant-numeric: tabular-nums; }
+  .player-cats { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .pcat {
+    display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--ink-soft);
+    background: var(--bg); border: 1px solid var(--line); border-radius: 999px; padding: 3px 9px;
+  }
+  .player-del-area { display: flex; }
+
+  /* Coach reports */
+  .player-count { font-family: 'Barlow Condensed', sans-serif; font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.03em; color: var(--ink-faint); white-space: nowrap; }
+  .rep-section-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-faint); margin: 12px 0 7px; }
+  .rep-cat { display: grid; grid-template-columns: 110px 1fr 60px; align-items: center; gap: 10px; margin-bottom: 6px; }
+  .rep-cat-label { display: flex; align-items: center; gap: 7px; font-size: 13px; }
+  .rep-cat-val { font-size: 12px; color: var(--ink-soft); text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .rep-bar-track { height: 8px; background: var(--bg); border-radius: 5px; overflow: hidden; }
+  .rep-bar-fill { height: 100%; border-radius: 5px; }
+  .rep-goal { display: flex; align-items: center; gap: 7px; font-size: 13px; margin-bottom: 5px; }
+  .rep-goal-name { font-weight: 500; }
+  .rep-goal-val { margin-left: auto; font-size: 12px; color: var(--ink-soft); font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+  /* Challenges */
+  .challenge-desc { font-size: 13px; color: var(--ink-soft); margin: 2px 0 8px; }
+  .ch-list { display: flex; flex-direction: column; gap: 14px; margin-bottom: 16px; }
+  .ch-item-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .ch-del-area { display: flex; }
+  .ch-form { border-top: 1px solid var(--line); padding-top: 16px; }
+  .ch-form-label { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-faint); margin-bottom: 10px; }
+  .ch-cats { margin-bottom: 12px; }
+  .ch-desc {
+    width: 100%; font-family: inherit; font-size: 15px; color: var(--ink); background: var(--bg);
+    border: 1px solid var(--line); border-radius: 10px; padding: 11px 13px; margin-bottom: 12px;
+    resize: vertical; -webkit-appearance: none;
+  }
+  .ch-desc:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
+
+  /* Auth screen */
+  #authScreen {
+    position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+    padding: 24px; background: var(--bg);
+  }
+  #authScreen[hidden] { display: none; }
+  .auth-card {
+    width: 100%; max-width: 380px; background: var(--surface); border: 1px solid var(--line);
+    border-radius: 16px; padding: 28px 26px;
+  }
+  .auth-eyebrow {
+    font-family: 'Barlow Condensed', sans-serif; font-weight: 600; letter-spacing: 0.14em;
+    text-transform: uppercase; font-size: 13px; color: var(--brand); margin-bottom: 4px;
+  }
+  .auth-card h1 {
+    font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 28px;
+    letter-spacing: -0.01em; color: var(--ink); margin-bottom: 20px;
+  }
+  .auth-card .btn { margin-top: 8px; }
+  .auth-error {
+    display: none; font-size: 13px; color: var(--cat-voima); background: #FCEEF3;
+    border-radius: 9px; padding: 9px 12px; margin-bottom: 12px;
+  }
+  .auth-toggle {
+    display: block; width: 100%; text-align: center; margin-top: 14px;
+    font-family: inherit; font-size: 14px; color: var(--ink-soft);
+    background: none; border: none; cursor: pointer;
+  }
+  .auth-toggle:hover { color: var(--brand); }
+  .auth-toggle:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; border-radius: 6px; }
 
   .card {
     background: var(--surface);
@@ -134,11 +229,11 @@
   .period-bar { margin-bottom: 18px; }
   #periodSelect {
     font-family: 'Barlow Condensed', sans-serif; font-weight: 600; font-size: 17px;
-    text-transform: uppercase; letter-spacing: 0.03em; color: var(--ink);
+    text-transform: uppercase; letter-spacing: 0.02em; color: var(--ink);
     background-color: var(--bg); border: 1px solid var(--line); border-radius: 10px;
-    padding: 9px 38px 9px 14px; cursor: pointer; -webkit-appearance: none; appearance: none;
+    padding: 9px 42px 9px 14px; min-width: 178px; cursor: pointer; -webkit-appearance: none; appearance: none;
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2 4l4 4 4-4' stroke='%235C665E' stroke-width='1.6' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-    background-repeat: no-repeat; background-position: right 13px center;
+    background-repeat: no-repeat; background-position: right 14px center;
   }
   #periodSelect:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
 
@@ -163,7 +258,7 @@
     display: block; font-size: 13px; font-weight: 500; color: var(--ink-soft);
     margin-bottom: 6px;
   }
-  input[type="date"], input[type="number"], input[type="text"] {
+  input[type="date"], input[type="number"], input[type="text"], input[type="password"] {
     width: 100%; font-family: inherit; font-size: 15px; color: var(--ink);
     background: var(--bg); border: 1px solid var(--line); border-radius: 10px;
     padding: 11px 13px; -webkit-appearance: none;
@@ -317,10 +412,13 @@
   .goal-add-btn { width: auto; margin-top: 0; padding: 11px 20px; white-space: nowrap; }
 
   /* Goals in calendar */
-  .cal-goal-list { display: flex; flex-direction: column; gap: 12px; }
-  .cal-goal-row { display: grid; grid-template-columns: 116px 1fr 120px; align-items: center; gap: 12px; }
-  .cal-goal-label { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 500; white-space: nowrap; }
-  .cal-goal-val { font-size: 13px; color: var(--ink-soft); text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .cal-goal-list { display: flex; flex-direction: column; gap: 18px; }
+  .cal-goal-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
+  .cal-goal-label { display: flex; align-items: center; gap: 9px; font-size: 15px; font-weight: 500; }
+  .cal-goal-item.achieved .cal-goal-label { color: var(--brand); }
+  .cal-goal-item.achieved .goal-encour { color: var(--brand); font-weight: 600; }
+  .cal-goal-allmsg { margin-bottom: 0; }
+  .cal-goal-val { font-size: 13px; color: var(--ink-soft); font-variant-numeric: tabular-nums; white-space: nowrap; }
 
   /* Calendar */
   .cal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
@@ -431,13 +529,36 @@
     .goal-badge { animation: none; }
   }
 </style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
-<div class="wrap">
+
+<!-- Kirjautumisnäkymä -->
+<div id="authScreen" hidden>
+  <div class="auth-card">
+    <div class="auth-eyebrow">Omatoimitreenit</div>
+    <h1 id="authTitle">Kirjaudu sisään</h1>
+    <label class="fld"><span>Käyttäjänimi</span>
+      <input type="text" id="authUser" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="käyttäjänimi">
+    </label>
+    <label class="fld"><span>Salasana</span>
+      <input type="password" id="authPass" autocomplete="current-password" placeholder="salasana">
+    </label>
+    <div id="authError" class="auth-error"></div>
+    <button class="btn" id="authSubmit" type="button">Kirjaudu</button>
+    <button class="auth-toggle" id="authToggle" type="button">Ei tiliä? Rekisteröidy</button>
+  </div>
+</div>
+
+<div class="wrap" id="playerWrap" hidden>
 
   <div class="topbar">
     <div>
       <h1>Omatoimitreenit</h1>
+    </div>
+    <div class="userbar">
+      <span class="user-chip" id="userChip"></span>
+      <button class="logout-btn" id="logoutBtn" type="button">Kirjaudu ulos</button>
     </div>
   </div>
 
@@ -475,6 +596,12 @@
     <button class="btn" id="saveBtn">Tallenna kirjaus</button>
   </div>
 
+  <!-- Tavoite (viikkotavoitteet) -->
+  <div class="card" id="goalCard"></div>
+
+  <!-- Joukkueen haaste -->
+  <div class="card" id="challengeCard" hidden></div>
+
   <!-- Hero: valitun jakson yhteenveto -->
   <div class="card">
     <div class="period-bar">
@@ -497,9 +624,6 @@
       </div>
     </div>
   </div>
-
-  <!-- Tavoite -->
-  <div class="card" id="goalCard"></div>
 
   <!-- Kategoriajakauma -->
   <div class="card">
@@ -572,41 +696,85 @@
 
 </div>
 
+<!-- Valmentajanäkymä -->
+<div class="wrap" id="coachWrap" hidden>
+  <div class="topbar">
+    <div>
+      <h1>Omatoimitreenit</h1>
+      <div class="coach-tag">Valmentaja</div>
+    </div>
+    <div class="userbar">
+      <span class="user-chip" id="coachUserChip"></span>
+      <button class="logout-btn" id="coachLogoutBtn" type="button">Kirjaudu ulos</button>
+    </div>
+  </div>
+  <div class="viewtabs" role="tablist">
+    <button class="vtab active" id="ctabPlayers" type="button">Pelaajat</button>
+    <button class="vtab" id="ctabTeams" type="button">Joukkueet</button>
+    <button class="vtab" id="ctabChallenges" type="button">Haasteet</button>
+  </div>
+  <div id="coachPlayers" class="view"></div>
+  <div id="coachTeamsView" class="view" hidden></div>
+  <div id="coachChallengesView" class="view" hidden></div>
+</div>
+
 <script>
 /* =========================================================================
-   DATAKERROS
-   Tämä on ainoa osa, jonka vaihdat kun liität sovelluksen Supabaseen.
-   Funktiot ovat tarkoituksella async, jotta Supabase-kutsut sopivat
-   suoraan tilalle ilman muutoksia muuhun koodiin.
-   Supabase-versio + SQL-skeema löytyvät tiedoston lopusta kommentista.
+   SUPABASE-ASETUKSET
+   URL = projektin perus-URL (ilman /rest/v1/-osaa).
+   KEY = uusi julkinen "publishable"-avain (korvaa deprekoidun anon-avaimen).
+         Tämä avain on tarkoitettu client-koodiin; RLS-säännöt suojaavat datan.
+   EMAIL_DOMAIN = sisäinen domain käyttäjänimille (käyttäjä ei näe tätä).
    ========================================================================= */
-const store = (() => {
-  let entries = [];                      // muistinvarainen lista (nollautuu sivun latauksessa)
-  let nextId = 1;
-  return {
-    async getEntries() {
-      return [...entries].sort((a, b) => b.date.localeCompare(a.date) || b.id - a.id);
-    },
-    async addEntry(entry) {
-      const row = { id: nextId++, ...entry };
-      entries.push(row);
-      return row;
-    },
-    async deleteEntry(id) {
-      entries = entries.filter(e => e.id !== id);
-    }
-  };
-})();
+const SUPABASE_URL = 'https://ozfjybzmuwbibolnpajq.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_AjmNg1eclnnQSBGlgTHE-A_Ou7w3y16';
+const EMAIL_DOMAIN = 'treeni.local';
 
-/* Viikkotavoitteet – lista, jossa voi olla useita { category, hours }.
-   Supabasessa tämä on goals-taulu: yksi rivi per käyttäjä+kategoria. */
-const goalStore = (() => {
-  let goals = [];
-  return {
-    async get() { return [...goals]; },
-    async set(list) { goals = [...list]; return [...goals]; }
-  };
-})();
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const usernameToEmail = u => `${u.toLowerCase()}@${EMAIL_DOMAIN}`;
+
+/* =========================================================================
+   DATAKERROS – kirjaukset ja tavoitteet Supabasesta.
+   user_id täyttyy automaattisesti (sarakkeen oletus auth.uid()), ja
+   RLS rajaa rivit kirjautuneelle käyttäjälle.
+   ========================================================================= */
+const store = {
+  async getEntries() {
+    const { data, error } = await sb.from('training_logs')
+      .select('id, date, category, duration, note')
+      .order('date', { ascending: false });
+    if (error) { console.error(error); return []; }
+    return data.map(r => ({ ...r, note: r.note || '' }));
+  },
+  async addEntry(entry) {
+    const { data, error } = await sb.from('training_logs')
+      .insert({ date: entry.date, category: entry.category, duration: entry.duration, note: entry.note || null })
+      .select().single();
+    if (error) { console.error(error); return null; }
+    return data;
+  },
+  async deleteEntry(id) {
+    const { error } = await sb.from('training_logs').delete().eq('id', id);
+    if (error) console.error(error);
+  }
+};
+
+const goalStore = {
+  async get() {
+    const { data, error } = await sb.from('goals')
+      .select('id, category, hours').order('created_at', { ascending: true });
+    if (error) { console.error(error); return []; }
+    return data.map(g => ({ ...g, hours: Number(g.hours) }));
+  },
+  async add(goal) {
+    const { error } = await sb.from('goals').insert({ category: goal.category, hours: goal.hours });
+    if (error) console.error(error);
+  },
+  async remove(category) {
+    const { error } = await sb.from('goals').delete().eq('category', category);
+    if (error) console.error(error);
+  }
+};
 
 /* ---- Kategoriat (muokkaa vapaasti) ---- */
 const CATEGORIES = [
@@ -689,6 +857,7 @@ let selectedCat = CATEGORIES[0].id;
 
 /* ---- Tavoitteiden tila ---- */
 let currentGoals = [];               // [{ category, hours }]
+let myChallenges = [];               // joukkueen haasteet (valmentajan asettamat)
 let goalSetupCat = null;             // lisäyslomakkeessa valittu kategoria
 
 /* ---- Valittu jakso: 'all' tai 'YYYY-MM' ---- */
@@ -811,6 +980,7 @@ async function renderAll() {
 
   renderMonthBars(all);
   renderGoal();
+  renderChallenges();
   renderCalendar();
   renderDayPanel();
 
@@ -899,7 +1069,7 @@ function switchView(v) {
   document.getElementById('tabDash').classList.toggle('active', v === 'dash');
   document.getElementById('tabCal').classList.toggle('active', v === 'cal');
   document.getElementById('tabBank').classList.toggle('active', v === 'bank');
-  document.querySelector('.wrap').classList.toggle('wide', v === 'cal');
+  document.getElementById('playerWrap').classList.toggle('wide', v === 'cal');
   if (v === 'cal') { renderCalendar(); renderDayPanel(); }
   if (v === 'bank') renderBank();
 }
@@ -1082,7 +1252,7 @@ function renderGoal() {
       html += `
         <div class="goal-add goal-add-first">
           <div class="goal-add-label">Valitse kategoria</div>
-          <div class="chips goal-setup-cats" id="goalChips"></div>
+          <div class="chip-groups goal-setup-cats" id="goalChips"></div>
           <label class="fld goal-hours-fld"><span>Tuntia viikossa</span>
             <input type="number" id="goalHours" min="0.5" max="40" step="0.5" placeholder="esim. 3">
           </label>
@@ -1092,7 +1262,7 @@ function renderGoal() {
       html += `
         <div class="goal-add">
           <div class="goal-add-label">Lisää tavoite</div>
-          <div class="chips goal-setup-cats" id="goalChips"></div>
+          <div class="chip-groups goal-setup-cats" id="goalChips"></div>
           <div class="goal-add-row">
             <input type="number" id="goalHours" min="0.5" max="40" step="0.5" placeholder="tuntia / viikko">
             <button class="btn goal-add-btn" id="goalAddBtn" type="button">Lisää</button>
@@ -1110,34 +1280,85 @@ function renderGoal() {
   card.querySelectorAll('.goal-remove').forEach(btn => {
     btn.onclick = async () => {
       const i = parseInt(btn.dataset.i, 10);
-      await goalStore.set(currentGoals.filter((_, idx) => idx !== i));
+      await goalStore.remove(currentGoals[i].category);
       renderAll();
     };
   });
   const chipBox = card.querySelector('#goalChips');
   if (chipBox) {
-    remaining.forEach(c => {
-      const b = document.createElement('button');
-      b.type = 'button';
-      b.className = 'chip goal-chip';
-      b.dataset.cat = c.id;
-      b.setAttribute('aria-pressed', String(c.id === goalSetupCat));
-      b.innerHTML = `<span class="dot" style="background:${c.color}"></span>${c.label}`;
-      b.onclick = () => {
-        goalSetupCat = c.id;
-        chipBox.querySelectorAll('.goal-chip').forEach(x =>
-          x.setAttribute('aria-pressed', String(x.dataset.cat === goalSetupCat)));
-      };
-      chipBox.appendChild(b);
+    const setPressed = () => chipBox.querySelectorAll('.goal-chip').forEach(x =>
+      x.setAttribute('aria-pressed', String(x.dataset.cat === goalSetupCat)));
+    const groups = [...new Set(remaining.map(c => c.group))];
+    groups.forEach(g => {
+      const wrap = document.createElement('div');
+      wrap.className = 'chip-group';
+      const lbl = document.createElement('div');
+      lbl.className = 'chip-group-label';
+      lbl.textContent = g;
+      const row = document.createElement('div');
+      row.className = 'chips';
+      remaining.filter(c => c.group === g).forEach(c => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'chip goal-chip';
+        b.dataset.cat = c.id;
+        b.setAttribute('aria-pressed', String(c.id === goalSetupCat));
+        b.innerHTML = `<span class="dot" style="background:${c.color}"></span>${c.label}`;
+        b.onclick = () => { goalSetupCat = c.id; setPressed(); };
+        row.appendChild(b);
+      });
+      wrap.appendChild(lbl);
+      wrap.appendChild(row);
+      chipBox.appendChild(wrap);
     });
     card.querySelector('#goalAddBtn').onclick = async () => {
       const hrs = parseFloat(card.querySelector('#goalHours').value);
       if (!hrs || hrs <= 0) { card.querySelector('#goalHours').focus(); return; }
-      await goalStore.set([...currentGoals, { category: goalSetupCat, hours: hrs }]);
+      await goalStore.add({ category: goalSetupCat, hours: hrs });
       goalSetupCat = null;
       renderAll();
     };
   }
+}
+
+/* ---- Joukkueen haasteet (pelaajan näkymä) ---- */
+async function loadMyChallenges() {
+  const { data, error } = await sb.from('challenges').select('id, category, hours, description');
+  if (error) { console.error(error); return []; }
+  return data.map(c => ({ ...c, hours: Number(c.hours) }));
+}
+
+function renderChallenges() {
+  const card = document.getElementById('challengeCard');
+  if (!myChallenges.length) { card.hidden = true; return; }
+  card.hidden = false;
+  let html = `<div class="sec-head"><h2>Joukkueen haaste</h2><span class="hint">valmentajalta</span></div>`;
+  html += `<div class="goal-list">`;
+  myChallenges.forEach(ch => {
+    const c = catById(ch.category);
+    const p = goalProgress(ch);
+    const rawPct = p.targetMin ? Math.round(p.doneMin / p.targetMin * 100) : 0;
+    html += `
+      <div class="goal-row${p.achieved ? ' achieved' : ''}">
+        <div class="goal-row-top">
+          <span class="goal-row-label">
+            <span class="dot" style="background:${c.color}"></span>${c.label}
+            <span class="goal-row-target">${hoursShort(ch.hours)} / vko</span>
+            ${p.achieved ? `<span class="goal-badge" title="Saavutettu">✓</span>` : ''}
+          </span>
+        </div>
+        ${ch.description ? `<div class="challenge-desc">${escapeHtml(ch.description)}</div>` : ''}
+        <div class="goal-bar"><div class="goal-bar-fill" data-pct="${p.pct}" style="width:0; background:${p.achieved ? 'var(--accent)' : c.color}"></div></div>
+        <div class="goal-nums">${fmtHours(p.doneMin)} / ${fmtHours(p.targetMin)} · ${rawPct} %</div>
+        <div class="goal-encour">${goalMessage(ch, p)}</div>
+      </div>`;
+  });
+  html += `</div>`;
+  card.innerHTML = html;
+  card.querySelectorAll('.goal-bar-fill').forEach(f => {
+    const pct = parseFloat(f.dataset.pct);
+    requestAnimationFrame(() => { f.style.width = (pct * 100) + '%'; });
+  });
 }
 
 /* Tämän viikon tavoitteet kalenterinäkymässä */
@@ -1329,39 +1550,8 @@ async function save() {
   renderAll();
 }
 
-/* ---- Käynnistys ---- */
-async function seed() {
-  // Esimerkkidataa usealta kuukaudelta, jotta selailu ja yhteenveto näkyvät heti.
-  // Voit poistaa koko seed()-kutsun init-funktiosta kun oikea data tulee Supabasesta.
-  const base = new Date();
-  const iso = back => { const d = new Date(base); d.setDate(d.getDate() - back); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; };
-  const prevMonth = off => {
-    const d = new Date(base.getFullYear(), base.getMonth() - off, 14);
-    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
-  };
-  const shift = (isoStr, days) => { const d = new Date(isoStr + 'T00:00:00'); d.setDate(d.getDate() + days); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; };
-  const m1 = prevMonth(1), m2 = prevMonth(2);
-  const demo = [
-    // tämä kuukausi
-    { date: iso(0), category: 'laukaukset',  duration: 35, note: 'Potkutarkkuus seinään' },
-    { date: iso(1), category: 'nopeus',      duration: 25, note: '' },
-    { date: iso(2), category: 'kuljetus',    duration: 20, note: '1v1-harhautukset' },
-    { date: iso(3), category: 'syottely',    duration: 40, note: 'Seinäsyötöt' },
-    { date: iso(5), category: 'liikkuvuus',  duration: 30, note: '' },
-    // edellinen kuukausi
-    { date: shift(m1, 0),  category: 'pallotaito', duration: 45, note: '' },
-    { date: shift(m1, -6), category: 'nopeus',     duration: 30, note: 'Kiihdytykset' },
-    { date: shift(m1, -9), category: 'voima',      duration: 25, note: '' },
-    { date: shift(m1, 4),  category: 'kestavyys',  duration: 35, note: 'Intervallit' },
-    // kaksi kuukautta sitten
-    { date: shift(m2, 0),  category: 'laukaukset', duration: 50, note: 'Maalinteko' },
-    { date: shift(m2, -7), category: 'voima',       duration: 40, note: '' },
-    { date: shift(m2, 5),  category: 'syottely',    duration: 20, note: '' },
-  ];
-  for (const d of demo) await store.addEntry(d);
-}
-
-(async function init() {
+/* ---- Pelaajasovelluksen kytkennät ---- */
+function wirePlayerApp() {
   updateDateBtn();
   document.getElementById('saveBtn').onclick = save;
   document.getElementById('dateBtn').onclick = e => {
@@ -1383,74 +1573,439 @@ async function seed() {
   document.getElementById('calPrev').onclick = () => calStep(-1);
   document.getElementById('calNext').onclick = () => calStep(1);
   renderChips();
-  await seed();
-  renderAll();
-})();
+}
+
+/* =========================================================================
+   KIRJAUTUMINEN JA ROOLITUS
+   ========================================================================= */
+let currentUser = null;          // { id, username, role, team_id }
+let authMode = 'login';          // 'login' | 'register'
+let playerWired = false;
+
+async function loadProfile() {
+  const { data: { user } } = await sb.auth.getUser();
+  if (!user) return null;
+  const { data, error } = await sb.from('profiles')
+    .select('id, username, role, team_id').eq('id', user.id).single();
+  if (error) { console.error(error); return null; }
+  return data;
+}
+
+function showAuth() {
+  document.getElementById('playerWrap').hidden = true;
+  document.getElementById('coachWrap').hidden = true;
+  document.getElementById('authScreen').hidden = false;
+}
+
+async function startPlayer() {
+  document.getElementById('authScreen').hidden = true;
+  document.getElementById('coachWrap').hidden = true;
+  document.getElementById('playerWrap').hidden = false;
+  document.getElementById('userChip').textContent = currentUser.username;
+  if (!playerWired) { wirePlayerApp(); playerWired = true; }
+  myChallenges = await loadMyChallenges();
+  await renderAll();
+}
+
+function setAuthMode(m) {
+  authMode = m;
+  document.getElementById('authTitle').textContent = m === 'login' ? 'Kirjaudu sisään' : 'Luo tili';
+  document.getElementById('authSubmit').textContent = m === 'login' ? 'Kirjaudu' : 'Rekisteröidy';
+  document.getElementById('authToggle').textContent = m === 'login' ? 'Ei tiliä? Rekisteröidy' : 'Onko jo tili? Kirjaudu';
+  document.getElementById('authPass').placeholder = m === 'login' ? 'salasana' : 'vähintään 6 merkkiä';
+  authError('');
+}
+function authError(msg) {
+  const el = document.getElementById('authError');
+  el.textContent = msg || '';
+  el.style.display = msg ? 'block' : 'none';
+}
+function authMsg(error) {
+  const m = (error && error.message) || '';
+  if (/already registered|already been registered/i.test(m)) return 'Käyttäjänimi on jo varattu.';
+  if (/invalid login credentials/i.test(m)) return 'Väärä käyttäjänimi tai salasana.';
+  if (/email not confirmed/i.test(m)) return 'Sähköpostivahvistus on päällä Supabasessa – ota se pois päältä Authentication-asetuksista.';
+  return m || 'Tapahtui virhe. Yritä uudelleen.';
+}
+
+async function submitAuth() {
+  const username = document.getElementById('authUser').value.trim().toLowerCase();
+  const password = document.getElementById('authPass').value;
+  if (!/^[a-z0-9_.-]{3,}$/.test(username)) {
+    authError('Käyttäjänimi: vähintään 3 merkkiä (kirjaimet, numerot, _ . -).'); return;
+  }
+  if (password.length < 6) { authError('Salasanan on oltava vähintään 6 merkkiä.'); return; }
+  const btn = document.getElementById('authSubmit');
+  btn.disabled = true; authError('');
+  try {
+    if (authMode === 'register') {
+      const { error } = await sb.auth.signUp({
+        email: usernameToEmail(username), password, options: { data: { username } }
+      });
+      if (error) { authError(authMsg(error)); return; }
+    } else {
+      const { error } = await sb.auth.signInWithPassword({ email: usernameToEmail(username), password });
+      if (error) { authError(authMsg(error)); return; }
+    }
+    currentUser = await loadProfile();
+    if (!currentUser) { authError('Profiilin lataus epäonnistui.'); return; }
+    if (currentUser.role === 'coach') startCoach(); else startPlayer();
+  } catch (e) {
+    authError('Yhteysvirhe. Tarkista Supabase-asetukset.');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function doSignOut() {
+  await sb.auth.signOut();
+  location.reload();
+}
+
+/* =========================================================================
+   VALMENTAJANÄKYMÄ
+   ========================================================================= */
+const coachStore = {
+  async getTeams() {
+    const { data, error } = await sb.from('teams').select('id, name, created_at').order('created_at', { ascending: true });
+    if (error) { console.error(error); return []; }
+    return data;
+  },
+  async createTeam(name) {
+    return await sb.from('teams').insert({ name, coach_id: currentUser.id }).select().single();
+  },
+  async getPlayers() {
+    const { data, error } = await sb.from('profiles').select('id, username, team_id, role');
+    if (error) { console.error(error); return []; }
+    return data.filter(p => p.role === 'player' && p.team_id);
+  },
+  async getLogs() {
+    const { data, error } = await sb.from('training_logs').select('user_id, date, category, duration');
+    if (error) { console.error(error); return []; }
+    return data;
+  },
+  async getGoals() {
+    const { data, error } = await sb.from('goals').select('user_id, category, hours');
+    if (error) { console.error(error); return []; }
+    return data.map(g => ({ ...g, hours: Number(g.hours) }));
+  },
+  async getChallenges() {
+    const { data, error } = await sb.from('challenges').select('id, team_id, category, hours, description, created_at').order('created_at', { ascending: true });
+    if (error) { console.error(error); return []; }
+    return data.map(c => ({ ...c, hours: Number(c.hours) }));
+  },
+  async addPlayer(username, teamId) {
+    const { data, error } = await sb.rpc('add_player_to_team', { p_username: username, p_team_id: teamId });
+    if (error) return { ok: false, error: error.message };
+    return data;
+  },
+  async removePlayer(userId) {
+    const { data, error } = await sb.rpc('remove_player_from_team', { p_user_id: userId });
+    if (error) return { ok: false, error: error.message };
+    return data;
+  },
+  async createChallenge(teamId, category, hours, description) {
+    return await sb.from('challenges').insert({ team_id: teamId, category, hours, description: description || null }).select().single();
+  },
+  async deleteChallenge(id) {
+    return await sb.from('challenges').delete().eq('id', id);
+  }
+};
+
+let coachTeams = [], coachPlayers = [], coachLogs = [], coachGoals = [], coachChallenges = [];
+let coachTab = 'players';
+let challengeSetupCat = {};
+
+async function startCoach() {
+  document.getElementById('authScreen').hidden = true;
+  document.getElementById('playerWrap').hidden = true;
+  document.getElementById('coachWrap').hidden = false;
+  document.getElementById('coachUserChip').textContent = currentUser.username;
+  document.getElementById('ctabPlayers').onclick = () => coachSwitch('players');
+  document.getElementById('ctabTeams').onclick = () => coachSwitch('teams');
+  document.getElementById('ctabChallenges').onclick = () => coachSwitch('challenges');
+  await coachRefresh();
+}
+
+function coachSwitch(t) {
+  coachTab = t;
+  document.getElementById('coachPlayers').hidden = (t !== 'players');
+  document.getElementById('coachTeamsView').hidden = (t !== 'teams');
+  document.getElementById('coachChallengesView').hidden = (t !== 'challenges');
+  document.getElementById('ctabPlayers').classList.toggle('active', t === 'players');
+  document.getElementById('ctabTeams').classList.toggle('active', t === 'teams');
+  document.getElementById('ctabChallenges').classList.toggle('active', t === 'challenges');
+}
+
+async function coachRefresh() {
+  coachTeams      = await coachStore.getTeams();
+  coachPlayers    = await coachStore.getPlayers();
+  coachLogs       = await coachStore.getLogs();
+  coachGoals      = await coachStore.getGoals();
+  coachChallenges = await coachStore.getChallenges();
+  renderCoachPlayers();
+  renderCoachTeams();
+  renderCoachChallenges();
+}
+
+const shortDateFmt = new Intl.DateTimeFormat('fi-FI', { day: 'numeric', month: 'numeric', year: 'numeric' });
+function fmtDateShort(iso) { return shortDateFmt.format(new Date(iso + 'T00:00:00')); }
+
+function playerStats(userId) {
+  const logs = coachLogs.filter(l => l.user_id === userId);
+  const { mondayISO, sundayISO } = weekRangeISO();
+  const tm = monthKey(todayISO());
+  let weekMin = 0, monthMin = 0, monthCount = 0, last = null;
+  const byCat = {};
+  logs.forEach(l => {
+    if (l.date >= mondayISO && l.date <= sundayISO) weekMin += l.duration;
+    if (monthKey(l.date) === tm) { monthMin += l.duration; monthCount++; byCat[l.category] = (byCat[l.category] || 0) + l.duration; }
+    if (!last || l.date > last) last = l.date;
+  });
+  return { weekMin, monthMin, monthCount, last, byCat, count: logs.length };
+}
+function userWeekMin(userId, category) {
+  const { mondayISO, sundayISO } = weekRangeISO();
+  return coachLogs.filter(l => l.user_id === userId && l.category === category && l.date >= mondayISO && l.date <= sundayISO)
+    .reduce((s, l) => s + l.duration, 0);
+}
+function repProgressLine(userId, category, hours) {
+  const c = catById(category);
+  const done = userWeekMin(userId, category);
+  const target = Math.round(hours * 60);
+  const pct = target ? Math.min(100, Math.round(done / target * 100)) : 0;
+  return `<div class="rep-goal"><span class="dot" style="background:${c.color}"></span><span class="rep-goal-name">${c.label}</span>
+      <span class="rep-goal-val">${fmtHours(done)} / ${fmtHours(target)} · ${pct} %${done >= target ? ' ✓' : ''}</span></div>`;
+}
+
+/* ---- 1) PELAAJAT (raportit) ---- */
+function richPlayerReport(p) {
+  const s = playerStats(p.id);
+  const cats = CATEGORIES.filter(c => s.byCat[c.id]);
+  const maxCat = Math.max(1, ...cats.map(c => s.byCat[c.id]));
+  const catBars = cats.map(c => `
+    <div class="rep-cat">
+      <div class="rep-cat-label"><span class="dot" style="background:${c.color}"></span>${c.label}</div>
+      <div class="rep-bar-track"><div class="rep-bar-fill" style="width:${Math.round(s.byCat[c.id] / maxCat * 100)}%; background:${c.color}"></div></div>
+      <div class="rep-cat-val">${fmtHours(s.byCat[c.id])}</div>
+    </div>`).join('');
+
+  const goalLines = coachGoals.filter(g => g.user_id === p.id).map(g => repProgressLine(p.id, g.category, g.hours)).join('');
+  const chLines = coachChallenges.filter(ch => ch.team_id === p.team_id).map(ch => repProgressLine(p.id, ch.category, ch.hours)).join('');
+
+  const statsLine = s.count
+    ? `Viikko ${fmtHours(s.weekMin)} · Kuukausi ${fmtHours(s.monthMin)} · Viimeksi ${fmtDateShort(s.last)}`
+    : 'Ei vielä kirjauksia';
+  return `
+    <div class="player-row">
+      <div class="player-top">
+        <span class="player-name">${escapeHtml(p.username)}</span>
+        <span class="player-count">${s.monthCount} kirjausta / kk</span>
+      </div>
+      <div class="player-stats">${statsLine}</div>
+      ${catBars ? `<div class="rep-section-label">Kuukauden jakauma</div>${catBars}` : ''}
+      ${goalLines ? `<div class="rep-section-label">Tavoitteet (tällä viikolla)</div>${goalLines}` : ''}
+      ${chLines ? `<div class="rep-section-label">Haasteet (tällä viikolla)</div>${chLines}` : ''}
+    </div>`;
+}
+function renderCoachPlayers() {
+  const view = document.getElementById('coachPlayers');
+  if (!coachTeams.length) {
+    view.innerHTML = '<div class="card"><div class="coach-empty">Ei vielä joukkueita. Luo joukkue "Joukkueet"-välilehdellä.</div></div>';
+    return;
+  }
+  let html = '';
+  coachTeams.forEach(t => {
+    const players = coachPlayers.filter(p => p.team_id === t.id);
+    html += `
+      <div class="card">
+        <div class="sec-head"><h2>${escapeHtml(t.name)}</h2><span class="hint">${players.length} ${players.length === 1 ? 'pelaaja' : 'pelaajaa'}</span></div>
+        <div class="player-list">
+          ${players.length ? players.map(richPlayerReport).join('') : '<div class="coach-empty">Ei pelaajia.</div>'}
+        </div>
+      </div>`;
+  });
+  view.innerHTML = html;
+}
+
+/* ---- 2) JOUKKUEET (hallinta) ---- */
+function renderCoachTeams() {
+  const view = document.getElementById('coachTeamsView');
+  let html = `
+    <div class="card">
+      <div class="sec-head"><h2>Joukkueet</h2></div>
+      <div class="coach-add-row">
+        <input type="text" id="newTeamName" placeholder="Joukkueen nimi">
+        <button class="btn coach-add-btn" id="createTeamBtn" type="button">Luo joukkue</button>
+      </div>
+      ${coachTeams.length ? '' : '<div class="coach-empty">Ei vielä joukkueita. Luo ensimmäinen yllä.</div>'}
+    </div>`;
+  coachTeams.forEach(t => {
+    const players = coachPlayers.filter(p => p.team_id === t.id);
+    html += `
+      <div class="card">
+        <div class="sec-head"><h2>${escapeHtml(t.name)}</h2><span class="hint">${players.length} ${players.length === 1 ? 'pelaaja' : 'pelaajaa'}</span></div>
+        <div class="coach-add-row">
+          <input type="text" class="add-player-input" data-team="${t.id}" placeholder="Pelaajan käyttäjänimi" autocapitalize="none" spellcheck="false">
+          <button class="btn add-player-btn" data-team="${t.id}" type="button">Lisää pelaaja</button>
+        </div>
+        <div class="coach-msg" data-team="${t.id}"></div>
+        <div class="player-list">
+          ${players.length ? players.map(p => `
+            <div class="player-row"><div class="player-top">
+              <span class="player-name">${escapeHtml(p.username)}</span>
+              <span class="player-del-area" data-user="${p.id}"></span>
+            </div></div>`).join('') : '<div class="coach-empty">Ei vielä pelaajia tässä joukkueessa.</div>'}
+        </div>
+      </div>`;
+  });
+  view.innerHTML = html;
+  wireCoachTeams();
+}
+function wireCoachTeams() {
+  const createBtn = document.getElementById('createTeamBtn');
+  if (createBtn) createBtn.onclick = async () => {
+    const input = document.getElementById('newTeamName');
+    const name = input.value.trim();
+    if (!name) { input.focus(); return; }
+    const { error } = await coachStore.createTeam(name);
+    if (error) { alert('Joukkueen luonti epäonnistui: ' + error.message); return; }
+    coachRefresh();
+  };
+  document.querySelectorAll('#coachTeamsView .add-player-btn').forEach(btn => {
+    btn.onclick = async () => {
+      const teamId = btn.dataset.team;
+      const input = document.querySelector(`#coachTeamsView .add-player-input[data-team="${teamId}"]`);
+      const msg = document.querySelector(`#coachTeamsView .coach-msg[data-team="${teamId}"]`);
+      const username = input.value.trim().toLowerCase();
+      if (!username) { input.focus(); return; }
+      const res = await coachStore.addPlayer(username, teamId);
+      if (!res || !res.ok) { msg.textContent = (res && res.error) || 'Lisäys epäonnistui.'; msg.className = 'coach-msg error'; return; }
+      coachRefresh();
+    };
+  });
+  document.querySelectorAll('#coachTeamsView .player-del-area').forEach(setupPlayerRemove);
+}
+function setupPlayerRemove(area) {
+  const userId = area.dataset.user;
+  area.innerHTML = '<button class="del" title="Poista joukkueesta" aria-label="Poista pelaaja joukkueesta">×</button>';
+  area.querySelector('.del').onclick = () => {
+    area.innerHTML = '<span class="confirm"><button class="confirm-yes" type="button">Poista</button><button class="confirm-no" type="button">Peru</button></span>';
+    area.querySelector('.confirm-yes').onclick = async () => {
+      const res = await coachStore.removePlayer(userId);
+      if (!res || !res.ok) { alert((res && res.error) || 'Poisto epäonnistui.'); return; }
+      coachRefresh();
+    };
+    area.querySelector('.confirm-no').onclick = () => setupPlayerRemove(area);
+  };
+}
+
+/* ---- 3) HAASTEET ---- */
+function renderCoachChallenges() {
+  const view = document.getElementById('coachChallengesView');
+  if (!coachTeams.length) {
+    view.innerHTML = '<div class="card"><div class="coach-empty">Luo ensin joukkue "Joukkueet"-välilehdellä.</div></div>';
+    return;
+  }
+  let html = '';
+  coachTeams.forEach(t => {
+    const chs = coachChallenges.filter(ch => ch.team_id === t.id);
+    const cur = chs.map(ch => {
+      const c = catById(ch.category);
+      return `
+        <div class="ch-item">
+          <div class="ch-item-top">
+            <span class="goal-row-label"><span class="dot" style="background:${c.color}"></span>${c.label}<span class="goal-row-target">${hoursShort(ch.hours)} / vko</span></span>
+            <span class="ch-del-area" data-id="${ch.id}"></span>
+          </div>
+          ${ch.description ? `<div class="challenge-desc">${escapeHtml(ch.description)}</div>` : ''}
+        </div>`;
+    }).join('');
+    html += `
+      <div class="card">
+        <div class="sec-head"><h2>${escapeHtml(t.name)}</h2><span class="hint">${chs.length} ${chs.length === 1 ? 'haaste' : 'haastetta'}</span></div>
+        ${cur ? `<div class="ch-list">${cur}</div>` : '<div class="coach-empty">Ei haasteita. Aseta ensimmäinen alla.</div>'}
+        <div class="ch-form" data-team="${t.id}">
+          <div class="ch-form-label">Uusi haaste</div>
+          <div class="chip-groups ch-cats" data-team="${t.id}"></div>
+          <textarea class="ch-desc" data-team="${t.id}" rows="2" maxlength="160" placeholder="Lisätietoja (valinnainen), esim. tee 100 laukausta viikossa"></textarea>
+          <div class="coach-add-row">
+            <input type="number" class="ch-hours" data-team="${t.id}" min="0.5" max="40" step="0.5" placeholder="tuntia / viikko">
+            <button class="btn ch-add-btn" data-team="${t.id}" type="button">Aseta haaste</button>
+          </div>
+        </div>
+      </div>`;
+  });
+  view.innerHTML = html;
+  wireCoachChallenges();
+}
+function wireCoachChallenges() {
+  document.querySelectorAll('#coachChallengesView .ch-cats').forEach(box => {
+    const teamId = box.dataset.team;
+    const cats = CATEGORIES.filter(c => c.id !== 'muu');
+    if (!challengeSetupCat[teamId]) challengeSetupCat[teamId] = cats[0].id;
+    const setPressed = () => box.querySelectorAll('.ch-chip').forEach(x =>
+      x.setAttribute('aria-pressed', String(x.dataset.cat === challengeSetupCat[teamId])));
+    [...new Set(cats.map(c => c.group))].forEach(g => {
+      const wrap = document.createElement('div'); wrap.className = 'chip-group';
+      const lbl = document.createElement('div'); lbl.className = 'chip-group-label'; lbl.textContent = g;
+      const row = document.createElement('div'); row.className = 'chips';
+      cats.filter(c => c.group === g).forEach(c => {
+        const b = document.createElement('button');
+        b.type = 'button'; b.className = 'chip ch-chip'; b.dataset.cat = c.id;
+        b.setAttribute('aria-pressed', String(c.id === challengeSetupCat[teamId]));
+        b.innerHTML = `<span class="dot" style="background:${c.color}"></span>${c.label}`;
+        b.onclick = () => { challengeSetupCat[teamId] = c.id; setPressed(); };
+        row.appendChild(b);
+      });
+      wrap.appendChild(lbl); wrap.appendChild(row); box.appendChild(wrap);
+    });
+  });
+  document.querySelectorAll('#coachChallengesView .ch-add-btn').forEach(btn => {
+    btn.onclick = async () => {
+      const teamId = btn.dataset.team;
+      const hoursInput = document.querySelector(`#coachChallengesView .ch-hours[data-team="${teamId}"]`);
+      const desc = document.querySelector(`#coachChallengesView .ch-desc[data-team="${teamId}"]`).value.trim();
+      const hrs = parseFloat(hoursInput.value);
+      if (!hrs || hrs <= 0) { hoursInput.focus(); return; }
+      const { error } = await coachStore.createChallenge(teamId, challengeSetupCat[teamId], hrs, desc);
+      if (error) { alert('Haasteen luonti epäonnistui: ' + error.message); return; }
+      coachRefresh();
+    };
+  });
+  document.querySelectorAll('#coachChallengesView .ch-del-area').forEach(setupChallengeRemove);
+}
+function setupChallengeRemove(area) {
+  const id = area.dataset.id;
+  area.innerHTML = '<button class="del" title="Poista haaste" aria-label="Poista haaste">×</button>';
+  area.querySelector('.del').onclick = () => {
+    area.innerHTML = '<span class="confirm"><button class="confirm-yes" type="button">Poista</button><button class="confirm-no" type="button">Peru</button></span>';
+    area.querySelector('.confirm-yes').onclick = async () => {
+      const { error } = await coachStore.deleteChallenge(Number(id));
+      if (error) { alert('Poisto epäonnistui: ' + error.message); return; }
+      coachRefresh();
+    };
+    area.querySelector('.confirm-no').onclick = () => setupChallengeRemove(area);
+  };
+}
+
+/* ---- Käynnistys ---- */
+async function boot() {
+  document.getElementById('authSubmit').onclick = submitAuth;
+  document.getElementById('authToggle').onclick = () => setAuthMode(authMode === 'login' ? 'register' : 'login');
+  document.getElementById('authPass').addEventListener('keydown', e => { if (e.key === 'Enter') submitAuth(); });
+  document.getElementById('logoutBtn').onclick = doSignOut;
+  document.getElementById('coachLogoutBtn').onclick = doSignOut;
+
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) { showAuth(); return; }
+  currentUser = await loadProfile();
+  if (!currentUser) { showAuth(); return; }
+  if (currentUser.role === 'coach') startCoach(); else startPlayer();
+}
+
+boot();
 </script>
 
-<!--
-=============================================================================
- SUPABASE-INTEGRAATIO  —  näin liität tämän olemassa olevaan Supabaseesi
-=============================================================================
-
-1) TAULU (aja SQL-editorissa). Tämä on version 1 tarvitsema taulu.
-   Käyttäjät, joukkueet ja harjoitekirjasto tulevat myöhemmissä vaiheissa.
-
-   create table training_logs (
-     id          bigint generated always as identity primary key,
-     user_id     uuid references auth.users (id) default auth.uid(),
-     date        date    not null,
-     category    text    not null,
-     duration    integer not null check (duration > 0),
-     note        text,
-     created_at  timestamptz default now()
-   );
-
-   -- Row Level Security: jokainen näkee vain omat kirjauksensa
-   alter table training_logs enable row level security;
-
-   create policy "omat kirjaukset" on training_logs
-     for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
-
-   (Valmentajan oikeus nähdä joukkueensa pelaajien rivit lisätään
-    vaiheessa 4 erillisellä policyllä, joka tarkistaa joukkuejäsenyyden.)
-
-2) LISÄÄ KIRJASTO <head>-osioon:
-
-   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
-3) KORVAA yllä oleva `store`-objekti tällä:
-
-   const sb = supabase.createClient('https://OMA-PROJEKTI.supabase.co', 'OMA-ANON-AVAIN');
-
-   const store = {
-     async getEntries() {
-       const { data, error } = await sb
-         .from('training_logs')
-         .select('id, date, category, duration, note')
-         .order('date', { ascending: false });
-       if (error) { console.error(error); return []; }
-       return data;
-     },
-     async addEntry(entry) {
-       const { data, error } = await sb
-         .from('training_logs')
-         .insert({ date: entry.date, category: entry.category, duration: entry.duration, note: entry.note || null })
-         .select().single();
-       if (error) { console.error(error); return null; }
-       return data;
-     },
-     async deleteEntry(id) {
-       const { error } = await sb.from('training_logs').delete().eq('id', id);
-       if (error) console.error(error);
-     }
-   };
-
-4) Poista `seed()`-kutsu init-funktiosta kun oikea data tulee Supabasesta.
-
-   Koska sovelluksen muu koodi käyttää vain store.getEntries / addEntry /
-   deleteEntry -funktioita, mitään muuta ei tarvitse muuttaa.
-=============================================================================
--->
 </body>
 </html>
