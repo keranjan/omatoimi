@@ -106,6 +106,31 @@
   .rep-goal-name { font-weight: 500; }
   .rep-goal-val { margin-left: auto; font-size: 12px; color: var(--ink-soft); font-variant-numeric: tabular-nums; white-space: nowrap; }
 
+  /* Collapsible player reports */
+  .rep-search-card .ics-input { margin-bottom: 0; }
+  .player-row.collapsible { padding: 0; }
+  .player-head {
+    width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    background: none; border: none; cursor: pointer; padding: 13px 0; text-align: left; font-family: inherit;
+  }
+  .player-head-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .player-head-main .player-stats { margin-top: 0; }
+  .player-head-side { display: flex; align-items: center; gap: 12px; flex: none; }
+  .player-chevron { color: var(--ink-faint); font-size: 12px; transition: transform 0.2s ease; }
+  .player-head[aria-expanded="true"] .player-chevron { transform: rotate(180deg); }
+  .player-detail { padding-bottom: 14px; }
+
+  /* Challenge target picker (collapsible + search) */
+  .ch-target-summary {
+    font-family: inherit; font-size: 14px; color: var(--ink); background: var(--bg);
+    border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; cursor: pointer;
+    margin-bottom: 12px; display: inline-flex; align-items: center; gap: 8px;
+  }
+  .ch-target-summary::after { content: '▾'; color: var(--ink-faint); font-size: 12px; }
+  .ch-target-summary.open::after { content: '▴'; }
+  .ch-target-panel { margin-bottom: 12px; }
+  .ch-target-search { margin-bottom: 10px; }
+
   /* Challenges */
   .challenge-desc { font-size: 13px; color: var(--ink-soft); margin: 2px 0 8px; }
   .ch-list { display: flex; flex-direction: column; gap: 14px; margin-bottom: 16px; }
@@ -131,6 +156,18 @@
   .done-label { font-size: 14px; font-weight: 600; color: var(--brand); }
   .ch-undo { font-family: inherit; font-size: 13px; color: var(--ink-soft); background: none; border: 1px solid var(--line); border-radius: 8px; padding: 6px 12px; cursor: pointer; }
   .ch-undo:hover { color: var(--ink); border-color: var(--ink-soft); }
+  .ch-sub-label { font-size: 12px; color: var(--ink-soft); margin-bottom: 8px; }
+  .ch-targets { margin-bottom: 12px; }
+  .ch-target-chip[aria-pressed="true"] { background: var(--brand); border-color: var(--brand); color: #fff; }
+  .ch-scope { font-size: 12px; font-weight: 600; color: var(--brand); margin-top: 3px; }
+  .personal-tag {
+    font-family: 'Barlow Condensed', sans-serif; font-weight: 600; font-size: 11px;
+    text-transform: uppercase; letter-spacing: 0.04em; color: var(--brand);
+    background: rgba(14, 94, 58, 0.08); padding: 1px 7px; border-radius: 999px;
+  }
+  .ch-due { margin-bottom: 12px; }
+  .rep-due { font-size: 11px; color: var(--ink-faint); font-weight: 500; }
+  .past-due { font-size: 14px; font-weight: 600; color: var(--cat-voima); }
 
   /* Toast-ilmoitus */
   .toast {

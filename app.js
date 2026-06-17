@@ -605,26 +605,42 @@ function renderGoal() {
 
 /* ---- Joukkueen haasteet (pelaajan näkymä) ---- */
 async function loadMyChallenges() {
-  const { data, error } = await sb.from('challenges').select('id, category, hours, description');
+  const { data, error } = await sb.from('challenges').select('id, category, hours, description, user_id, due_date, created_at');
   if (error) { console.error(error); return []; }
   return data.map(c => ({ ...c, hours: c.hours == null ? null : Number(c.hours) }));
 }
 
+// Suorituksen avain: määräpäivähaasteella due_date, viikkohaasteella kuluvan viikon maanantai.
+function challengeKey(ch) { return ch.due_date ? ch.due_date : weekRangeISO().mondayISO; }
+function isChallengeDone(ch) { return myCompletions.has(ch.id + '|' + challengeKey(ch)); }
+function challengePastDue(ch) { return !!ch.due_date && ch.due_date < todayISO(); }
+
+// Aikatavoitteen edistyminen: viikkohaaste = kuluva viikko; määräpäivähaaste = kertymä luonnista tähän päivään.
+function challengeProgress(ch) {
+  if (!ch.due_date) return goalProgress(ch);
+  const startISO = (ch.created_at || '').slice(0, 10);
+  const today = todayISO();
+  const doneMin = lastAll
+    .filter(e => e.category === ch.category && (!startISO || e.date >= startISO) && e.date <= today)
+    .reduce((s, e) => s + e.duration, 0);
+  const targetMin = Math.round((ch.hours || 0) * 60);
+  return { doneMin, targetMin, pct: targetMin ? Math.min(1, doneMin / targetMin) : 0, achieved: doneMin >= targetMin };
+}
+
 async function loadMyCompletions() {
   const { mondayISO } = weekRangeISO();
-  const { data, error } = await sb.from('challenge_completions').select('challenge_id').eq('week_start', mondayISO);
+  const keys = [...new Set([mondayISO, ...myChallenges.filter(c => c.due_date).map(c => c.due_date)])];
+  const { data, error } = await sb.from('challenge_completions').select('challenge_id, week_start').in('week_start', keys);
   if (error) { console.error(error); return new Set(); }
-  return new Set(data.map(r => r.challenge_id));
+  return new Set(data.map(r => r.challenge_id + '|' + r.week_start));
 }
 
 const completionStore = {
-  async complete(challengeId) {
-    const { mondayISO } = weekRangeISO();
-    return await sb.from('challenge_completions').insert({ challenge_id: challengeId, week_start: mondayISO });
+  async complete(ch) {
+    return await sb.from('challenge_completions').insert({ challenge_id: ch.id, week_start: challengeKey(ch) });
   },
-  async uncomplete(challengeId) {
-    const { mondayISO } = weekRangeISO();
-    return await sb.from('challenge_completions').delete().eq('challenge_id', challengeId).eq('week_start', mondayISO);
+  async uncomplete(ch) {
+    return await sb.from('challenge_completions').delete().eq('challenge_id', ch.id).eq('week_start', challengeKey(ch));
   }
 };
 
@@ -639,40 +655,53 @@ async function loadCalEvents() {
 
 function challengeRowHtml(ch) {
   const c = catById(ch.category);
+  const dueLabel = ch.due_date ? `${fmtDateShort(ch.due_date)} mennessä` : null;
+  const pastDue = challengePastDue(ch);
+  const personalTag = ch.user_id ? '<span class="personal-tag">henkilökohtainen</span>' : '';
   if (ch.hours == null) {
-    const done = myCompletions.has(ch.id);
+    const done = isChallengeDone(ch);
+    let action;
+    if (done) {
+      action = `<span class="done-label">${ch.due_date ? 'Suoritettu' : 'Suoritettu tällä viikolla'}</span><button class="ch-undo" data-id="${ch.id}" type="button">Peru</button>`;
+    } else if (pastDue) {
+      action = `<span class="past-due">Määräaika mennyt</span>`;
+    } else {
+      action = `<button class="btn ch-done-btn" data-id="${ch.id}" type="button">Merkitse tehdyksi</button>`;
+    }
     return `
       <div class="goal-row${done ? ' achieved' : ''}">
         <div class="goal-row-top">
           <span class="goal-row-label">
             <span class="dot" style="background:${c.color}"></span>${c.label}
-            <span class="goal-row-target">Kertasuoritus</span>
+            <span class="goal-row-target">${dueLabel || 'Kertasuoritus'}</span>
+            ${personalTag}
             ${done ? `<span class="goal-badge" title="Suoritettu">✓</span>` : ''}
           </span>
         </div>
         ${ch.description ? `<div class="challenge-desc">${escapeHtml(ch.description)}</div>` : ''}
-        <div class="challenge-action">
-          ${done
-            ? `<span class="done-label">Suoritettu tällä viikolla</span><button class="ch-undo" data-id="${ch.id}" type="button">Peru</button>`
-            : `<button class="btn ch-done-btn" data-id="${ch.id}" type="button">Merkitse tehdyksi</button>`}
-        </div>
+        <div class="challenge-action">${action}</div>
       </div>`;
   }
-  const p = goalProgress(ch);
+  const p = challengeProgress(ch);
   const rawPct = p.targetMin ? Math.round(p.doneMin / p.targetMin * 100) : 0;
+  const targetLabel = ch.due_date ? `${hoursShort(ch.hours)} · ${dueLabel}` : `${hoursShort(ch.hours)} / vko`;
+  const footer = ch.due_date
+    ? `<div class="goal-encour">${p.achieved ? 'Tavoite saavutettu! 🎉' : (pastDue ? 'Määräaika mennyt' : `Jäljellä ${fmtHours(Math.max(0, p.targetMin - p.doneMin))}`)}</div>`
+    : `<div class="goal-encour">${goalMessage(ch, p)}</div>`;
   return `
     <div class="goal-row${p.achieved ? ' achieved' : ''}">
       <div class="goal-row-top">
         <span class="goal-row-label">
           <span class="dot" style="background:${c.color}"></span>${c.label}
-          <span class="goal-row-target">${hoursShort(ch.hours)} / vko</span>
+          <span class="goal-row-target">${targetLabel}</span>
+          ${personalTag}
           ${p.achieved ? `<span class="goal-badge" title="Saavutettu">✓</span>` : ''}
         </span>
       </div>
       ${ch.description ? `<div class="challenge-desc">${escapeHtml(ch.description)}</div>` : ''}
       <div class="goal-bar"><div class="goal-bar-fill" data-pct="${p.pct}" style="width:0; background:${p.achieved ? 'var(--accent)' : c.color}"></div></div>
       <div class="goal-nums">${fmtHours(p.doneMin)} / ${fmtHours(p.targetMin)} · ${rawPct} %</div>
-      <div class="goal-encour">${goalMessage(ch, p)}</div>
+      ${footer}
     </div>`;
 }
 
@@ -684,20 +713,22 @@ function wireChallengeCard(card) {
   card.querySelectorAll('.ch-done-btn').forEach(btn => {
     btn.onclick = async () => {
       btn.disabled = true;
-      const id = Number(btn.dataset.id);
-      const { error } = await completionStore.complete(id);
+      const ch = myChallenges.find(x => x.id === Number(btn.dataset.id));
+      if (!ch) return;
+      const { error } = await completionStore.complete(ch);
       if (error && !/duplicate|unique/i.test(error.message || '')) { btn.disabled = false; alert('Ei onnistunut: ' + error.message); return; }
-      myCompletions.add(id);
+      myCompletions.add(ch.id + '|' + challengeKey(ch));
       renderChallenges();
     };
   });
   card.querySelectorAll('.ch-undo').forEach(btn => {
     btn.onclick = async () => {
       btn.disabled = true;
-      const id = Number(btn.dataset.id);
-      const { error } = await completionStore.uncomplete(id);
+      const ch = myChallenges.find(x => x.id === Number(btn.dataset.id));
+      if (!ch) return;
+      const { error } = await completionStore.uncomplete(ch);
       if (error) { btn.disabled = false; alert('Ei onnistunut: ' + error.message); return; }
-      myCompletions.delete(id);
+      myCompletions.delete(ch.id + '|' + challengeKey(ch));
       renderChallenges();
     };
   });
@@ -706,7 +737,7 @@ function wireChallengeCard(card) {
 function renderChallenges() {
   const cards = [document.getElementById('challengeCard'), document.getElementById('calChallengeCard')].filter(Boolean);
   if (!myChallenges.length) { cards.forEach(c => { c.hidden = true; }); return; }
-  const inner = `<div class="sec-head"><h2>Joukkueen haaste</h2><span class="hint">valmentajalta</span></div>`
+  const inner = `<div class="sec-head"><h2>Haasteet</h2><span class="hint">valmentajalta</span></div>`
     + `<div class="goal-list">${myChallenges.map(challengeRowHtml).join('')}</div>`;
   cards.forEach(card => { card.hidden = false; card.innerHTML = inner; wireChallengeCard(card); });
 }
@@ -1086,13 +1117,14 @@ const coachStore = {
     return data.map(g => ({ ...g, hours: Number(g.hours) }));
   },
   async getChallenges() {
-    const { data, error } = await sb.from('challenges').select('id, team_id, category, hours, description, created_at').order('created_at', { ascending: true });
+    const { data, error } = await sb.from('challenges').select('id, team_id, category, hours, description, user_id, due_date, created_at').order('created_at', { ascending: true });
     if (error) { console.error(error); return []; }
     return data.map(c => ({ ...c, hours: c.hours == null ? null : Number(c.hours) }));
   },
   async getCompletions() {
     const { mondayISO } = weekRangeISO();
-    const { data, error } = await sb.from('challenge_completions').select('challenge_id, user_id').eq('week_start', mondayISO);
+    const keys = [...new Set([mondayISO, ...coachChallenges.filter(c => c.due_date).map(c => c.due_date)])];
+    const { data, error } = await sb.from('challenge_completions').select('challenge_id, user_id, week_start').in('week_start', keys);
     if (error) { console.error(error); return []; }
     return data;
   },
@@ -1106,8 +1138,8 @@ const coachStore = {
     if (error) return { ok: false, error: error.message };
     return data;
   },
-  async createChallenge(teamId, category, hours, description) {
-    return await sb.from('challenges').insert({ team_id: teamId, category, hours, description: description || null }).select().single();
+  async createChallenge(teamId, category, hours, description, userId, dueDate) {
+    return await sb.from('challenges').insert({ team_id: teamId, category, hours, description: description || null, user_id: userId || null, due_date: dueDate || null }).select().single();
   },
   async deleteChallenge(id) {
     return await sb.from('challenges').delete().eq('id', id);
@@ -1118,6 +1150,7 @@ let coachTeams = [], coachPlayers = [], coachLogs = [], coachGoals = [], coachCh
 let coachTab = 'players';
 let challengeSetupCat = {};
 let challengeKind = {};   // per-team: 'time' | 'once'
+let challengeTargets = {}; // per-team: 'team' | Set(user_id)
 
 async function startCoach() {
   document.getElementById('authScreen').hidden = true;
@@ -1173,6 +1206,26 @@ function userWeekMin(userId, category) {
   return coachLogs.filter(l => l.user_id === userId && l.category === category && l.date >= mondayISO && l.date <= sundayISO)
     .reduce((s, l) => s + l.duration, 0);
 }
+function userCumulativeMin(userId, category, startISO, endISO) {
+  return coachLogs.filter(l => l.user_id === userId && l.category === category && (!startISO || l.date >= startISO) && l.date <= endISO)
+    .reduce((s, l) => s + l.duration, 0);
+}
+function repChallengeLine(p, ch) {
+  const c = catById(ch.category);
+  const due = ch.due_date ? ` <span class="rep-due">${fmtDateShort(ch.due_date)} mennessä</span>` : '';
+  if (ch.hours == null) {
+    const done = coachCompletions.some(cc => cc.challenge_id === ch.id && cc.user_id === p.id && cc.week_start === challengeKey(ch));
+    return `<div class="rep-goal"><span class="dot" style="background:${c.color}"></span><span class="rep-goal-name">${c.label}${due}</span>
+      <span class="rep-goal-val">${done ? '✓ Tehty' : 'Ei tehty'}</span></div>`;
+  }
+  const target = Math.round(ch.hours * 60);
+  const done = ch.due_date
+    ? userCumulativeMin(p.id, ch.category, (ch.created_at || '').slice(0, 10), todayISO())
+    : userWeekMin(p.id, ch.category);
+  const pct = target ? Math.min(100, Math.round(done / target * 100)) : 0;
+  return `<div class="rep-goal"><span class="dot" style="background:${c.color}"></span><span class="rep-goal-name">${c.label}${due}</span>
+    <span class="rep-goal-val">${fmtHours(done)} / ${fmtHours(target)} · ${pct} %${done >= target ? ' ✓' : ''}</span></div>`;
+}
 function repProgressLine(userId, category, hours) {
   const c = catById(category);
   const done = userWeekMin(userId, category);
@@ -1195,29 +1248,27 @@ function richPlayerReport(p) {
     </div>`).join('');
 
   const goalLines = coachGoals.filter(g => g.user_id === p.id).map(g => repProgressLine(p.id, g.category, g.hours)).join('');
-  const chLines = coachChallenges.filter(ch => ch.team_id === p.team_id).map(ch => {
-    if (ch.hours == null) {
-      const c = catById(ch.category);
-      const done = coachCompletions.some(cc => cc.challenge_id === ch.id && cc.user_id === p.id);
-      return `<div class="rep-goal"><span class="dot" style="background:${c.color}"></span><span class="rep-goal-name">${c.label}</span>
-        <span class="rep-goal-val">${done ? '✓ Tehty' : 'Ei tehty'}</span></div>`;
-    }
-    return repProgressLine(p.id, ch.category, ch.hours);
-  }).join('');
+  const chLines = coachChallenges.filter(ch => ch.team_id === p.team_id && (ch.user_id == null || ch.user_id === p.id)).map(ch => repChallengeLine(p, ch)).join('');
 
   const statsLine = s.count
     ? `Viikko ${fmtHours(s.weekMin)} · Kuukausi ${fmtHours(s.monthMin)} · Viimeksi ${fmtDateShort(s.last)}`
     : 'Ei vielä kirjauksia';
+  const detail = (catBars ? `<div class="rep-section-label">Kuukauden jakauma</div>${catBars}` : '')
+    + (goalLines ? `<div class="rep-section-label">Tavoitteet (tällä viikolla)</div>${goalLines}` : '')
+    + (chLines ? `<div class="rep-section-label">Haasteet</div>${chLines}` : '');
   return `
-    <div class="player-row">
-      <div class="player-top">
-        <span class="player-name">${escapeHtml(p.username)}</span>
-        <span class="player-count">${s.monthCount} kirjausta / kk</span>
-      </div>
-      <div class="player-stats">${statsLine}</div>
-      ${catBars ? `<div class="rep-section-label">Kuukauden jakauma</div>${catBars}` : ''}
-      ${goalLines ? `<div class="rep-section-label">Tavoitteet (tällä viikolla)</div>${goalLines}` : ''}
-      ${chLines ? `<div class="rep-section-label">Haasteet (tällä viikolla)</div>${chLines}` : ''}
+    <div class="player-row collapsible" data-name="${escapeHtml(p.username.toLowerCase())}">
+      <button class="player-head" type="button" aria-expanded="false">
+        <span class="player-head-main">
+          <span class="player-name">${escapeHtml(p.username)}</span>
+          <span class="player-stats">${statsLine}</span>
+        </span>
+        <span class="player-head-side">
+          <span class="player-count">${s.monthCount} / kk</span>
+          <span class="player-chevron">▾</span>
+        </span>
+      </button>
+      <div class="player-detail" hidden>${detail || '<div class="coach-empty">Ei lisätietoja.</div>'}</div>
     </div>`;
 }
 function renderCoachPlayers() {
@@ -1226,11 +1277,15 @@ function renderCoachPlayers() {
     view.innerHTML = '<div class="card"><div class="coach-empty">Ei vielä joukkueita. Luo joukkue "Joukkueet"-välilehdellä.</div></div>';
     return;
   }
+  const totalPlayers = coachPlayers.filter(p => coachTeams.some(t => t.id === p.team_id)).length;
   let html = '';
+  if (totalPlayers > 8) {
+    html += `<div class="card rep-search-card"><input type="text" id="repSearch" class="ics-input" placeholder="Hae pelaajaa nimellä…" autocapitalize="none" spellcheck="false"></div>`;
+  }
   coachTeams.forEach(t => {
     const players = coachPlayers.filter(p => p.team_id === t.id);
     html += `
-      <div class="card">
+      <div class="card coach-report-team">
         <div class="sec-head"><h2>${escapeHtml(t.name)}</h2><span class="hint">${players.length} ${players.length === 1 ? 'pelaaja' : 'pelaajaa'}</span></div>
         <div class="player-list">
           ${players.length ? players.map(richPlayerReport).join('') : '<div class="coach-empty">Ei pelaajia.</div>'}
@@ -1238,6 +1293,32 @@ function renderCoachPlayers() {
       </div>`;
   });
   view.innerHTML = html;
+  wireCoachReports();
+}
+function wireCoachReports() {
+  document.querySelectorAll('#coachPlayers .player-head').forEach(head => {
+    head.onclick = () => {
+      const expanded = head.getAttribute('aria-expanded') === 'true';
+      head.setAttribute('aria-expanded', String(!expanded));
+      const detail = head.parentElement.querySelector('.player-detail');
+      if (detail) detail.hidden = expanded;
+    };
+  });
+  const search = document.getElementById('repSearch');
+  if (search) {
+    search.oninput = () => {
+      const q = search.value.trim().toLowerCase();
+      document.querySelectorAll('#coachPlayers .coach-report-team').forEach(card => {
+        let visible = 0;
+        card.querySelectorAll('.player-row').forEach(row => {
+          const match = !q || (row.dataset.name || '').includes(q);
+          row.style.display = match ? '' : 'none';
+          if (match) visible++;
+        });
+        card.style.display = visible ? '' : 'none';
+      });
+    };
+  }
 }
 
 /* ---- 2) JOUKKUEET (hallinta) ---- */
@@ -1350,13 +1431,22 @@ function renderCoachChallenges() {
     const cur = chs.map(ch => {
       const c = catById(ch.category);
       const isOnce = ch.hours == null;
-      let metaLabel, doneLine = '';
+      const targetPlayer = ch.user_id ? players.find(p => p.id === ch.user_id) : null;
+      const scope = ch.user_id
+        ? `Henkilökohtainen — ${targetPlayer ? escapeHtml(targetPlayer.username) : 'poistettu pelaaja'}`
+        : 'Koko joukkue';
+      const dueText = ch.due_date ? `${fmtDateShort(ch.due_date)} mennessä` : null;
+      let metaLabel = isOnce ? (dueText || 'Kertasuoritus') : (ch.due_date ? `${hoursShort(ch.hours)} · ${dueText}` : `${hoursShort(ch.hours)} / vko`);
+      let doneLine = '';
       if (isOnce) {
-        const doneUsers = players.filter(p => coachCompletions.some(cc => cc.challenge_id === ch.id && cc.user_id === p.id));
-        metaLabel = `Kertasuoritus · ${doneUsers.length}/${players.length} tehnyt`;
-        doneLine = `<div class="ch-done-list">${doneUsers.length ? 'Tehnyt: ' + doneUsers.map(u => escapeHtml(u.username)).join(', ') : 'Ei vielä suorituksia tällä viikolla'}</div>`;
-      } else {
-        metaLabel = `${hoursShort(ch.hours)} / vko`;
+        if (ch.user_id) {
+          const done = coachCompletions.some(cc => cc.challenge_id === ch.id && cc.user_id === ch.user_id && cc.week_start === challengeKey(ch));
+          doneLine = `<div class="ch-done-list">${done ? 'Suoritettu' : 'Ei vielä suoritettu'}</div>`;
+        } else {
+          const doneUsers = players.filter(p => coachCompletions.some(cc => cc.challenge_id === ch.id && cc.user_id === p.id && cc.week_start === challengeKey(ch)));
+          metaLabel = `${dueText || 'Kertasuoritus'} · ${doneUsers.length}/${players.length} tehnyt`;
+          doneLine = `<div class="ch-done-list">${doneUsers.length ? 'Tehnyt: ' + doneUsers.map(u => escapeHtml(u.username)).join(', ') : 'Ei vielä suorituksia'}</div>`;
+        }
       }
       return `
         <div class="ch-item">
@@ -1364,10 +1454,13 @@ function renderCoachChallenges() {
             <span class="goal-row-label"><span class="dot" style="background:${c.color}"></span>${c.label}<span class="goal-row-target">${metaLabel}</span></span>
             <span class="ch-del-area" data-id="${ch.id}"></span>
           </div>
+          <div class="ch-scope">${scope}</div>
           ${ch.description ? `<div class="challenge-desc">${escapeHtml(ch.description)}</div>` : ''}
           ${doneLine}
         </div>`;
     }).join('');
+    const targetChips = `<button class="chip ch-target-chip" data-team="${t.id}" data-target="team" type="button" aria-pressed="true">Koko joukkue</button>`
+      + players.map(p => `<button class="chip ch-target-chip" data-team="${t.id}" data-target="${p.id}" data-name="${escapeHtml(p.username.toLowerCase())}" type="button" aria-pressed="false">${escapeHtml(p.username)}</button>`).join('');
     html += `
       <div class="card">
         <div class="sec-head"><h2>${escapeHtml(t.name)}</h2><span class="hint">${chs.length} ${chs.length === 1 ? 'haaste' : 'haastetta'}</span></div>
@@ -1378,9 +1471,17 @@ function renderCoachChallenges() {
             <button class="ch-type-btn active" data-team="${t.id}" data-kind="time" type="button">Aikatavoite</button>
             <button class="ch-type-btn" data-team="${t.id}" data-kind="once" type="button">Kertasuoritus</button>
           </div>
+          <div class="ch-sub-label">Kenelle?</div>
+          <button class="ch-target-summary" data-team="${t.id}" type="button">Koko joukkue</button>
+          <div class="ch-target-panel" data-team="${t.id}" hidden>
+            ${players.length > 8 ? `<input type="text" class="ch-target-search" data-team="${t.id}" placeholder="Hae pelaajaa…" autocapitalize="none" spellcheck="false">` : ''}
+            <div class="ch-targets chips" data-team="${t.id}">${targetChips}</div>
+          </div>
           <div class="chip-groups ch-cats" data-team="${t.id}"></div>
           <textarea class="ch-desc" data-team="${t.id}" rows="2" maxlength="160" placeholder="Lisätietoja, esim. pompottele palloa 100 kertaa jaloilla"></textarea>
-          <input type="number" class="ch-hours" data-team="${t.id}" min="0.5" max="40" step="0.5" placeholder="tuntia / viikko">
+          <input type="number" class="ch-hours" data-team="${t.id}" min="0.25" step="0.25" placeholder="tuntia / viikko (mikä tahansa määrä)">
+          <div class="ch-sub-label">Määräpäivä (valinnainen — tyhjä = viikoittainen haaste):</div>
+          <input type="date" class="ch-due" data-team="${t.id}">
           <div class="coach-add-row"><button class="btn ch-add-btn" data-team="${t.id}" type="button">Aseta haaste</button></div>
         </div>
       </div>`;
@@ -1423,6 +1524,52 @@ function wireCoachChallenges() {
     });
     apply();
   });
+  document.querySelectorAll('#coachChallengesView .ch-target-summary').forEach(btn => {
+    const teamId = btn.dataset.team;
+    const panel = document.querySelector(`#coachChallengesView .ch-target-panel[data-team="${teamId}"]`);
+    btn.onclick = () => { panel.hidden = !panel.hidden; btn.classList.toggle('open', !panel.hidden); };
+  });
+  document.querySelectorAll('#coachChallengesView .ch-target-search').forEach(inp => {
+    const teamId = inp.dataset.team;
+    inp.oninput = () => {
+      const q = inp.value.trim().toLowerCase();
+      document.querySelectorAll(`#coachChallengesView .ch-targets[data-team="${teamId}"] .ch-target-chip[data-name]`).forEach(chip => {
+        chip.style.display = (!q || chip.dataset.name.includes(q)) ? '' : 'none';
+      });
+    };
+  });
+  document.querySelectorAll('#coachChallengesView .ch-targets').forEach(box => {
+    const teamId = box.dataset.team;
+    if (!challengeTargets[teamId]) challengeTargets[teamId] = 'team';
+    const summary = document.querySelector(`#coachChallengesView .ch-target-summary[data-team="${teamId}"]`);
+    const apply = () => {
+      box.querySelectorAll('.ch-target-chip').forEach(chip => {
+        const tg = chip.dataset.target;
+        const sel = challengeTargets[teamId] === 'team'
+          ? (tg === 'team')
+          : (tg !== 'team' && challengeTargets[teamId].has(tg));
+        chip.setAttribute('aria-pressed', String(sel));
+      });
+      if (summary) summary.textContent = challengeTargets[teamId] === 'team'
+        ? 'Koko joukkue'
+        : `${challengeTargets[teamId].size} ${challengeTargets[teamId].size === 1 ? 'pelaaja' : 'pelaajaa'} valittu`;
+    };
+    box.querySelectorAll('.ch-target-chip').forEach(chip => {
+      chip.onclick = () => {
+        const tg = chip.dataset.target;
+        if (tg === 'team') {
+          challengeTargets[teamId] = 'team';
+        } else {
+          if (!(challengeTargets[teamId] instanceof Set)) challengeTargets[teamId] = new Set();
+          const set = challengeTargets[teamId];
+          if (set.has(tg)) set.delete(tg); else set.add(tg);
+          if (set.size === 0) challengeTargets[teamId] = 'team';
+        }
+        apply();
+      };
+    });
+    apply();
+  });
   document.querySelectorAll('#coachChallengesView .ch-add-btn').forEach(btn => {
     btn.onclick = async () => {
       const teamId = btn.dataset.team;
@@ -1438,8 +1585,14 @@ function wireCoachChallenges() {
       } else if (!desc) {
         descEl.focus(); return;   // kertasuoritus tarvitsee ohjeen
       }
-      const { error } = await coachStore.createChallenge(teamId, challengeSetupCat[teamId], hours, desc);
-      if (error) { alert('Haasteen luonti epäonnistui: ' + error.message); return; }
+      const dueDate = document.querySelector(`#coachChallengesView .ch-due[data-team="${teamId}"]`).value || null;
+      const target = challengeTargets[teamId] || 'team';
+      const targets = target === 'team' ? [null] : [...target];
+      for (const uid of targets) {
+        const { error } = await coachStore.createChallenge(teamId, challengeSetupCat[teamId], hours, desc, uid, dueDate);
+        if (error) { alert('Haasteen luonti epäonnistui: ' + error.message); return; }
+      }
+      challengeTargets[teamId] = 'team';
       coachRefresh();
     };
   });
