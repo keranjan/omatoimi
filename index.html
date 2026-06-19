@@ -49,6 +49,17 @@
 
   <div id="viewDash" class="view">
 
+  <!-- Profiili: nimi + taso (klikkaa nähdäksesi tarkemmat tiedot) -->
+  <button class="profile-header" id="profileHeader" type="button" aria-label="Avaa profiili">
+    <span class="ph-badge" id="phBadge">1</span>
+    <span class="ph-main">
+      <span class="ph-name" id="phName"></span>
+      <span class="ph-level" id="phLevel"></span>
+      <span class="ph-bar"><span class="ph-bar-fill" id="phBarFill"></span></span>
+    </span>
+    <span class="ph-chevron">›</span>
+  </button>
+
   <!-- Kirjauslomake -->
   <div class="card">
     <div class="sec-head"><h2>Kirjaa harjoitus</h2></div>
@@ -75,11 +86,17 @@
     <button class="btn" id="saveBtn">Tallenna kirjaus</button>
   </div>
 
+  <!-- Valmentajan kannustukset -->
+  <div class="card" id="coachMsgCard" hidden></div>
+
   <!-- Tavoite (viikkotavoitteet) -->
   <div class="card" id="goalCard"></div>
 
   <!-- Joukkueen haaste -->
   <div class="card" id="challengeCard" hidden></div>
+
+  <!-- Joukkueen yhteinen viikkotavoite -->
+  <div class="card" id="teamGoalCard" hidden></div>
 
   <!-- Hero: valitun jakson yhteenveto -->
   <div class="card">
@@ -143,6 +160,7 @@
       <div class="cal-goal-list" id="calGoalList"></div>
     </div>
     <div class="card" id="calChallengeCard" hidden></div>
+    <div class="card" id="calTeamGoalCard" hidden></div>
     <div class="card cal-card">
       <div class="cal-head">
         <button class="cal-nav" id="calPrev" type="button" aria-label="Edellinen kuukausi">‹</button>
@@ -172,6 +190,17 @@
       </div>
       <div class="bank-list" id="bankList"></div>
     </div>
+  </div>
+
+  <!-- Profiili: taso, kausi/XP, saavutukset ja kehitys -->
+  <div id="viewProfile" class="view" hidden>
+    <button class="back-btn" id="profileBack" type="button">‹ Takaisin päiväkirjaan</button>
+    <!-- Taso / XP (kausittain nollautuva) -->
+    <div class="card" id="levelCard" hidden></div>
+    <!-- Saavutukset: putki ja virstanpylväät -->
+    <div class="card" id="achieveCard"></div>
+    <!-- Kehitys: viikkotuntien käyrä ja ennätykset -->
+    <div class="card" id="progressCard" hidden></div>
   </div>
 
 </div>

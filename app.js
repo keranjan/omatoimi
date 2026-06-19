@@ -139,6 +139,7 @@ let currentGoals = [];               // [{ category, hours }]
 let myChallenges = [];               // joukkueen haasteet (valmentajan asettamat)
 let calEvents = [];                  // joukkueen kalenteritapahtumat (iCal-tilaus)
 let myCompletions = new Set();       // tällä viikolla suoritetut kertasuoritus-haasteet
+let myEncouragements = [];           // valmentajan kannustukset
 let goalSetupCat = null;             // lisäyslomakkeessa valittu kategoria
 
 /* ---- Valittu jakso: 'all' tai 'YYYY-MM' ---- */
@@ -151,6 +152,8 @@ let calY = _now.getFullYear();
 let calM = _now.getMonth();          // 0–11
 let selectedDay = todayISO();        // ISO-päivä kalenterissa
 let lastAll = [];                    // viimeksi haettu data (kalenterin navigointia varten)
+let teamWeek = null;                 // joukkueen yhteisen viikkotavoitteen tila
+let myReactions = {};                // logId -> [emoji] valmentajan reaktiot omiin treeneihin
 
 /* ---- Lomakkeen päivämäärä (oma suomenkielinen valitsin) ---- */
 let formDate = todayISO();
@@ -215,6 +218,8 @@ async function renderAll() {
   const all = await store.getEntries();
   lastAll = all;
   currentGoals = await goalStore.get();
+  teamWeek = await loadTeamWeek();
+  myReactions = await loadMyReactions();
   renderPeriodSelect(all);
   const isAll = selectedPeriod === 'all';
   const periodEntries = isAll ? all : all.filter(e => monthKey(e.date) === selectedPeriod);
@@ -262,6 +267,12 @@ async function renderAll() {
   renderMonthBars(all);
   renderGoal();
   renderChallenges();
+  renderEncouragements();
+  renderAchievements();
+  renderProgress();
+  renderLevel();
+  renderProfileHeader();
+  renderTeamGoal();
   renderCalendar();
   renderDayPanel();
 
@@ -285,6 +296,7 @@ async function renderAll() {
       <div>
         <div class="log-cat"><span class="dot" style="background:${c.color}"></span>${c.label}</div>
         ${e.note ? `<div class="log-note">${escapeHtml(e.note)}</div>` : ''}
+        ${reactionChipsHtml(e.id)}
       </div>
       <div class="log-dur">${e.duration}<small>min</small></div>
       <div class="del-area"></div>`;
@@ -347,12 +359,14 @@ function switchView(v) {
   document.getElementById('viewDash').hidden = (v !== 'dash');
   document.getElementById('viewCalendar').hidden = (v !== 'cal');
   document.getElementById('viewBank').hidden = (v !== 'bank');
+  document.getElementById('viewProfile').hidden = (v !== 'profile');
   document.getElementById('tabDash').classList.toggle('active', v === 'dash');
   document.getElementById('tabCal').classList.toggle('active', v === 'cal');
   document.getElementById('tabBank').classList.toggle('active', v === 'bank');
   document.getElementById('playerWrap').classList.toggle('wide', v === 'cal');
   if (v === 'cal') { renderCalendar(); renderDayPanel(); }
   if (v === 'bank') renderBank();
+  if (v === 'profile') window.scrollTo(0, 0);
 }
 
 /* ---- Harjoitepankki ---- */
@@ -653,6 +667,307 @@ async function loadCalEvents() {
   } catch (e) { console.error(e); return []; }
 }
 
+/* ---- Valmentajan kannustukset (pelaajan näkymä) ---- */
+async function loadMyEncouragements() {
+  const { data, error } = await sb.from('encouragements').select('id, text, created_at').order('created_at', { ascending: false }).limit(5);
+  if (error) { console.error(error); return []; }
+  return data;
+}
+function timeAgo(iso) {
+  const days = Math.floor((new Date() - new Date(iso)) / 86400000);
+  if (days <= 0) return 'tänään';
+  if (days === 1) return 'eilen';
+  if (days < 7) return `${days} pv sitten`;
+  return fmtDateShort(iso.slice(0, 10));
+}
+function renderEncouragements() {
+  const card = document.getElementById('coachMsgCard');
+  if (!card) return;
+  if (!myEncouragements.length) { card.hidden = true; return; }
+  card.hidden = false;
+  card.innerHTML = `<div class="sec-head"><h2>Valmentajalta</h2></div>`
+    + `<div class="msg-list">` + myEncouragements.map(m => `
+      <div class="msg-row">
+        <span class="msg-icon">💬</span>
+        <div class="msg-body"><div class="msg-text">${escapeHtml(m.text)}</div><div class="msg-date">${timeAgo(m.created_at)}</div></div>
+      </div>`).join('') + `</div>`;
+}
+
+/* ---- Putki ja virstanpylväät (lasketaan kirjauksista) ---- */
+function addDaysISO(iso, n) { const d = new Date(iso + 'T00:00:00'); d.setDate(d.getDate() + n); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; }
+function mondayOfISO(iso) { return weekRangeISO(new Date(iso + 'T00:00:00')).mondayISO; }
+
+function weeklyStreak() {
+  if (!lastAll.length) return 0;
+  const weeks = new Set(lastAll.map(e => mondayOfISO(e.date)));
+  let cursor = weekRangeISO().mondayISO;          // kuluva viikko
+  if (!weeks.has(cursor)) {                        // jos tällä viikolla ei vielä treeniä, putki säilyy edellisestä
+    cursor = addDaysISO(cursor, -7);
+    if (!weeks.has(cursor)) return 0;
+  }
+  let n = 0;
+  while (weeks.has(cursor)) { n++; cursor = addDaysISO(cursor, -7); }
+  return n;
+}
+
+const ACH_TRACKS = [
+  { key: 'count',  icon: '🎯',  unit: 'treeniä',      tiers: [10, 25, 50, 100, 200, 365] },
+  { key: 'hours',  icon: '⏱️', unit: 'tuntia',       tiers: [10, 25, 50, 100, 200] },
+  { key: 'streak', icon: '🔥',  unit: 'vko putkeen',  tiers: [2, 4, 8, 12, 26, 52] },
+];
+function renderAchievements() {
+  const card = document.getElementById('achieveCard');
+  if (!card) return;
+  const vals = {
+    count: lastAll.length,
+    hours: lastAll.reduce((s, e) => s + e.duration, 0) / 60,
+    streak: weeklyStreak(),
+  };
+  const fmtVal = (key, v) => key === 'hours' ? hoursShort(Math.round(v * 10) / 10) : String(Math.round(v));
+  const streak = vals.streak;
+  const streakHero = streak >= 1
+    ? `<div class="streak-hero"><span class="streak-flame">🔥</span><span class="streak-num">${streak}</span><span class="streak-label">${streak === 1 ? 'viikko' : 'viikkoa'} putkeen</span></div>`
+    : `<div class="streak-hero streak-zero"><span class="streak-flame">✨</span><span class="streak-label">Aloita uusi putki — kirjaa treeni tällä viikolla!</span></div>`;
+  const tracks = ACH_TRACKS.map(tr => {
+    const v = vals[tr.key];
+    const earned = [...tr.tiers].reverse().find(t => v >= t) || null;
+    const next = tr.tiers.find(t => t > v) || null;
+    const pct = next ? Math.min(100, Math.round(v / next * 100)) : 100;
+    return `
+      <div class="ach-track">
+        <div class="ach-track-top">
+          <span class="ach-icon">${tr.icon}</span>
+          <span class="ach-track-label">${fmtVal(tr.key, v)} ${tr.unit}</span>
+          ${earned ? `<span class="ach-earned">🏅 ${earned}</span>` : ''}
+        </div>
+        ${next
+          ? `<div class="ach-bar"><div class="ach-bar-fill" style="width:${pct}%"></div></div><div class="ach-next">Seuraava merkki: ${next} ${tr.unit}</div>`
+          : `<div class="ach-next ach-max">Kaikki merkit ansaittu! 🎉</div>`}
+      </div>`;
+  }).join('');
+  card.innerHTML = `<div class="sec-head"><h2>Saavutukset</h2></div>${streakHero}<div class="ach-tracks">${tracks}</div>`;
+}
+
+/* ---- Kehitys: viikkotuntien käyrä + ennätykset ---- */
+function weeklyTotals(nWeeks) {
+  const thisMon = weekRangeISO().mondayISO;
+  const weeks = [];
+  for (let i = nWeeks - 1; i >= 0; i--) weeks.push({ mon: addDaysISO(thisMon, -7 * i), min: 0 });
+  const idx = {}; weeks.forEach((w, i) => { idx[w.mon] = i; });
+  lastAll.forEach(e => { const m = mondayOfISO(e.date); if (m in idx) weeks[idx[m]].min += e.duration; });
+  return weeks;
+}
+function longestStreak() {
+  if (!lastAll.length) return 0;
+  const weeks = [...new Set(lastAll.map(e => mondayOfISO(e.date)))].sort();
+  let best = 1, run = 1;
+  for (let i = 1; i < weeks.length; i++) {
+    if (weeks[i] === addDaysISO(weeks[i - 1], 7)) { run++; best = Math.max(best, run); }
+    else run = 1;
+  }
+  return best;
+}
+function bestWeekMin() {
+  const map = {};
+  lastAll.forEach(e => { const m = mondayOfISO(e.date); map[m] = (map[m] || 0) + e.duration; });
+  const vals = Object.values(map);
+  return vals.length ? Math.max(...vals) : 0;
+}
+function trendChartSVG(data) {
+  const W = 340, H = 150, padL = 6, padR = 6, padT = 16, padB = 26;
+  const innerW = W - padL - padR, innerH = H - padT - padB;
+  const hrs = data.map(w => w.min / 60);
+  const maxH = Math.max(1, ...hrs);
+  const n = data.length;
+  const x = i => padL + (n === 1 ? innerW / 2 : i * (innerW / (n - 1)));
+  const y = v => padT + innerH - (v / maxH) * innerH;
+  const base = padT + innerH;
+  const pts = hrs.map((v, i) => [x(i), y(v)]);
+  const line = pts.map((p, i) => `${i ? 'L' : 'M'}${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join(' ');
+  const area = `M${x(0).toFixed(1)} ${base.toFixed(1)} ` + pts.map(p => `L${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join(' ') + ` L${x(n - 1).toFixed(1)} ${base.toFixed(1)} Z`;
+  const dm = iso => { const d = new Date(iso + 'T00:00:00'); return `${d.getDate()}.${d.getMonth() + 1}.`; };
+  const labels = data.map((w, i) => (i % 2 === 0 || i === n - 1)
+    ? `<text x="${x(i).toFixed(1)}" y="${H - 8}" text-anchor="middle" class="trend-x">${dm(w.mon)}</text>` : '').join('');
+  const dots = pts.map((p, i) => {
+    const last = i === n - 1;
+    return `<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="${last ? 4.5 : 3}" class="${last ? 'trend-dot-last' : 'trend-dot'}"/>`;
+  }).join('');
+  return `<svg viewBox="0 0 ${W} ${H}" class="trend-svg" role="img" aria-label="Viikkotuntien kehitys">
+    <line x1="${padL}" y1="${base}" x2="${W - padR}" y2="${base}" class="trend-base"/>
+    <path d="${area}" class="trend-area"/>
+    <path d="${line}" class="trend-line"/>
+    ${dots}${labels}
+  </svg>`;
+}
+function renderProgress() {
+  const card = document.getElementById('progressCard');
+  if (!card) return;
+  if (!lastAll.length) { card.hidden = true; return; }
+  card.hidden = false;
+  const data = weeklyTotals(10);
+  const cur = data[data.length - 1].min;
+  const prev = data[data.length - 2] ? data[data.length - 2].min : 0;
+  const diff = cur - prev;
+  let delta;
+  if (cur === 0 && prev === 0) delta = `<span class="trend-delta">Kirjaa treeni tällä viikolla</span>`;
+  else if (diff > 0) delta = `<span class="trend-delta up">▲ +${fmtHours(diff)} vs. viime viikko</span>`;
+  else if (diff < 0) delta = `<span class="trend-delta down">▼ ${fmtHours(-diff)} vs. viime viikko</span>`;
+  else delta = `<span class="trend-delta even">– sama kuin viime viikko</span>`;
+
+  const totalMin = lastAll.reduce((s, e) => s + e.duration, 0);
+  const longest = longestStreak();
+  const recs = [
+    { icon: '🔥', val: `${longest} vko`, label: 'Pisin putki' },
+    { icon: '🏆', val: hoursShort(Math.round(bestWeekMin() / 60 * 10) / 10), label: 'Paras viikko' },
+    { icon: '⏱️', val: hoursShort(Math.round(totalMin / 60 * 10) / 10), label: 'Tunnit yhteensä' },
+    { icon: '📅', val: String(lastAll.length), label: 'Treenejä' },
+  ];
+  const recGrid = recs.map(r => `
+    <div class="rec-tile">
+      <span class="rec-icon">${r.icon}</span>
+      <span class="rec-val">${r.val}</span>
+      <span class="rec-label">${r.label}</span>
+    </div>`).join('');
+
+  card.innerHTML = `
+    <div class="sec-head"><h2>Kehitys</h2><span class="hint">viikkotunnit</span></div>
+    <div class="trend-head">
+      <div class="trend-now"><span class="trend-now-val">${fmtHours(cur)}</span><span class="trend-now-lbl">tällä viikolla</span></div>
+      ${delta}
+    </div>
+    <div class="trend-chart">${trendChartSVG(data)}</div>
+    <div class="rec-grid">${recGrid}</div>`;
+}
+
+/* ---- Taso / XP (kausittain nollautuva) ---- */
+const LEVELS = [
+  { lvl: 1, xp: 0,    name: 'Aloittelija' },
+  { lvl: 2, xp: 150,  name: 'Innokas' },
+  { lvl: 3, xp: 400,  name: 'Ahkera' },
+  { lvl: 4, xp: 800,  name: 'Sinnikäs' },
+  { lvl: 5, xp: 1400, name: 'Omistautunut' },
+  { lvl: 6, xp: 2200, name: 'Tähtipelaaja' },
+  { lvl: 7, xp: 3200, name: 'Mestarikokelas' },
+  { lvl: 8, xp: 4500, name: 'Huippu' },
+  { lvl: 9, xp: 6000, name: 'Legenda' },
+];
+// XP: jokainen treeni 10 XP + 1 XP / minuutti (palkitsee sekä säännöllisyyttä että kestoa).
+function sessionXp(min) { return 10 + min; }
+function levelInfo(xp) {
+  let cur = LEVELS[0];
+  for (const l of LEVELS) if (xp >= l.xp) cur = l;
+  const next = LEVELS.find(l => l.xp > xp) || null;
+  const pct = next ? Math.round((xp - cur.xp) / (next.xp - cur.xp) * 100) : 100;
+  return { cur, next, pct };
+}
+function renderLevel() {
+  const card = document.getElementById('levelCard');
+  if (!card) return;
+  card.hidden = false;
+  const seasonStart = teamWeek && teamWeek.seasonStart ? teamWeek.seasonStart : null;
+  const seasonName = teamWeek && teamWeek.seasonName ? teamWeek.seasonName : null;
+  const logs = seasonStart ? lastAll.filter(e => e.date >= seasonStart) : lastAll;
+  const xp = logs.reduce((s, e) => s + sessionXp(e.duration), 0);
+  const info = levelInfo(xp);
+  const seasonLabel = seasonName
+    ? `Kausi: ${escapeHtml(seasonName)}`
+    : (seasonStart ? `Kausi alkoi ${fmtDateShort(seasonStart)}` : 'Kaikkien aikojen');
+  const nextLine = info.next
+    ? `<div class="lvl-bar"><div class="lvl-bar-fill" data-pct="${info.pct / 100}" style="width:0"></div></div>
+       <div class="lvl-next">${xp} / ${info.next.xp} XP · seuraava taso: ${info.next.name}</div>`
+    : `<div class="lvl-bar"><div class="lvl-bar-fill" data-pct="1" style="width:0"></div></div>
+       <div class="lvl-next lvl-max">Korkein taso saavutettu! ${xp} XP 🎉</div>`;
+  card.innerHTML = `
+    <div class="sec-head"><h2>Taso</h2><span class="hint">${seasonLabel}</span></div>
+    <div class="lvl-hero">
+      <span class="lvl-badge">${info.cur.lvl}</span>
+      <div class="lvl-hero-text"><span class="lvl-name">${info.cur.name}</span><span class="lvl-xp">${xp} XP</span></div>
+    </div>
+    ${nextLine}
+    <div class="lvl-hint">10 XP / treeni + 1 XP / minuutti</div>`;
+  const fill = card.querySelector('.lvl-bar-fill');
+  const pct = parseFloat(fill.dataset.pct);
+  requestAnimationFrame(() => { fill.style.width = (pct * 100) + '%'; });
+}
+
+/* Profiiliotsikko etusivulla: nimi + taso + ohut XP-palkki */
+function renderProfileHeader() {
+  const nameEl = document.getElementById('phName');
+  if (!nameEl) return;
+  nameEl.textContent = currentUser ? currentUser.username : '';
+  const seasonStart = teamWeek && teamWeek.seasonStart ? teamWeek.seasonStart : null;
+  const logs = seasonStart ? lastAll.filter(e => e.date >= seasonStart) : lastAll;
+  const xp = logs.reduce((s, e) => s + sessionXp(e.duration), 0);
+  const info = levelInfo(xp);
+  document.getElementById('phBadge').textContent = info.cur.lvl;
+  document.getElementById('phLevel').textContent = info.next
+    ? `Taso ${info.cur.lvl} · ${info.cur.name} · ${xp} / ${info.next.xp} XP`
+    : `Taso ${info.cur.lvl} · ${info.cur.name} · ${xp} XP`;
+  const fill = document.getElementById('phBarFill');
+  const pct = info.next ? info.pct : 100;
+  requestAnimationFrame(() => { fill.style.width = pct + '%'; });
+}
+
+/* ---- Valmentajan reaktiot omiin treeneihin (pelaajan näkymä) ---- */
+async function loadMyReactions() {
+  const { data, error } = await sb.from('log_reactions').select('log_id, emoji');
+  if (error) { console.error(error); return {}; }
+  const map = {};
+  data.forEach(r => { (map[r.log_id] = map[r.log_id] || []).push(r.emoji); });
+  return map;
+}
+function reactionChipsHtml(logId) {
+  const r = myReactions[logId];
+  if (!r || !r.length) return '';
+  return `<div class="log-reactions" title="Valmentajan palaute">${r.map(em => `<span class="log-react">${em}</span>`).join('')}</div>`;
+}
+
+/* ---- Joukkueen yhteinen viikkotavoite ---- */
+async function loadTeamWeek() {
+  if (!currentUser || !currentUser.team_id) return null;
+  const { mondayISO } = weekRangeISO();
+  const { data, error } = await sb.rpc('team_week_progress', { week_start: mondayISO });
+  if (error) { console.error(error); return null; }
+  const row = Array.isArray(data) ? data[0] : data;
+  if (!row) return null;
+  return {
+    totalMin: Number(row.total_min) || 0,
+    activePlayers: Number(row.active_players) || 0,
+    teamSize: Number(row.team_size) || 0,
+    goalHours: row.goal_hours == null ? null : Number(row.goal_hours),
+    seasonStart: row.season_start || null,
+    seasonName: row.season_name || null,
+  };
+}
+function renderTeamGoal() {
+  const cards = [document.getElementById('teamGoalCard'), document.getElementById('calTeamGoalCard')].filter(Boolean);
+  if (!teamWeek || teamWeek.goalHours == null) { cards.forEach(c => { c.hidden = true; }); return; }
+  const targetMin = Math.round(teamWeek.goalHours * 60);
+  const doneMin = teamWeek.totalMin;
+  const pct = targetMin ? Math.min(100, Math.round(doneMin / targetMin * 100)) : 0;
+  const achieved = doneMin >= targetMin && targetMin > 0;
+  const remaining = Math.max(0, targetMin - doneMin);
+  const msg = achieved
+    ? 'Tavoite saavutettu — hienoa joukkuetyötä! 🎉'
+    : `Jäljellä ${fmtHours(remaining)} — sinunkin treenisi vie joukkuetta eteenpäin!`;
+  const players = teamWeek.teamSize
+    ? `${teamWeek.activePlayers}/${teamWeek.teamSize} pelaajaa treenannut tällä viikolla`
+    : `${teamWeek.activePlayers} pelaajaa treenannut tällä viikolla`;
+  const inner = `
+    <div class="sec-head"><h2>Joukkueen viikkotavoite</h2><span class="hint">yhdessä</span></div>
+    <div class="team-goal-nums"><span class="team-goal-done">${fmtHours(doneMin)}</span><span class="team-goal-target">/ ${fmtHours(targetMin)}</span></div>
+    <div class="goal-bar"><div class="goal-bar-fill team-goal-fill" data-pct="${pct / 100}" style="width:0; background:${achieved ? 'var(--accent)' : 'var(--brand)'}"></div></div>
+    <div class="team-goal-players">${players}</div>
+    <div class="goal-encour">${msg}</div>`;
+  cards.forEach(card => {
+    card.hidden = false;
+    card.innerHTML = inner;
+    const fill = card.querySelector('.team-goal-fill');
+    const p = parseFloat(fill.dataset.pct);
+    requestAnimationFrame(() => { fill.style.width = (p * 100) + '%'; });
+  });
+}
+
 function challengeRowHtml(ch) {
   const c = catById(ch.category);
   const dueLabel = ch.due_date ? `${fmtDateShort(ch.due_date)} mennessä` : null;
@@ -884,6 +1199,7 @@ function renderDayPanel() {
       <div>
         <div class="day-cat"><span class="dot" style="background:${c.color}"></span>${c.label}</div>
         ${e.note ? `<div class="day-note">${escapeHtml(e.note)}</div>` : ''}
+        ${reactionChipsHtml(e.id)}
       </div>
       <div class="day-dur">${e.duration}<small>min</small></div>
       <div class="del-area"></div>`;
@@ -989,6 +1305,8 @@ function wirePlayerApp() {
   document.getElementById('tabDash').onclick = () => switchView('dash');
   document.getElementById('tabCal').onclick = () => switchView('cal');
   document.getElementById('tabBank').onclick = () => switchView('bank');
+  document.getElementById('profileHeader').onclick = () => switchView('profile');
+  document.getElementById('profileBack').onclick = () => switchView('dash');
   document.getElementById('calPrev').onclick = () => calStep(-1);
   document.getElementById('calNext').onclick = () => calStep(1);
   renderChips();
@@ -1024,6 +1342,7 @@ async function startPlayer() {
   if (!playerWired) { wirePlayerApp(); playerWired = true; }
   myChallenges = await loadMyChallenges();
   myCompletions = await loadMyCompletions();
+  myEncouragements = await loadMyEncouragements();
   calEvents = await loadCalEvents();
   await renderAll();
 }
@@ -1088,15 +1407,21 @@ async function doSignOut() {
    ========================================================================= */
 const coachStore = {
   async getTeams() {
-    const { data, error } = await sb.from('teams').select('id, name, created_at, ics_url, ics_filter').order('created_at', { ascending: true });
+    const { data, error } = await sb.from('teams').select('id, name, created_at, ics_url, ics_filter, weekly_goal_hours, season_start, season_name').order('created_at', { ascending: true });
     if (error) { console.error(error); return []; }
     return data;
+  },
+  async setTeamSeason(teamId, name, start) {
+    return await sb.from('teams').update({ season_name: name || null, season_start: start || null }).eq('id', teamId);
   },
   async setTeamCalendar(teamId, url, filter) {
     return await sb.from('teams').update({
       ics_url: url || null,
       ics_filter: (filter && filter.trim()) ? filter.trim() : null
     }).eq('id', teamId);
+  },
+  async setTeamGoal(teamId, hours) {
+    return await sb.from('teams').update({ weekly_goal_hours: hours }).eq('id', teamId);
   },
   async createTeam(name) {
     return await sb.from('teams').insert({ name, coach_id: currentUser.id }).select().single();
@@ -1107,9 +1432,20 @@ const coachStore = {
     return data.filter(p => p.role === 'player' && p.team_id);
   },
   async getLogs() {
-    const { data, error } = await sb.from('training_logs').select('user_id, date, category, duration');
+    const { data, error } = await sb.from('training_logs').select('id, user_id, date, category, duration, note');
     if (error) { console.error(error); return []; }
     return data;
+  },
+  async getReactions() {
+    const { data, error } = await sb.from('log_reactions').select('log_id, emoji, coach_id');
+    if (error) { console.error(error); return []; }
+    return data;
+  },
+  async setReaction(logId, emoji) {
+    return await sb.from('log_reactions').upsert({ log_id: logId, coach_id: currentUser.id, emoji }, { onConflict: 'log_id,coach_id' });
+  },
+  async removeReaction(logId) {
+    return await sb.from('log_reactions').delete().eq('log_id', logId).eq('coach_id', currentUser.id);
   },
   async getGoals() {
     const { data, error } = await sb.from('goals').select('user_id, category, hours');
@@ -1143,10 +1479,18 @@ const coachStore = {
   },
   async deleteChallenge(id) {
     return await sb.from('challenges').delete().eq('id', id);
+  },
+  async getEncouragements() {
+    const { data, error } = await sb.from('encouragements').select('id, user_id, text, created_at').order('created_at', { ascending: false });
+    if (error) { console.error(error); return []; }
+    return data;
+  },
+  async sendEncouragement(userId, text) {
+    return await sb.from('encouragements').insert({ user_id: userId, text });
   }
 };
 
-let coachTeams = [], coachPlayers = [], coachLogs = [], coachGoals = [], coachChallenges = [], coachCompletions = [];
+let coachTeams = [], coachPlayers = [], coachLogs = [], coachGoals = [], coachChallenges = [], coachCompletions = [], coachEncouragements = [], coachReactions = [];
 let coachTab = 'players';
 let challengeSetupCat = {};
 let challengeKind = {};   // per-team: 'time' | 'once'
@@ -1180,6 +1524,8 @@ async function coachRefresh() {
   coachGoals      = await coachStore.getGoals();
   coachChallenges = await coachStore.getChallenges();
   coachCompletions = await coachStore.getCompletions();
+  coachEncouragements = await coachStore.getEncouragements();
+  coachReactions = await coachStore.getReactions();
   renderCoachPlayers();
   renderCoachTeams();
   renderCoachChallenges();
@@ -1210,6 +1556,12 @@ function userCumulativeMin(userId, category, startISO, endISO) {
   return coachLogs.filter(l => l.user_id === userId && l.category === category && (!startISO || l.date >= startISO) && l.date <= endISO)
     .reduce((s, l) => s + l.duration, 0);
 }
+function coachTeamWeekMin(teamId) {
+  const ids = new Set(coachPlayers.filter(p => p.team_id === teamId).map(p => p.id));
+  const { mondayISO, sundayISO } = weekRangeISO();
+  return coachLogs.filter(l => ids.has(l.user_id) && l.date >= mondayISO && l.date <= sundayISO)
+    .reduce((s, l) => s + l.duration, 0);
+}
 function repChallengeLine(p, ch) {
   const c = catById(ch.category);
   const due = ch.due_date ? ` <span class="rep-due">${fmtDateShort(ch.due_date)} mennessä</span>` : '';
@@ -1236,6 +1588,48 @@ function repProgressLine(userId, category, hours) {
 }
 
 /* ---- 1) PELAAJAT (raportit) ---- */
+const PRESET_KUDOS = ['👏 Hienoa työtä!', '💪 Jatka samaan malliin!', '🔥 Hyvä putki!', '⭐ Loistavaa!'];
+const REACTION_EMOJIS = ['👏', '🔥', '💪', '⭐', '👍'];
+function coachReactionFor(logId) {
+  const r = coachReactions.find(x => x.log_id === logId && x.coach_id === currentUser.id);
+  return r ? r.emoji : null;
+}
+function recentSessionsSection(p) {
+  const logs = coachLogs.filter(l => l.user_id === p.id)
+    .slice().sort((a, b) => b.date < a.date ? -1 : b.date > a.date ? 1 : (b.id - a.id)).slice(0, 6);
+  if (!logs.length) return '';
+  const rows = logs.map(l => {
+    const c = catById(l.category);
+    const mine = coachReactionFor(l.id);
+    const chips = REACTION_EMOJIS.map(em =>
+      `<button class="react-chip${mine === em ? ' active' : ''}" type="button" data-log="${l.id}" data-emoji="${em}">${em}</button>`).join('');
+    return `
+      <div class="rep-session" data-log="${l.id}">
+        <div class="rep-session-top">
+          <span class="rep-session-cat"><span class="dot" style="background:${c.color}"></span>${c.label}</span>
+          <span class="rep-session-meta">${fmtDateShort(l.date)} · ${l.duration} min</span>
+        </div>
+        ${l.note ? `<div class="rep-session-note">${escapeHtml(l.note)}</div>` : ''}
+        <div class="react-row" data-log="${l.id}">${chips}</div>
+      </div>`;
+  }).join('');
+  return `<div class="rep-section-label">Viimeisimmät treenit — anna palaute</div>${rows}`;
+}
+function kudosSection(p) {
+  const last = coachEncouragements.find(e => e.user_id === p.id);
+  return `
+    <div class="rep-section-label">Kannusta pelaajaa</div>
+    <div class="kudos" data-user="${p.id}">
+      <div class="kudos-presets">
+        ${PRESET_KUDOS.map(t => `<button class="kudos-preset" type="button" data-user="${p.id}" data-text="${escapeHtml(t)}">${t}</button>`).join('')}
+      </div>
+      <div class="kudos-send-row">
+        <input type="text" class="kudos-input" data-user="${p.id}" maxlength="120" placeholder="Oma viesti…">
+        <button class="btn kudos-send" type="button" data-user="${p.id}">Lähetä</button>
+      </div>
+      <div class="kudos-last">${last ? `Viimeksi: "${escapeHtml(last.text)}" (${timeAgo(last.created_at)})` : ''}</div>
+    </div>`;
+}
 function richPlayerReport(p) {
   const s = playerStats(p.id);
   const cats = CATEGORIES.filter(c => s.byCat[c.id]);
@@ -1253,9 +1647,18 @@ function richPlayerReport(p) {
   const statsLine = s.count
     ? `Viikko ${fmtHours(s.weekMin)} · Kuukausi ${fmtHours(s.monthMin)} · Viimeksi ${fmtDateShort(s.last)}`
     : 'Ei vielä kirjauksia';
-  const detail = (catBars ? `<div class="rep-section-label">Kuukauden jakauma</div>${catBars}` : '')
+  const team = coachTeams.find(t => t.id === p.team_id);
+  const seasonStart = team && team.season_start ? team.season_start : null;
+  const seasonXp = coachLogs.filter(l => l.user_id === p.id && (!seasonStart || l.date >= seasonStart))
+    .reduce((sum, l) => sum + sessionXp(l.duration), 0);
+  const lvl = levelInfo(seasonXp);
+  const levelLine = `<div class="rep-level"><span class="rep-level-badge">${lvl.cur.lvl}</span><span class="rep-level-text">Taso ${lvl.cur.lvl} · ${lvl.cur.name} · ${seasonXp} XP${seasonStart ? '' : ' (kaikkien aikojen)'}</span></div>`;
+  const detail = levelLine
+    + (catBars ? `<div class="rep-section-label">Kuukauden jakauma</div>${catBars}` : '')
     + (goalLines ? `<div class="rep-section-label">Tavoitteet (tällä viikolla)</div>${goalLines}` : '')
-    + (chLines ? `<div class="rep-section-label">Haasteet</div>${chLines}` : '');
+    + (chLines ? `<div class="rep-section-label">Haasteet</div>${chLines}` : '')
+    + recentSessionsSection(p)
+    + kudosSection(p);
   return `
     <div class="player-row collapsible" data-name="${escapeHtml(p.username.toLowerCase())}">
       <button class="player-head" type="button" aria-expanded="false">
@@ -1319,6 +1722,48 @@ function wireCoachReports() {
       });
     };
   }
+  document.querySelectorAll('#coachPlayers .kudos-preset').forEach(btn => {
+    btn.onclick = () => sendKudos(btn.dataset.user, btn.dataset.text, btn.closest('.kudos'), btn);
+  });
+  document.querySelectorAll('#coachPlayers .kudos-send').forEach(btn => {
+    btn.onclick = () => {
+      const inp = document.querySelector(`#coachPlayers .kudos-input[data-user="${btn.dataset.user}"]`);
+      sendKudos(btn.dataset.user, inp.value, btn.closest('.kudos'), btn, inp);
+    };
+  });
+  document.querySelectorAll('#coachPlayers .react-chip').forEach(chip => {
+    chip.onclick = () => reactToLog(Number(chip.dataset.log), chip.dataset.emoji, chip.closest('.react-row'));
+  });
+}
+
+async function reactToLog(logId, emoji, rowEl) {
+  const current = coachReactionFor(logId);
+  const remove = current === emoji;
+  if (rowEl) rowEl.querySelectorAll('.react-chip').forEach(c => { c.disabled = true; });
+  const { error } = remove ? await coachStore.removeReaction(logId) : await coachStore.setReaction(logId, emoji);
+  if (rowEl) rowEl.querySelectorAll('.react-chip').forEach(c => { c.disabled = false; });
+  if (error) { alert('Reaktio epäonnistui: ' + error.message); return; }
+  coachReactions = coachReactions.filter(r => !(r.log_id === logId && r.coach_id === currentUser.id));
+  if (!remove) coachReactions.push({ log_id: logId, emoji, coach_id: currentUser.id });
+  if (rowEl) rowEl.querySelectorAll('.react-chip').forEach(c => {
+    c.classList.toggle('active', !remove && c.dataset.emoji === emoji);
+  });
+}
+
+async function sendKudos(userId, text, kudosEl, btn, inp) {
+  const msg = (text || '').trim();
+  if (!msg) { if (inp) inp.focus(); return; }
+  if (btn) btn.disabled = true;
+  const { error } = await coachStore.sendEncouragement(userId, msg);
+  if (btn) btn.disabled = false;
+  if (error) { alert('Lähetys epäonnistui: ' + error.message); return; }
+  coachEncouragements.unshift({ id: Date.now(), user_id: userId, text: msg, created_at: new Date().toISOString() });
+  if (kudosEl) {
+    const last = kudosEl.querySelector('.kudos-last');
+    if (last) last.textContent = `Viimeksi: "${msg}" (tänään)`;
+  }
+  if (inp) inp.value = '';
+  showToast('Kannustus lähetetty');
 }
 
 /* ---- 2) JOUKKUEET (hallinta) ---- */
@@ -1349,6 +1794,28 @@ function renderCoachTeams() {
               <span class="player-name">${escapeHtml(p.username)}</span>
               <span class="player-del-area" data-user="${p.id}"></span>
             </div></div>`).join('') : '<div class="coach-empty">Ei vielä pelaajia tässä joukkueessa.</div>'}
+        </div>
+        <div class="team-goal-block">
+          <div class="ch-form-label">Joukkueen viikkotavoite</div>
+          <div class="team-goal-status">Tällä viikolla yhteensä ${fmtHours(coachTeamWeekMin(t.id))}${t.weekly_goal_hours != null ? ` / ${fmtHours(Math.round(t.weekly_goal_hours * 60))}` : ' (ei tavoitetta)'}</div>
+          <div class="coach-add-row">
+            <input type="number" class="team-goal-input" data-team="${t.id}" min="0" step="0.5" placeholder="tuntia / viikko (tyhjä = poista)" value="${t.weekly_goal_hours != null ? t.weekly_goal_hours : ''}">
+            <button class="btn team-goal-btn" data-team="${t.id}" type="button">Tallenna</button>
+          </div>
+          <div class="coach-msg team-goal-msg" data-team="${t.id}"></div>
+        </div>
+        <div class="season-block">
+          <div class="ch-form-label">Kausi (tasot/XP)</div>
+          <div class="season-status">${t.season_start ? `Nykyinen kausi: ${t.season_name ? escapeHtml(t.season_name) + ' · ' : ''}alkanut ${fmtDateShort(t.season_start)}` : 'Ei kautta — XP lasketaan kaikkien aikojen treeneistä.'}</div>
+          <input type="text" class="season-name-input" data-team="${t.id}" maxlength="40" placeholder="Kauden nimi, esim. Kevät 2026" value="${t.season_name ? escapeHtml(t.season_name) : ''}">
+          <div class="ch-sub-label">Kauden alkupäivä (XP lasketaan tästä eteenpäin):</div>
+          <input type="date" class="season-start-input" data-team="${t.id}" value="${t.season_start || ''}">
+          <div class="coach-add-row season-btns">
+            <button class="btn season-save-btn" data-team="${t.id}" type="button">Tallenna kausi</button>
+            <button class="season-today-btn" data-team="${t.id}" type="button">Aloita tänään</button>
+            <button class="season-clear-btn" data-team="${t.id}" type="button">Poista kausi</button>
+          </div>
+          <div class="coach-msg season-msg" data-team="${t.id}"></div>
         </div>
         <div class="ics-row">
           <div class="ch-form-label">Kalenteritilaus</div>
@@ -1400,6 +1867,62 @@ function wireCoachTeams() {
       if (error) { msg.textContent = 'Tallennus epäonnistui: ' + error.message; msg.className = 'coach-msg ics-msg error'; return; }
       msg.textContent = url ? 'Kalenteritilaus tallennettu.' : 'Kalenteritilaus poistettu.';
       msg.className = 'coach-msg ics-msg ok';
+    };
+  });
+  document.querySelectorAll('#coachTeamsView .team-goal-btn').forEach(btn => {
+    btn.onclick = async () => {
+      const teamId = btn.dataset.team;
+      const input = document.querySelector(`#coachTeamsView .team-goal-input[data-team="${teamId}"]`);
+      const msg = document.querySelector(`#coachTeamsView .team-goal-msg[data-team="${teamId}"]`);
+      const raw = input.value.trim();
+      let hours = null;
+      if (raw !== '') {
+        hours = Number(raw.replace(',', '.'));
+        if (!isFinite(hours) || hours < 0) { msg.textContent = 'Anna tuntimäärä numerona.'; msg.className = 'coach-msg team-goal-msg error'; return; }
+      }
+      btn.disabled = true;
+      const { error } = await coachStore.setTeamGoal(teamId, hours);
+      btn.disabled = false;
+      if (error) { msg.textContent = 'Tallennus epäonnistui: ' + error.message; msg.className = 'coach-msg team-goal-msg error'; return; }
+      const tt = coachTeams.find(t => t.id === teamId); if (tt) tt.weekly_goal_hours = hours;
+      msg.textContent = hours == null ? 'Tavoite poistettu.' : `Tavoite asetettu: ${hoursShort(hours)} / viikko.`;
+      msg.className = 'coach-msg team-goal-msg ok';
+    };
+  });
+  const saveSeason = async (teamId, name, start, msg) => {
+    const { error } = await coachStore.setTeamSeason(teamId, name, start);
+    if (error) { msg.textContent = 'Tallennus epäonnistui: ' + error.message; msg.className = 'coach-msg season-msg error'; return; }
+    const tt = coachTeams.find(t => t.id === teamId); if (tt) { tt.season_name = name || null; tt.season_start = start || null; }
+    msg.textContent = start ? `Kausi tallennettu${name ? ' — ' + name : ''}.` : 'Kausi poistettu.';
+    msg.className = 'coach-msg season-msg ok';
+  };
+  document.querySelectorAll('#coachTeamsView .season-save-btn').forEach(btn => {
+    btn.onclick = async () => {
+      const teamId = btn.dataset.team;
+      const name = document.querySelector(`#coachTeamsView .season-name-input[data-team="${teamId}"]`).value.trim();
+      const start = document.querySelector(`#coachTeamsView .season-start-input[data-team="${teamId}"]`).value || null;
+      const msg = document.querySelector(`#coachTeamsView .season-msg[data-team="${teamId}"]`);
+      if (!start) { msg.textContent = 'Valitse kauden alkupäivä (tai poista kausi).'; msg.className = 'coach-msg season-msg error'; return; }
+      await saveSeason(teamId, name, start, msg);
+    };
+  });
+  document.querySelectorAll('#coachTeamsView .season-today-btn').forEach(btn => {
+    btn.onclick = async () => {
+      const teamId = btn.dataset.team;
+      const name = document.querySelector(`#coachTeamsView .season-name-input[data-team="${teamId}"]`).value.trim();
+      const startEl = document.querySelector(`#coachTeamsView .season-start-input[data-team="${teamId}"]`);
+      startEl.value = todayISO();
+      const msg = document.querySelector(`#coachTeamsView .season-msg[data-team="${teamId}"]`);
+      if (!confirm('Aloitetaanko uusi kausi tästä päivästä? Pelaajien XP lasketaan tästä eteenpäin.')) return;
+      await saveSeason(teamId, name, todayISO(), msg);
+    };
+  });
+  document.querySelectorAll('#coachTeamsView .season-clear-btn').forEach(btn => {
+    btn.onclick = async () => {
+      const teamId = btn.dataset.team;
+      const msg = document.querySelector(`#coachTeamsView .season-msg[data-team="${teamId}"]`);
+      document.querySelector(`#coachTeamsView .season-start-input[data-team="${teamId}"]`).value = '';
+      await saveSeason(teamId, '', null, msg);
     };
   });
 }
