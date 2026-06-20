@@ -208,6 +208,13 @@
   .team-goal-block { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--line); }
   .team-goal-status { font-size: 13px; color: var(--ink-soft); margin: 2px 0 10px; font-variant-numeric: tabular-nums; }
 
+  /* Valmentajien hallinta (admin) */
+  .team-coaches-block { margin-bottom: 14px; padding-bottom: 14px; border-bottom: 1px solid var(--line); }
+  .coach-link-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
+  .coach-link-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; background: var(--bg); border-radius: 9px; padding: 8px 12px; }
+  .coach-link-name { font-size: 14px; font-weight: 500; color: var(--ink); }
+  .coach-link-del { background: none; border: none; color: var(--cat-voima); font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer; padding: 2px 4px; }
+
   /* Taso / XP (pelaaja) */
   .profile-header {
     width: 100%; display: flex; align-items: center; gap: 14px;

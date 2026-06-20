@@ -1327,7 +1327,7 @@ async function loadProfile() {
   const { data: { user } } = await sb.auth.getUser();
   if (!user) return null;
   const { data, error } = await sb.from('profiles')
-    .select('id, username, role, team_id').eq('id', user.id).single();
+    .select('id, username, role, team_id, is_admin').eq('id', user.id).single();
   if (error) { console.error(error); return null; }
   return data;
 }
@@ -1357,6 +1357,9 @@ function setAuthMode(m) {
   document.getElementById('authSubmit').textContent = m === 'login' ? 'Kirjaudu' : 'Rekisteröidy';
   document.getElementById('authToggle').textContent = m === 'login' ? 'Ei tiliä? Rekisteröidy' : 'Onko jo tili? Kirjaudu';
   document.getElementById('authPass').placeholder = m === 'login' ? 'salasana' : 'vähintään 6 merkkiä';
+  const confirmFld = document.getElementById('authConfirmFld');
+  confirmFld.hidden = (m !== 'register');
+  if (m !== 'register') document.getElementById('authConfirm').value = '';
   authError('');
 }
 function authError(msg) {
@@ -1379,6 +1382,10 @@ async function submitAuth() {
     authError('Käyttäjänimi: vähintään 3 merkkiä (kirjaimet, numerot, _ . -).'); return;
   }
   if (password.length < 6) { authError('Salasanan on oltava vähintään 6 merkkiä.'); return; }
+  if (authMode === 'register') {
+    const confirm = document.getElementById('authConfirm').value;
+    if (password !== confirm) { authError('Salasanat eivät täsmää.'); return; }
+  }
   const btn = document.getElementById('authSubmit');
   btn.disabled = true; authError('');
   try {
@@ -1393,7 +1400,7 @@ async function submitAuth() {
     }
     currentUser = await loadProfile();
     if (!currentUser) { authError('Profiilin lataus epäonnistui.'); return; }
-    if (currentUser.role === 'coach') startCoach(); else startPlayer();
+    if (currentUser.role === 'coach' || currentUser.is_admin) startCoach(); else startPlayer();
   } catch (e) {
     authError('Yhteysvirhe. Tarkista Supabase-asetukset.');
   } finally {
@@ -1428,7 +1435,32 @@ const coachStore = {
     return await sb.from('teams').update({ weekly_goal_hours: hours }).eq('id', teamId);
   },
   async createTeam(name) {
-    return await sb.from('teams').insert({ name, coach_id: currentUser.id }).select().single();
+    const { data, error } = await sb.rpc('admin_create_team', { p_name: name });
+    if (error) return { error };
+    if (data && data.ok === false) return { error: { message: data.error } };
+    return { data };
+  },
+  async getTeamCoaches() {
+    const { data, error } = await sb.from('team_coaches').select('team_id, coach_id');
+    if (error) { console.error(error); return []; }
+    return data;
+  },
+  async getCoachAccounts() {
+    const { data, error } = await sb.from('profiles').select('id, username, role');
+    if (error) { console.error(error); return []; }
+    return data.filter(p => p.role === 'coach');
+  },
+  async assignCoach(username, teamId) {
+    const { data, error } = await sb.rpc('assign_coach_to_team', { p_username: username, p_team_id: teamId });
+    if (error) return { error };
+    if (data && data.ok === false) return { error: { message: data.error } };
+    return { data };
+  },
+  async removeCoach(coachId, teamId) {
+    const { data, error } = await sb.rpc('remove_coach_from_team', { p_coach_id: coachId, p_team_id: teamId });
+    if (error) return { error };
+    if (data && data.ok === false) return { error: { message: data.error } };
+    return { data };
   },
   async getPlayers() {
     const { data, error } = await sb.from('profiles').select('id, username, team_id, role');
@@ -1495,6 +1527,7 @@ const coachStore = {
 };
 
 let coachTeams = [], coachPlayers = [], coachLogs = [], coachGoals = [], coachChallenges = [], coachCompletions = [], coachEncouragements = [], coachReactions = [];
+let coachTeamLinks = [], coachAccounts = [];   // admin: valmentaja↔joukkue-liitokset ja valmentajatilit
 let coachTab = 'players';
 let challengeSetupCat = {};
 let challengeKind = {};   // per-team: 'time' | 'once'
@@ -1504,7 +1537,7 @@ async function startCoach() {
   document.getElementById('authScreen').hidden = true;
   document.getElementById('playerWrap').hidden = true;
   document.getElementById('coachWrap').hidden = false;
-  document.getElementById('coachUserChip').textContent = currentUser.username;
+  document.getElementById('coachUserChip').textContent = currentUser.username + (currentUser.is_admin ? ' · admin' : '');
   document.getElementById('ctabPlayers').onclick = () => coachSwitch('players');
   document.getElementById('ctabTeams').onclick = () => coachSwitch('teams');
   document.getElementById('ctabChallenges').onclick = () => coachSwitch('challenges');
@@ -1530,6 +1563,10 @@ async function coachRefresh() {
   coachCompletions = await coachStore.getCompletions();
   coachEncouragements = await coachStore.getEncouragements();
   coachReactions = await coachStore.getReactions();
+  if (currentUser.is_admin) {
+    coachTeamLinks = await coachStore.getTeamCoaches();
+    coachAccounts = await coachStore.getCoachAccounts();
+  }
   renderCoachPlayers();
   renderCoachTeams();
   renderCoachChallenges();
@@ -1773,25 +1810,47 @@ async function sendKudos(userId, text, kudosEl, btn, inp) {
 /* ---- 2) JOUKKUEET (hallinta) ---- */
 function renderCoachTeams() {
   const view = document.getElementById('coachTeamsView');
+  const isAdmin = !!currentUser.is_admin;
   let html = `
     <div class="card">
-      <div class="sec-head"><h2>Joukkueet</h2></div>
+      <div class="sec-head"><h2>Joukkueet</h2>${isAdmin ? '<span class="hint">admin</span>' : ''}</div>
+      ${isAdmin ? `
       <div class="coach-add-row">
         <input type="text" id="newTeamName" placeholder="Joukkueen nimi">
         <button class="btn coach-add-btn" id="createTeamBtn" type="button">Luo joukkue</button>
       </div>
-      ${coachTeams.length ? '' : '<div class="coach-empty">Ei vielä joukkueita. Luo ensimmäinen yllä.</div>'}
+      <div class="coach-msg" id="createTeamMsg"></div>` : ''}
+      ${coachTeams.length ? '' : `<div class="coach-empty">${isAdmin ? 'Ei vielä joukkueita. Luo ensimmäinen yllä.' : 'Sinua ei ole vielä liitetty yhteenkään joukkueeseen. Pyydä admin liittämään sinut valmentajaksi.'}</div>`}
     </div>`;
   coachTeams.forEach(t => {
     const players = coachPlayers.filter(p => p.team_id === t.id);
+    const coachRows = isAdmin ? (() => {
+      const linked = coachTeamLinks.filter(l => l.team_id === t.id);
+      const items = linked.map(l => {
+        const acc = coachAccounts.find(a => a.id === l.coach_id);
+        const name = acc ? acc.username : l.coach_id.slice(0, 8);
+        return `<div class="coach-link-row"><span class="coach-link-name">${escapeHtml(name)}</span><button class="coach-link-del" data-team="${t.id}" data-coach="${l.coach_id}" type="button">Poista</button></div>`;
+      }).join('');
+      return `
+        <div class="team-coaches-block">
+          <div class="ch-form-label">Valmentajat</div>
+          <div class="coach-link-list">${items || '<div class="coach-empty">Ei valmentajia. Liitä alla.</div>'}</div>
+          <div class="coach-add-row">
+            <input type="text" class="add-coach-input" data-team="${t.id}" placeholder="Valmentajan käyttäjänimi" autocapitalize="none" spellcheck="false">
+            <button class="btn add-coach-btn" data-team="${t.id}" type="button">Liitä valmentaja</button>
+          </div>
+          <div class="coach-msg coach-link-msg" data-team="${t.id}"></div>
+        </div>`;
+    })() : '';
     html += `
       <div class="card">
         <div class="sec-head"><h2>${escapeHtml(t.name)}</h2><span class="hint">${players.length} ${players.length === 1 ? 'pelaaja' : 'pelaajaa'}</span></div>
+        ${coachRows}
         <div class="coach-add-row">
           <input type="text" class="add-player-input" data-team="${t.id}" placeholder="Pelaajan käyttäjänimi" autocapitalize="none" spellcheck="false">
           <button class="btn add-player-btn" data-team="${t.id}" type="button">Lisää pelaaja</button>
         </div>
-        <div class="coach-msg" data-team="${t.id}"></div>
+        <div class="coach-msg add-player-msg" data-team="${t.id}"></div>
         <div class="player-list">
           ${players.length ? players.map(p => `
             <div class="player-row"><div class="player-top">
@@ -1838,21 +1897,46 @@ function wireCoachTeams() {
   const createBtn = document.getElementById('createTeamBtn');
   if (createBtn) createBtn.onclick = async () => {
     const input = document.getElementById('newTeamName');
+    const msg = document.getElementById('createTeamMsg');
     const name = input.value.trim();
     if (!name) { input.focus(); return; }
     const { error } = await coachStore.createTeam(name);
-    if (error) { alert('Joukkueen luonti epäonnistui: ' + error.message); return; }
+    if (error) { if (msg) { msg.textContent = 'Joukkueen luonti epäonnistui: ' + error.message; msg.className = 'coach-msg error'; } return; }
     coachRefresh();
   };
+  document.querySelectorAll('#coachTeamsView .add-coach-btn').forEach(btn => {
+    btn.onclick = async () => {
+      const teamId = btn.dataset.team;
+      const input = document.querySelector(`#coachTeamsView .add-coach-input[data-team="${teamId}"]`);
+      const msg = document.querySelector(`#coachTeamsView .coach-link-msg[data-team="${teamId}"]`);
+      const username = input.value.trim().toLowerCase();
+      if (!username) { input.focus(); return; }
+      btn.disabled = true;
+      const { error } = await coachStore.assignCoach(username, teamId);
+      btn.disabled = false;
+      if (error) { msg.textContent = error.message; msg.className = 'coach-msg coach-link-msg error'; return; }
+      coachRefresh();
+    };
+  });
+  document.querySelectorAll('#coachTeamsView .coach-link-del').forEach(btn => {
+    btn.onclick = async () => {
+      const teamId = btn.dataset.team, coachId = btn.dataset.coach;
+      if (!confirm('Poistetaanko valmentaja tästä joukkueesta?')) return;
+      btn.disabled = true;
+      const { error } = await coachStore.removeCoach(coachId, teamId);
+      if (error) { btn.disabled = false; alert('Poisto epäonnistui: ' + error.message); return; }
+      coachRefresh();
+    };
+  });
   document.querySelectorAll('#coachTeamsView .add-player-btn').forEach(btn => {
     btn.onclick = async () => {
       const teamId = btn.dataset.team;
       const input = document.querySelector(`#coachTeamsView .add-player-input[data-team="${teamId}"]`);
-      const msg = document.querySelector(`#coachTeamsView .coach-msg[data-team="${teamId}"]`);
+      const msg = document.querySelector(`#coachTeamsView .add-player-msg[data-team="${teamId}"]`);
       const username = input.value.trim().toLowerCase();
       if (!username) { input.focus(); return; }
       const res = await coachStore.addPlayer(username, teamId);
-      if (!res || !res.ok) { msg.textContent = (res && res.error) || 'Lisäys epäonnistui.'; msg.className = 'coach-msg error'; return; }
+      if (!res || !res.ok) { msg.textContent = (res && res.error) || 'Lisäys epäonnistui.'; msg.className = 'coach-msg add-player-msg error'; return; }
       coachRefresh();
     };
   });
@@ -2144,6 +2228,7 @@ async function boot() {
   document.getElementById('authSubmit').onclick = submitAuth;
   document.getElementById('authToggle').onclick = () => setAuthMode(authMode === 'login' ? 'register' : 'login');
   document.getElementById('authPass').addEventListener('keydown', e => { if (e.key === 'Enter') submitAuth(); });
+  document.getElementById('authConfirm').addEventListener('keydown', e => { if (e.key === 'Enter') submitAuth(); });
   document.getElementById('logoutBtn').onclick = doSignOut;
   document.getElementById('coachLogoutBtn').onclick = doSignOut;
 
@@ -2151,7 +2236,7 @@ async function boot() {
   if (!session) { showAuth(); return; }
   currentUser = await loadProfile();
   if (!currentUser) { showAuth(); return; }
-  if (currentUser.role === 'coach') startCoach(); else startPlayer();
+  if (currentUser.role === 'coach' || currentUser.is_admin) startCoach(); else startPlayer();
 }
 
 boot();
