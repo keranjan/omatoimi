@@ -1592,8 +1592,8 @@ function repProgressLine(userId, category, hours) {
 }
 
 /* ---- 1) PELAAJAT (raportit) ---- */
-const PRESET_KUDOS = ['👏 Hienoa työtä!', '💪 Jatka samaan malliin!', '🔥 Hyvä putki!', '⭐ Loistavaa!'];
-const REACTION_EMOJIS = ['👏', '🔥', '💪', '⭐', '👍'];
+const PRESET_KUDOS = ['👏 Hienoa työtä!', '💪 Jatka samaan malliin!', '🔥 Hyvä putki!', '⭐️ Loistavaa!'];
+const REACTION_EMOJIS = ['👏', '🔥', '💪', '⭐️', '👍'];
 function coachReactionFor(logId) {
   const r = coachReactions.find(x => x.log_id === logId && x.coach_id === currentUser.id);
   return r ? r.emoji : null;
