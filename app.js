@@ -154,6 +154,8 @@ let selectedDay = todayISO();        // ISO-päivä kalenterissa
 let lastAll = [];                    // viimeksi haettu data (kalenterin navigointia varten)
 let teamWeek = null;                 // joukkueen yhteisen viikkotavoitteen tila
 let myReactions = {};                // logId -> [emoji] valmentajan reaktiot omiin treeneihin
+let myFootballs = { total: 0, session: 0, challenge: 0 };  // pysyvä jalkapallosaldo
+let footballCfg = { threshold: 30, cap: 400 };             // joukkueen kynnys + päiväkatto
 
 /* ---- Lomakkeen päivämäärä (oma suomenkielinen valitsin) ---- */
 let formDate = todayISO();
@@ -220,6 +222,9 @@ async function renderAll() {
   currentGoals = await goalStore.get();
   teamWeek = await loadTeamWeek();
   myReactions = await loadMyReactions();
+  myFootballs = await loadFootballEvents();
+  footballCfg = await loadFootballCfg();
+  await refreshShopState();
   renderPeriodSelect(all);
   const isAll = selectedPeriod === 'all';
   const periodEntries = isAll ? all : all.filter(e => monthKey(e.date) === selectedPeriod);
@@ -272,6 +277,10 @@ async function renderAll() {
   renderProgress();
   renderLevel();
   renderProfileHeader();
+  renderFootballs();
+  refreshLeaderboard();
+  renderStreak();
+  renderSettings();
   renderTeamGoal();
   renderCalendar();
   renderDayPanel();
@@ -360,12 +369,14 @@ function switchView(v) {
   document.getElementById('viewCalendar').hidden = (v !== 'cal');
   document.getElementById('viewBank').hidden = (v !== 'bank');
   document.getElementById('viewProfile').hidden = (v !== 'profile');
+  document.getElementById('viewShop').hidden = (v !== 'shop');
   document.getElementById('tabDash').classList.toggle('active', v === 'dash');
   document.getElementById('tabCal').classList.toggle('active', v === 'cal');
   document.getElementById('tabBank').classList.toggle('active', v === 'bank');
   document.getElementById('playerWrap').classList.toggle('wide', v === 'cal');
   if (v === 'cal') { renderCalendar(); renderDayPanel(); }
   if (v === 'bank') renderBank();
+  if (v === 'shop') { renderShop(); window.scrollTo(0, 0); }
   if (v === 'profile') window.scrollTo(0, 0);
 }
 
@@ -619,7 +630,7 @@ function renderGoal() {
 
 /* ---- Joukkueen haasteet (pelaajan näkymä) ---- */
 async function loadMyChallenges() {
-  const { data, error } = await sb.from('challenges').select('id, category, hours, description, user_id, due_date, created_at');
+  const { data, error } = await sb.from('challenges').select('id, category, hours, description, user_id, due_date, created_at, football_reward');
   if (error) { console.error(error); return []; }
   return data.map(c => ({ ...c, hours: c.hours == null ? null : Number(c.hours) }));
 }
@@ -873,6 +884,7 @@ function renderLevel() {
   const logs = seasonStart ? lastAll.filter(e => e.date >= seasonStart) : lastAll;
   const xp = logs.reduce((s, e) => s + sessionXp(e.duration), 0);
   const info = levelInfo(xp);
+  checkLevelUp(xp);
   const seasonLabel = seasonName
     ? `Kausi: ${escapeHtml(seasonName)}`
     : (seasonStart ? `Kausi alkoi ${fmtDateShort(seasonStart)}` : 'Kaikkien aikojen');
@@ -898,7 +910,13 @@ function renderLevel() {
 function renderProfileHeader() {
   const nameEl = document.getElementById('phName');
   if (!nameEl) return;
-  nameEl.textContent = currentUser ? currentUser.username : '';
+  const title = currentUser && currentUser.cos_title ? cosValue(currentUser.cos_title) : null;
+  nameEl.innerHTML = (currentUser ? escapeHtml(currentUser.username) : '')
+    + (title ? ` <span class="cos-title">${escapeHtml(title)}</span>` : '');
+  nameEl.style.color = currentUser && currentUser.cos_name_color ? (cosValue(currentUser.cos_name_color) || '') : '';
+  const badgeEl = document.getElementById('phBadge');
+  const frameCol = currentUser && currentUser.cos_frame ? cosValue(currentUser.cos_frame) : null;
+  if (badgeEl) badgeEl.style.boxShadow = frameCol ? `0 0 0 3px ${frameCol}` : '';
   const seasonStart = teamWeek && teamWeek.seasonStart ? teamWeek.seasonStart : null;
   const logs = seasonStart ? lastAll.filter(e => e.date >= seasonStart) : lastAll;
   const xp = logs.reduce((s, e) => s + sessionXp(e.duration), 0);
@@ -910,6 +928,417 @@ function renderProfileHeader() {
   const fill = document.getElementById('phBarFill');
   const pct = info.next ? info.pct : 100;
   requestAnimationFrame(() => { fill.style.width = pct + '%'; });
+}
+
+/* Jalkapallot: laskuri profiiliotsikossa + kortti profiilinäkymässä */
+function renderFootballs() {
+  const pill = document.getElementById('phBalls');
+  if (pill) pill.innerHTML = `<span class="ph-balls-ic">⚽</span><span class="ph-balls-num">${fmtBalls(footballBalance())}</span>`;
+
+  const card = document.getElementById('footballCard');
+  if (!card) return;
+  card.hidden = false;
+  const T = footballCfg.threshold;
+  const bal = footballBalance();
+  const spentLine = cosSpent > 0 ? `<div class="ball-chip"><span>Käytetty kauppaan</span><b>${fmtBalls(cosSpent)}</b></div>` : '';
+  card.innerHTML = `
+    <div class="sec-head"><h2>Jalkapallot</h2><span class="hint">pysyvät — eivät nollaudu</span></div>
+    <div class="ball-hero">
+      <span class="ball-emoji">⚽</span>
+      <div class="ball-hero-text">
+        <span class="ball-total">${fmtBalls(bal)}</span>
+        <span class="ball-cap-text">käytettävissä · ansaittu ${fmtBalls(myFootballs.total)}</span>
+      </div>
+    </div>
+    <div class="ball-breakdown">
+      <div class="ball-chip"><span>Harjoituksista</span><b>${fmtBalls(myFootballs.session)}</b></div>
+      <div class="ball-chip"><span>Haasteista</span><b>${fmtBalls(myFootballs.challenge)}</b></div>
+      ${spentLine}
+    </div>
+    <button class="btn ball-shop-btn" id="ballShopBtn" type="button">Avaa kauppa — käytä jalkapallosi →</button>
+    <div class="ball-how">
+      <div class="ball-how-title">Näin keräät lisää</div>
+      <div class="ball-how-row"><span>Harjoitus väh. ${T} min</span><b>+50 ⚽</b></div>
+      <div class="ball-how-row"><span>Harjoitus väh. ${2 * T} min</span><b>+120 ⚽</b></div>
+      <div class="ball-how-row"><span>Harjoitus väh. ${3 * T} min</span><b>+200 ⚽</b></div>
+      <div class="ball-how-row"><span>Valmentajan haaste suoritettu</span><b>+250 ⚽</b></div>
+      <div class="ball-how-note">Enintään ${fmtBalls(footballCfg.cap)} ⚽ / päivä harjoituksista — lepokin kuuluu kehitykseen.</div>
+    </div>`;
+  const shopBtn = document.getElementById('ballShopBtn');
+  if (shopBtn) shopBtn.onclick = () => switchView('shop');
+}
+
+/* ---- Jalkapallot (pysyvä valuutta) ---- */
+const fmtBalls = n => (n || 0).toLocaleString('fi-FI');
+async function loadFootballEvents() {
+  const { data, error } = await sb.from('football_events').select('amount, source');
+  if (error) { console.error(error); return { total: 0, session: 0, challenge: 0 }; }
+  let session = 0, challenge = 0;
+  data.forEach(r => { if (r.source === 'challenge') challenge += r.amount; else session += r.amount; });
+  return { total: session + challenge, session, challenge };
+}
+async function loadFootballCfg() {
+  if (!currentUser || !currentUser.team_id) return { threshold: 30, cap: 400 };
+  const { data, error } = await sb.from('teams')
+    .select('football_threshold_min, football_daily_cap').eq('id', currentUser.team_id).single();
+  if (error || !data) return { threshold: 30, cap: 400 };
+  return {
+    threshold: data.football_threshold_min == null ? 30 : data.football_threshold_min,
+    cap: data.football_daily_cap == null ? 400 : data.football_daily_cap,
+  };
+}
+async function refreshFootballs() { myFootballs = await loadFootballEvents(); renderFootballs(); refreshLeaderboard(); }
+
+/* ---- Joukkueen tulostaulu (vapaaehtoinen) ---- */
+let leaderboard = [];
+let shopCatalog = [];                // kaupan tuotteet
+let ownedCosmetics = new Set();      // omistetut tuote-id:t
+let cosSpent = 0;                    // jalkapalloja käytetty kauppaan
+async function loadLeaderboard() {
+  const { data, error } = await sb.rpc('team_football_board');
+  if (error) { console.error(error); return []; }
+  return (data || []).map(r => ({
+    user_id: r.user_id,
+    username: r.username,
+    footballs: Number(r.footballs) || 0,
+    xp: Number(r.xp) || 0,
+    cos_name_color: r.cos_name_color || null,
+    cos_title: r.cos_title || null,
+    cos_frame: r.cos_frame || null,
+  }));
+}
+async function refreshLeaderboard() {
+  leaderboard = (currentUser && currentUser.leaderboard_opt_in) ? await loadLeaderboard() : [];
+  renderLeaderboard();
+}
+async function setLeaderboardOptIn(value) {
+  const { data, error } = await sb.rpc('set_leaderboard_opt_in', { p_value: value });
+  if (error) { console.error(error); alert('Ei onnistunut: ' + error.message); return false; }
+  if (currentUser) currentUser.leaderboard_opt_in = (data === undefined ? value : !!data);
+  return true;
+}
+
+function renderLeaderboard() {
+  const card = document.getElementById('leaderboardCard');
+  if (!card) return;
+  if (!currentUser || !currentUser.team_id) { card.hidden = true; return; }
+  card.hidden = false;
+
+  if (!currentUser.leaderboard_opt_in) {
+    card.innerHTML = `
+      <div class="sec-head"><h2>Tulostaulu</h2><span class="hint">vapaaehtoinen</span></div>
+      <div class="lb-intro">Liity joukkueen tulostauluun, niin näet miten jalkapallosi vertautuvat joukkuekavereihin.</div>
+      <div class="lb-intro-sub">Tulostaulussa näkyvät vain liittyneet pelaajat. Kun liityt, sinun nimesi, tasosi ja jalkapallosi tulevat näkyviin muille liittyneille — ja sinä näet heidät.</div>
+      <button class="btn lb-join-btn" type="button">Liity tulostauluun</button>`;
+    card.querySelector('.lb-join-btn').onclick = async () => {
+      const btn = card.querySelector('.lb-join-btn'); btn.disabled = true;
+      if (await setLeaderboardOptIn(true)) await refreshLeaderboard();
+      else btn.disabled = false;
+    };
+    return;
+  }
+
+  const rows = [...leaderboard].sort((a, b) => b.footballs - a.footballs || a.username.localeCompare(b.username, 'fi'));
+  const list = rows.map((r, i) => {
+    const lvl = levelInfo(r.xp).cur;
+    const me = r.user_id === currentUser.id;
+    const nameCol = cosValue(r.cos_name_color);
+    const title = cosValue(r.cos_title);
+    const frameCol = cosValue(r.cos_frame);
+    return `
+      <div class="lb-row${me ? ' lb-me' : ''}">
+        <span class="lb-rank">${i + 1}</span>
+        <span class="lb-badge"${frameCol ? ` style="box-shadow:0 0 0 2px ${frameCol}"` : ''}>${levelBadgeImg(lvl.lvl)}</span>
+        <span class="lb-info">
+          <span class="lb-name"${nameCol ? ` style="color:${nameCol}"` : ''}>${escapeHtml(r.username)}${title ? ` <span class="cos-title">${escapeHtml(title)}</span>` : ''}${me ? ' <span class="lb-you">sinä</span>' : ''}</span>
+          <span class="lb-lvl">Taso ${lvl.lvl} · ${lvl.name}</span>
+        </span>
+        <span class="lb-balls">⚽ ${fmtBalls(r.footballs)}</span>
+      </div>`;
+  }).join('');
+  const note = rows.length <= 1
+    ? '<div class="lb-note">Olet toistaiseksi ainoa mukana — kun joukkuekaverit liittyvät, he ilmestyvät tähän.</div>'
+    : '';
+
+  card.innerHTML = `
+    <div class="sec-head"><h2>Tulostaulu</h2><span class="hint">${rows.length} mukana</span></div>
+    <div class="lb-list">${list}</div>
+    ${note}
+    <button class="lb-leave-btn" type="button">Poistu tulostaulusta</button>`;
+  card.querySelector('.lb-leave-btn').onclick = async () => {
+    const btn = card.querySelector('.lb-leave-btn'); btn.disabled = true;
+    if (await setLeaderboardOptIn(false)) { leaderboard = []; renderLeaderboard(); }
+    else btn.disabled = false;
+  };
+}
+
+/* ---- Kauppa (jalkapallojen käyttö koristeisiin) ---- */
+async function loadShopCatalog() {
+  const { data, error } = await sb.from('shop_items').select('id, type, label, value, price, sort').order('sort', { ascending: true });
+  if (error) { console.error(error); return []; }
+  return data;
+}
+async function loadOwnedCosmetics() {
+  const { data, error } = await sb.from('player_cosmetics').select('item_id, price_paid');
+  if (error) { console.error(error); return { owned: new Set(), spent: 0 }; }
+  let spent = 0; const owned = new Set();
+  data.forEach(r => { owned.add(r.item_id); spent += r.price_paid; });
+  return { owned, spent };
+}
+function cosItem(id) { return id ? shopCatalog.find(i => i.id === id) || null : null; }
+function cosValue(id) { const it = cosItem(id); return it ? it.value : null; }
+function footballBalance() { return Math.max(0, (myFootballs.total || 0) - cosSpent); }
+async function refreshShopState() {
+  if (!shopCatalog.length) shopCatalog = await loadShopCatalog();
+  const oc = await loadOwnedCosmetics();
+  ownedCosmetics = oc.owned; cosSpent = oc.spent;
+}
+async function buyCosmetic(itemId) {
+  const { data, error } = await sb.rpc('buy_cosmetic', { p_item_id: itemId });
+  if (error || (data && data.ok === false)) {
+    alert((data && data.error) || (error && error.message) || 'Osto ei onnistunut'); return false;
+  }
+  await refreshShopState();
+  return true;
+}
+async function equipCosmetic(itemId) {
+  const { data, error } = await sb.rpc('equip_cosmetic', { p_item_id: itemId });
+  if (error || (data && data.ok === false)) { alert((data && data.error) || 'Ei onnistunut'); return false; }
+  const it = cosItem(itemId);
+  if (it && currentUser) currentUser['cos_' + it.type] = itemId;
+  return true;
+}
+async function unequipCosmetic(type) {
+  const { data, error } = await sb.rpc('unequip_cosmetic', { p_type: type });
+  if (error || (data && data.ok === false)) { alert((data && data.error) || 'Ei onnistunut'); return false; }
+  if (currentUser) currentUser['cos_' + type] = null;
+  return true;
+}
+
+const SHOP_SECTIONS = [
+  { key: 'name_color', label: 'Nimen värit' },
+  { key: 'title',      label: 'Tittelit' },
+  { key: 'frame',      label: 'Tasomerkin kehykset' },
+];
+function shopItemHtml(i, bal) {
+  const owned = ownedCosmetics.has(i.id);
+  const equipped = currentUser && currentUser['cos_' + i.type] === i.id;
+  let preview;
+  if (i.type === 'name_color') preview = `<span class="shop-prev-name" style="color:${i.value}">Nimesi</span>`;
+  else if (i.type === 'title')  preview = `<span class="shop-prev-title">${escapeHtml(i.value)}</span>`;
+  else preview = `<span class="shop-prev-frame" style="box-shadow:0 0 0 3px ${i.value}"></span>`;
+  let action;
+  if (equipped) action = `<button class="shop-btn equipped" data-act="unequip" data-type="${i.type}" type="button">Käytössä ✓</button>`;
+  else if (owned) action = `<button class="shop-btn own" data-act="equip" data-id="${i.id}" type="button">Ota käyttöön</button>`;
+  else if (bal >= i.price) action = `<button class="btn shop-btn buy" data-act="buy" data-id="${i.id}" type="button">Osta · ⚽ ${fmtBalls(i.price)}</button>`;
+  else action = `<button class="shop-btn locked" type="button" disabled>⚽ ${fmtBalls(i.price)}</button>`;
+  return `<div class="shop-item${equipped ? ' is-equipped' : ''}">
+    <div class="shop-prev">${preview}</div>
+    <div class="shop-label">${escapeHtml(i.label)}</div>
+    ${action}
+  </div>`;
+}
+function renderShop() {
+  const view = document.getElementById('viewShop');
+  if (!view) return;
+  const bal = footballBalance();
+  const sections = SHOP_SECTIONS.map(s => {
+    const items = shopCatalog.filter(i => i.type === s.key);
+    if (!items.length) return '';
+    return `<div class="card shop-section">
+      <div class="sec-head"><h2>${s.label}</h2></div>
+      <div class="shop-grid">${items.map(i => shopItemHtml(i, bal)).join('')}</div>
+    </div>`;
+  }).join('');
+  view.innerHTML = `
+    <button class="back-btn" id="shopBack" type="button">‹ Takaisin profiiliin</button>
+    <div class="card shop-balance-card">
+      <span class="shop-bal-label">Käytettävissä</span>
+      <span class="shop-bal"><span class="shop-bal-ic">⚽</span> ${fmtBalls(bal)}</span>
+    </div>
+    ${sections || '<div class="card"><div class="coach-empty">Kauppa ei ole vielä käytettävissä.</div></div>'}`;
+  wireShop();
+}
+function wireShop() {
+  const back = document.getElementById('shopBack');
+  if (back) back.onclick = () => switchView('profile');
+  document.querySelectorAll('#viewShop .shop-btn').forEach(btn => {
+    const act = btn.dataset.act;
+    if (!act) return;
+    btn.onclick = async () => {
+      btn.disabled = true;
+      let ok = true;
+      if (act === 'buy') { ok = await buyCosmetic(btn.dataset.id); if (ok) await equipCosmetic(btn.dataset.id); }
+      else if (act === 'equip') ok = await equipCosmetic(btn.dataset.id);
+      else if (act === 'unequip') ok = await unequipCosmetic(btn.dataset.type);
+      if (act === 'buy' && ok) showToast('Ostettu ja otettu käyttöön');
+      renderShop(); renderFootballs(); renderProfileHeader(); refreshLeaderboard();
+    };
+  });
+}
+
+/* =========================================================================
+   SITOUTUMINEN — putki, juhlinta, ilmoitukset
+   ========================================================================= */
+
+/* ---- Konfetti (omavarainen, kunnioittaa reduced motion) ---- */
+function celebrate(opts = {}) {
+  if (typeof window === 'undefined') return;
+  if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const count = opts.big ? 150 : 90;
+  const colors = ['#0E5E3A', '#C5F23E', '#2563B0', '#DD5A1E', '#6A4BD6', '#C9A227'];
+  let canvas = document.getElementById('confettiCanvas');
+  if (!canvas) {
+    canvas = document.createElement('canvas');
+    canvas.id = 'confettiCanvas';
+    canvas.className = 'confetti-canvas';
+    document.body.appendChild(canvas);
+  }
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+  const dpr = window.devicePixelRatio || 1;
+  const W = canvas.width = window.innerWidth * dpr;
+  const H = canvas.height = window.innerHeight * dpr;
+  canvas.style.width = window.innerWidth + 'px';
+  canvas.style.height = window.innerHeight + 'px';
+  const parts = [];
+  for (let i = 0; i < count; i++) {
+    parts.push({
+      x: W / 2 + (Math.random() - 0.5) * 140 * dpr,
+      y: H * 0.30 + (Math.random() - 0.5) * 40 * dpr,
+      vx: (Math.random() - 0.5) * 13 * dpr,
+      vy: (Math.random() * -9 - 4) * dpr,
+      g: 0.34 * dpr,
+      size: (6 + Math.random() * 6) * dpr,
+      rot: Math.random() * Math.PI,
+      vr: (Math.random() - 0.5) * 0.32,
+      color: colors[(Math.random() * colors.length) | 0],
+    });
+  }
+  const start = performance.now();
+  function frame(now) {
+    const t = now - start;
+    ctx.clearRect(0, 0, W, H);
+    let alive = false;
+    for (const p of parts) {
+      p.vy += p.g; p.x += p.vx; p.y += p.vy; p.rot += p.vr;
+      const alpha = Math.max(0, 1 - t / 1600);
+      if (alpha > 0 && p.y < H + 40) {
+        alive = true;
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.translate(p.x, p.y);
+        ctx.rotate(p.rot);
+        ctx.fillStyle = p.color;
+        ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size * 0.62);
+        ctx.restore();
+      }
+    }
+    if (alive && t < 1900) requestAnimationFrame(frame);
+    else { ctx.clearRect(0, 0, W, H); canvas.remove(); }
+  }
+  requestAnimationFrame(frame);
+}
+
+/* ---- Putki: peräkkäiset treenipäivät ---- */
+function computeStreak() {
+  const have = new Set(lastAll.map(e => e.date));
+  const res = { streak: 0, trainedToday: false };
+  if (!have.size) return res;
+  res.trainedToday = have.has(todayISO());
+  const cur = new Date(); cur.setHours(12, 0, 0, 0);
+  const iso = dt => `${dt.getFullYear()}-${pad(dt.getMonth() + 1)}-${pad(dt.getDate())}`;
+  if (!have.has(iso(cur))) {
+    cur.setDate(cur.getDate() - 1);
+    if (!have.has(iso(cur))) return res;     // ei tänään eikä eilen → putki poikki
+  }
+  let s = 0;
+  while (have.has(iso(cur))) { s++; cur.setDate(cur.getDate() - 1); }
+  res.streak = s;
+  return res;
+}
+function renderStreak() {
+  const el = document.getElementById('streakBanner');
+  if (!el) return;
+  el.hidden = false;
+  const { streak, trainedToday } = computeStreak();
+  if (streak <= 0) {
+    el.className = 'streak-banner start';
+    el.innerHTML = `<span class="streak-fire">⚡</span><div class="streak-text"><b>Aloita putki tänään</b><span>Treenaa ja merkkaa se ylös — putki lähtee käyntiin.</span></div>`;
+    return;
+  }
+  const dayWord = streak === 1 ? 'päivä' : 'päivää';
+  if (trainedToday) {
+    el.className = 'streak-banner active';
+    el.innerHTML = `<span class="streak-fire">🔥</span><div class="streak-text"><b>${streak} ${dayWord} putkeen!</b><span>Hienoa — pidä se yllä huomenna.</span></div>`;
+  } else {
+    el.className = 'streak-banner risk';
+    el.innerHTML = `<span class="streak-fire">🔥</span><div class="streak-text"><b>${streak} ${dayWord} putkessa</b><span>Treenaa tänään, niin putki jatkuu — älä katkaise!</span></div>`;
+  }
+}
+
+/* ---- Ilmoitukset ---- */
+let notifPref = false;
+try { notifPref = (localStorage.getItem('notifPref') === 'on'); } catch (e) {}
+function notifAvailable() { return typeof window !== 'undefined' && 'Notification' in window; }
+async function enableNotifications() {
+  if (!notifAvailable()) { alert('Selaimesi ei tue ilmoituksia.'); return false; }
+  let perm = Notification.permission;
+  if (perm === 'default') perm = await Notification.requestPermission();
+  if (perm === 'granted') { notifPref = true; try { localStorage.setItem('notifPref', 'on'); } catch (e) {} return true; }
+  notifPref = false; try { localStorage.setItem('notifPref', 'off'); } catch (e) {}
+  if (perm === 'denied') alert('Ilmoitukset on estetty selaimen asetuksissa. Salli ne sieltä, jos haluat ottaa ne käyttöön.');
+  return false;
+}
+function disableNotifications() { notifPref = false; try { localStorage.setItem('notifPref', 'off'); } catch (e) {} }
+function notify(title, body) {
+  if (!notifPref || !notifAvailable() || Notification.permission !== 'granted') return;
+  const opts = { body, icon: 'icons/icon-192.png', badge: 'icons/favicon-32.png' };
+  try {
+    if (navigator.serviceWorker && navigator.serviceWorker.ready) {
+      navigator.serviceWorker.ready.then(reg => reg.showNotification(title, opts)).catch(() => { try { new Notification(title, opts); } catch (e) {} });
+    } else { new Notification(title, opts); }
+  } catch (e) {}
+}
+function renderSettings() {
+  const card = document.getElementById('settingsCard');
+  if (!card) return;
+  const supported = notifAvailable();
+  const on = supported && Notification.permission === 'granted' && notifPref;
+  card.innerHTML = `
+    <div class="sec-head"><h2>Ilmoitukset</h2></div>
+    <div class="set-row">
+      <div class="set-text">
+        <b>Tason ja haasteiden ilmoitukset</b>
+        <span>Ilmoitus kun nouset tasolle tai suoritat haasteen.</span>
+      </div>
+      <button class="set-toggle${on ? ' on' : ''}" id="notifToggle" type="button" role="switch" aria-checked="${on}">
+        <span class="set-knob"></span>
+      </button>
+    </div>
+    ${!supported ? '<div class="set-note">Selaimesi ei tue ilmoituksia.</div>' : ''}
+    <div class="set-note">Ajastetut muistutukset (esim. iltaisin, kun sovellus on kiinni) vaativat erillisen push-palvelun — kerro jos haluat sen käyttöön.</div>`;
+  const t = document.getElementById('notifToggle');
+  if (t) t.onclick = async () => {
+    if (on) { disableNotifications(); renderSettings(); }
+    else { await enableNotifications(); renderSettings(); }
+  };
+}
+
+/* ---- Tason nousun tunnistus (paikallinen muisti) ---- */
+function checkLevelUp(xp) {
+  let prev = null;
+  try { const r = localStorage.getItem('lastLevel'); prev = r == null ? null : parseInt(r, 10); } catch (e) {}
+  const info = levelInfo(xp).cur;
+  const lvl = info.lvl;
+  if (prev != null && !isNaN(prev) && lvl > prev) {
+    celebrate({ big: true });
+    showToast(`Taso ${lvl} – ${info.name}! 🎉`);
+    notify('Uusi taso! 🎉', `Nousit tasolle ${lvl} – ${info.name}. Hienoa työtä!`);
+  }
+  if (prev == null || isNaN(prev) || lvl !== prev) {
+    try { localStorage.setItem('lastLevel', String(lvl)); } catch (e) {}
+  }
 }
 
 /* ---- Valmentajan reaktiot omiin treeneihin (pelaajan näkymä) ---- */
@@ -977,6 +1406,7 @@ function challengeRowHtml(ch) {
   const dueLabel = ch.due_date ? `${fmtDateShort(ch.due_date)} mennessä` : null;
   const pastDue = challengePastDue(ch);
   const personalTag = ch.user_id ? '<span class="personal-tag">henkilökohtainen</span>' : '';
+  const rewardTag = `<span class="ch-reward-tag">⚽ ${ch.football_reward == null ? 250 : ch.football_reward}</span>`;
   if (ch.hours == null) {
     const done = isChallengeDone(ch);
     let action;
@@ -994,6 +1424,7 @@ function challengeRowHtml(ch) {
             <span class="dot" style="background:${c.color}"></span>${c.label}
             <span class="goal-row-target">${dueLabel || 'Kertasuoritus'}</span>
             ${personalTag}
+            ${rewardTag}
             ${done ? `<span class="goal-badge" title="Suoritettu">✓</span>` : ''}
           </span>
         </div>
@@ -1014,6 +1445,7 @@ function challengeRowHtml(ch) {
           <span class="dot" style="background:${c.color}"></span>${c.label}
           <span class="goal-row-target">${targetLabel}</span>
           ${personalTag}
+          ${rewardTag}
           ${p.achieved ? `<span class="goal-badge" title="Saavutettu">✓</span>` : ''}
         </span>
       </div>
@@ -1038,6 +1470,11 @@ function wireChallengeCard(card) {
       if (error && !/duplicate|unique/i.test(error.message || '')) { btn.disabled = false; alert('Ei onnistunut: ' + error.message); return; }
       myCompletions.add(ch.id + '|' + challengeKey(ch));
       renderChallenges();
+      refreshFootballs();
+      const reward = ch.football_reward == null ? 250 : ch.football_reward;
+      celebrate();
+      showToast(`Haaste suoritettu! +${fmtBalls(reward)} ⚽`);
+      notify('Haaste suoritettu! 🎉', `Hyvää työtä — ansaitsit ${fmtBalls(reward)} jalkapalloa.`);
     };
   });
   card.querySelectorAll('.ch-undo').forEach(btn => {
@@ -1049,6 +1486,7 @@ function wireChallengeCard(card) {
       if (error) { btn.disabled = false; alert('Ei onnistunut: ' + error.message); return; }
       myCompletions.delete(ch.id + '|' + challengeKey(ch));
       renderChallenges();
+      refreshFootballs();
     };
   });
 }
@@ -1327,7 +1765,7 @@ async function loadProfile() {
   const { data: { user } } = await sb.auth.getUser();
   if (!user) return null;
   const { data, error } = await sb.from('profiles')
-    .select('id, username, role, team_id, is_admin').eq('id', user.id).single();
+    .select('id, username, role, team_id, is_admin, leaderboard_opt_in, cos_name_color, cos_title, cos_frame').eq('id', user.id).single();
   if (error) { console.error(error); return null; }
   return data;
 }
@@ -1419,7 +1857,7 @@ async function doSignOut() {
    ========================================================================= */
 const coachStore = {
   async getTeams() {
-    const { data, error } = await sb.from('teams').select('id, name, created_at, ics_url, ics_filter, weekly_goal_hours, season_start, season_name').order('created_at', { ascending: true });
+    const { data, error } = await sb.from('teams').select('id, name, created_at, ics_url, ics_filter, weekly_goal_hours, season_start, season_name, football_threshold_min, football_daily_cap').order('created_at', { ascending: true });
     if (error) { console.error(error); return []; }
     return data;
   },
@@ -1434,6 +1872,9 @@ const coachStore = {
   },
   async setTeamGoal(teamId, hours) {
     return await sb.from('teams').update({ weekly_goal_hours: hours }).eq('id', teamId);
+  },
+  async setTeamFootball(teamId, threshold, cap) {
+    return await sb.from('teams').update({ football_threshold_min: threshold, football_daily_cap: cap }).eq('id', teamId);
   },
   async createTeam(name) {
     const { data, error } = await sb.rpc('admin_create_team', { p_name: name });
@@ -1473,6 +1914,13 @@ const coachStore = {
     if (error) { console.error(error); return []; }
     return data;
   },
+  async getFootballs() {
+    const { data, error } = await sb.from('football_events').select('user_id, amount');
+    if (error) { console.error(error); return {}; }
+    const map = {};
+    data.forEach(r => { map[r.user_id] = (map[r.user_id] || 0) + r.amount; });
+    return map;
+  },
   async getReactions() {
     const { data, error } = await sb.from('log_reactions').select('log_id, emoji, coach_id');
     if (error) { console.error(error); return []; }
@@ -1490,7 +1938,7 @@ const coachStore = {
     return data.map(g => ({ ...g, hours: Number(g.hours) }));
   },
   async getChallenges() {
-    const { data, error } = await sb.from('challenges').select('id, team_id, category, hours, description, user_id, due_date, created_at').order('created_at', { ascending: true });
+    const { data, error } = await sb.from('challenges').select('id, team_id, category, hours, description, user_id, due_date, created_at, football_reward').order('created_at', { ascending: true });
     if (error) { console.error(error); return []; }
     return data.map(c => ({ ...c, hours: c.hours == null ? null : Number(c.hours) }));
   },
@@ -1511,8 +1959,10 @@ const coachStore = {
     if (error) return { ok: false, error: error.message };
     return data;
   },
-  async createChallenge(teamId, category, hours, description, userId, dueDate) {
-    return await sb.from('challenges').insert({ team_id: teamId, category, hours, description: description || null, user_id: userId || null, due_date: dueDate || null }).select().single();
+  async createChallenge(teamId, category, hours, description, userId, dueDate, reward) {
+    const row = { team_id: teamId, category, hours, description: description || null, user_id: userId || null, due_date: dueDate || null };
+    if (reward != null && isFinite(reward) && reward >= 0) row.football_reward = reward;
+    return await sb.from('challenges').insert(row).select().single();
   },
   async deleteChallenge(id) {
     return await sb.from('challenges').delete().eq('id', id);
@@ -1527,7 +1977,7 @@ const coachStore = {
   }
 };
 
-let coachTeams = [], coachPlayers = [], coachLogs = [], coachGoals = [], coachChallenges = [], coachCompletions = [], coachEncouragements = [], coachReactions = [];
+let coachTeams = [], coachPlayers = [], coachLogs = [], coachGoals = [], coachChallenges = [], coachCompletions = [], coachEncouragements = [], coachReactions = [], coachFootballs = {};
 let coachTeamLinks = [], coachAccounts = [];   // admin: valmentaja↔joukkue-liitokset ja valmentajatilit
 let coachTab = 'players';
 let challengeSetupCat = {};
@@ -1559,6 +2009,7 @@ async function coachRefresh() {
   coachTeams      = await coachStore.getTeams();
   coachPlayers    = await coachStore.getPlayers();
   coachLogs       = await coachStore.getLogs();
+  coachFootballs  = await coachStore.getFootballs();
   coachGoals      = await coachStore.getGoals();
   coachChallenges = await coachStore.getChallenges();
   coachCompletions = await coachStore.getCompletions();
@@ -1694,7 +2145,8 @@ function richPlayerReport(p) {
   const seasonXp = coachLogs.filter(l => l.user_id === p.id && (!seasonStart || l.date >= seasonStart))
     .reduce((sum, l) => sum + sessionXp(l.duration), 0);
   const lvl = levelInfo(seasonXp);
-  const levelLine = `<div class="rep-level"><span class="rep-level-badge">${levelBadgeImg(lvl.cur.lvl)}</span><span class="rep-level-text">Taso ${lvl.cur.lvl} · ${lvl.cur.name} · ${seasonXp} XP${seasonStart ? '' : ' (kaikkien aikojen)'}</span></div>`;
+  const balls = coachFootballs[p.id] || 0;
+  const levelLine = `<div class="rep-level"><span class="rep-level-badge">${levelBadgeImg(lvl.cur.lvl)}</span><span class="rep-level-text">Taso ${lvl.cur.lvl} · ${lvl.cur.name} · ${seasonXp} XP${seasonStart ? '' : ' (kaikkien aikojen)'}</span><span class="rep-balls">⚽ ${fmtBalls(balls)}</span></div>`;
   const detail = levelLine
     + (catBars ? `<div class="rep-section-label">Kuukauden jakauma</div>${catBars}` : '')
     + (goalLines ? `<div class="rep-section-label">Tavoitteet (tällä viikolla)</div>${goalLines}` : '')
@@ -1881,6 +2333,17 @@ function renderCoachTeams() {
           </div>
           <div class="coach-msg season-msg" data-team="${t.id}"></div>
         </div>
+        <div class="football-block">
+          <div class="ch-form-label">Jalkapallot (palkinnot)</div>
+          <div class="football-status">Kynnys ${t.football_threshold_min != null ? t.football_threshold_min : 30} min · porras 50 / 120 / 200 ⚽ · päiväkatto ${t.football_daily_cap != null ? t.football_daily_cap : 400} ⚽</div>
+          <div class="ch-sub-label">Kynnys (min) — yli kynnyksen 50, yli 2× 120, yli 3× 200 ⚽:</div>
+          <div class="coach-add-row">
+            <input type="number" class="fb-threshold-input" data-team="${t.id}" min="1" step="1" placeholder="esim. 30" value="${t.football_threshold_min != null ? t.football_threshold_min : 30}">
+            <input type="number" class="fb-cap-input" data-team="${t.id}" min="0" step="50" placeholder="päiväkatto" value="${t.football_daily_cap != null ? t.football_daily_cap : 400}">
+            <button class="btn fb-save-btn" data-team="${t.id}" type="button">Tallenna</button>
+          </div>
+          <div class="coach-msg fb-msg" data-team="${t.id}"></div>
+        </div>
         <div class="ics-row">
           <div class="ch-form-label">Kalenteritilaus</div>
           <input type="text" class="ics-input" data-team="${t.id}" placeholder="iCal-osoite: https://… tai webcal://…" value="${t.ics_url ? escapeHtml(t.ics_url) : ''}" autocapitalize="none" spellcheck="false">
@@ -1978,6 +2441,23 @@ function wireCoachTeams() {
       msg.className = 'coach-msg team-goal-msg ok';
     };
   });
+  document.querySelectorAll('#coachTeamsView .fb-save-btn').forEach(btn => {
+    btn.onclick = async () => {
+      const teamId = btn.dataset.team;
+      const msg = document.querySelector(`#coachTeamsView .fb-msg[data-team="${teamId}"]`);
+      const threshold = parseInt(document.querySelector(`#coachTeamsView .fb-threshold-input[data-team="${teamId}"]`).value, 10);
+      const cap = parseInt(document.querySelector(`#coachTeamsView .fb-cap-input[data-team="${teamId}"]`).value, 10);
+      if (!isFinite(threshold) || threshold < 1) { msg.textContent = 'Kynnyksen pitää olla vähintään 1 min.'; msg.className = 'coach-msg fb-msg error'; return; }
+      if (!isFinite(cap) || cap < 0) { msg.textContent = 'Päiväkaton pitää olla 0 tai suurempi.'; msg.className = 'coach-msg fb-msg error'; return; }
+      const { error } = await coachStore.setTeamFootball(teamId, threshold, cap);
+      if (error) { msg.textContent = 'Tallennus epäonnistui: ' + error.message; msg.className = 'coach-msg fb-msg error'; return; }
+      const tt = coachTeams.find(t => t.id === teamId);
+      if (tt) { tt.football_threshold_min = threshold; tt.football_daily_cap = cap; }
+      msg.textContent = `Tallennettu: kynnys ${threshold} min, päiväkatto ${cap} ⚽.`;
+      msg.className = 'coach-msg fb-msg ok';
+    };
+  });
+
   const saveSeason = async (teamId, name, start, msg) => {
     const { error } = await coachStore.setTeamSeason(teamId, name, start);
     if (error) { msg.textContent = 'Tallennus epäonnistui: ' + error.message; msg.className = 'coach-msg season-msg error'; return; }
@@ -2063,7 +2543,7 @@ function renderCoachChallenges() {
       return `
         <div class="ch-item">
           <div class="ch-item-top">
-            <span class="goal-row-label"><span class="dot" style="background:${c.color}"></span>${c.label}<span class="goal-row-target">${metaLabel}</span></span>
+            <span class="goal-row-label"><span class="dot" style="background:${c.color}"></span>${c.label}<span class="goal-row-target">${metaLabel}</span><span class="ch-reward-tag">⚽ ${ch.football_reward == null ? 250 : ch.football_reward}</span></span>
             <span class="ch-del-area" data-id="${ch.id}"></span>
           </div>
           <div class="ch-scope">${scope}</div>
@@ -2094,6 +2574,8 @@ function renderCoachChallenges() {
           <input type="number" class="ch-hours" data-team="${t.id}" min="0.25" step="0.25" placeholder="tuntia / viikko (mikä tahansa määrä)">
           <div class="ch-sub-label">Määräpäivä (valinnainen — tyhjä = viikoittainen haaste):</div>
           <input type="date" class="ch-due" data-team="${t.id}">
+          <div class="ch-sub-label">Palkinto ⚽ (tyhjä = oletus 250):</div>
+          <input type="number" class="ch-reward" data-team="${t.id}" min="0" step="10" placeholder="250">
           <div class="coach-add-row"><button class="btn ch-add-btn" data-team="${t.id}" type="button">Aseta haaste</button></div>
         </div>
       </div>`;
@@ -2198,10 +2680,13 @@ function wireCoachChallenges() {
         descEl.focus(); return;   // kertasuoritus tarvitsee ohjeen
       }
       const dueDate = document.querySelector(`#coachChallengesView .ch-due[data-team="${teamId}"]`).value || null;
+      const rewardEl = document.querySelector(`#coachChallengesView .ch-reward[data-team="${teamId}"]`);
+      let reward = rewardEl ? parseInt(rewardEl.value, 10) : NaN;
+      if (!isFinite(reward) || reward < 0) reward = undefined;  // tyhjä → DB-oletus 250
       const target = challengeTargets[teamId] || 'team';
       const targets = target === 'team' ? [null] : [...target];
       for (const uid of targets) {
-        const { error } = await coachStore.createChallenge(teamId, challengeSetupCat[teamId], hours, desc, uid, dueDate);
+        const { error } = await coachStore.createChallenge(teamId, challengeSetupCat[teamId], hours, desc, uid, dueDate, reward);
         if (error) { alert('Haasteen luonti epäonnistui: ' + error.message); return; }
       }
       challengeTargets[teamId] = 'team';

@@ -69,8 +69,12 @@
       <span class="ph-level" id="phLevel"></span>
       <span class="ph-bar"><span class="ph-bar-fill" id="phBarFill"></span></span>
     </span>
+    <span class="ph-balls" id="phBalls"></span>
     <span class="ph-chevron">›</span>
   </button>
+
+  <!-- Putki (peräkkäiset treenipäivät) -->
+  <div id="streakBanner" class="streak-banner" hidden></div>
 
   <!-- Kirjauslomake -->
   <div class="card">
@@ -207,13 +211,22 @@
   <!-- Profiili: taso, kausi/XP, saavutukset ja kehitys -->
   <div id="viewProfile" class="view" hidden>
     <button class="back-btn" id="profileBack" type="button">‹ Takaisin päiväkirjaan</button>
+    <!-- Jalkapallot: pysyvä valuutta (ei nollaudu kauden vaihtuessa) -->
+    <div class="card" id="footballCard" hidden></div>
+    <!-- Joukkueen tulostaulu (vapaaehtoinen) -->
+    <div class="card" id="leaderboardCard" hidden></div>
     <!-- Taso / XP (kausittain nollautuva) -->
     <div class="card" id="levelCard" hidden></div>
     <!-- Saavutukset: putki ja virstanpylväät -->
     <div class="card" id="achieveCard"></div>
     <!-- Kehitys: viikkotuntien käyrä ja ennätykset -->
     <div class="card" id="progressCard" hidden></div>
+    <!-- Asetukset: ilmoitukset -->
+    <div class="card" id="settingsCard"></div>
   </div>
+
+  <!-- Kauppa: jalkapallojen käyttö koristeisiin -->
+  <div id="viewShop" class="view" hidden></div>
 
 </div>
 
