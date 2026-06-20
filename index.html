@@ -10,6 +10,19 @@
 <link rel="stylesheet" href="styles.css">
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#F1F3EF">
+<script>
+  (function () {
+    try {
+      var t = localStorage.getItem('theme');
+      if (t !== 'dark' && t !== 'light') {
+        t = (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+      }
+      document.documentElement.setAttribute('data-theme', t);
+      var m = document.querySelector('meta[name="theme-color"]');
+      if (m) m.setAttribute('content', t === 'dark' ? '#0F1512' : '#F1F3EF');
+    } catch (e) {}
+  })();
+</script>
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -49,6 +62,7 @@
     </div>
     <div class="userbar">
       <span class="user-chip" id="userChip"></span>
+      <button class="theme-btn" data-theme-toggle type="button" aria-label="Vaihda teema">🌙</button>
       <button class="logout-btn" id="logoutBtn" type="button">Kirjaudu ulos</button>
     </div>
   </div>
@@ -239,6 +253,7 @@
     </div>
     <div class="userbar">
       <span class="user-chip" id="coachUserChip"></span>
+      <button class="theme-btn" data-theme-toggle type="button" aria-label="Vaihda teema">🌙</button>
       <button class="logout-btn" id="coachLogoutBtn" type="button">Kirjaudu ulos</button>
     </div>
   </div>

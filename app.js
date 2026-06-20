@@ -1240,40 +1240,32 @@ function celebrate(opts = {}) {
   requestAnimationFrame(frame);
 }
 
-/* ---- Putki: peräkkäiset treenipäivät ---- */
+/* ---- Putki: peräkkäiset viikot, joilla on vähintään yksi treeni.
+       Käyttää samaa weeklyStreak()-laskuria kuin ennätyskortti. ---- */
 function computeStreak() {
-  const have = new Set(lastAll.map(e => e.date));
-  const res = { streak: 0, trainedToday: false };
-  if (!have.size) return res;
-  res.trainedToday = have.has(todayISO());
-  const cur = new Date(); cur.setHours(12, 0, 0, 0);
-  const iso = dt => `${dt.getFullYear()}-${pad(dt.getMonth() + 1)}-${pad(dt.getDate())}`;
-  if (!have.has(iso(cur))) {
-    cur.setDate(cur.getDate() - 1);
-    if (!have.has(iso(cur))) return res;     // ei tänään eikä eilen → putki poikki
-  }
-  let s = 0;
-  while (have.has(iso(cur))) { s++; cur.setDate(cur.getDate() - 1); }
-  res.streak = s;
-  return res;
+  const trainedThisWeek = lastAll.some(e => mondayOfISO(e.date) === weekRangeISO().mondayISO);
+  return { streak: weeklyStreak(), trainedThisWeek };
 }
 function renderStreak() {
   const el = document.getElementById('streakBanner');
   if (!el) return;
   el.hidden = false;
-  const { streak, trainedToday } = computeStreak();
-  if (streak <= 0) {
+  const { streak, trainedThisWeek } = computeStreak();
+  if (streak < 2) {
     el.className = 'streak-banner start';
-    el.innerHTML = `<span class="streak-fire">⚡</span><div class="streak-text"><b>Aloita putki tänään</b><span>Treenaa ja merkkaa se ylös — putki lähtee käyntiin.</span></div>`;
+    if (streak === 1 && trainedThisWeek) {
+      el.innerHTML = `<span class="streak-fire">⚡</span><div class="streak-text"><b>Hyvä alku!</b><span>Treenaa myös ensi viikolla, niin putki käynnistyy.</span></div>`;
+    } else {
+      el.innerHTML = `<span class="streak-fire">⚡</span><div class="streak-text"><b>Aloita putki tällä viikolla</b><span>Treenaa vähintään kerran viikossa, niin putki lähtee käyntiin.</span></div>`;
+    }
     return;
   }
-  const dayWord = streak === 1 ? 'päivä' : 'päivää';
-  if (trainedToday) {
+  if (trainedThisWeek) {
     el.className = 'streak-banner active';
-    el.innerHTML = `<span class="streak-fire">🔥</span><div class="streak-text"><b>${streak} ${dayWord} putkeen!</b><span>Hienoa — pidä se yllä huomenna.</span></div>`;
+    el.innerHTML = `<span class="streak-fire">🔥</span><div class="streak-text"><b>${streak} viikkoa putkeen!</b><span>Hienoa — jatka myös ensi viikolla.</span></div>`;
   } else {
     el.className = 'streak-banner risk';
-    el.innerHTML = `<span class="streak-fire">🔥</span><div class="streak-text"><b>${streak} ${dayWord} putkessa</b><span>Treenaa tänään, niin putki jatkuu — älä katkaise!</span></div>`;
+    el.innerHTML = `<span class="streak-fire">🔥</span><div class="streak-text"><b>${streak} viikkoa putkessa</b><span>Treenaa tällä viikolla, niin putki jatkuu — älä katkaise!</span></div>`;
   }
 }
 
@@ -2727,3 +2719,17 @@ async function boot() {
 }
 
 boot();
+
+/* ---- Teema (vaalea / tumma) ---- */
+function applyTheme(t) {
+  document.documentElement.setAttribute('data-theme', t);
+  try { localStorage.setItem('theme', t); } catch (e) {}
+  document.querySelectorAll('[data-theme-toggle]').forEach(b => { b.textContent = (t === 'dark' ? '☀️' : '🌙'); });
+  const m = document.querySelector('meta[name="theme-color"]');
+  if (m) m.setAttribute('content', t === 'dark' ? '#0F1512' : '#F1F3EF');
+}
+function currentTheme() { return document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light'; }
+document.querySelectorAll('[data-theme-toggle]').forEach(b => {
+  b.textContent = (currentTheme() === 'dark' ? '☀️' : '🌙');
+  b.onclick = () => applyTheme(currentTheme() === 'dark' ? 'light' : 'dark');
+});

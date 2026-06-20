@@ -920,3 +920,37 @@
     .goal-bar-fill { transition: none; }
     .goal-badge { animation: none; }
   }
+
+  /* ===================== Tumma teema ===================== */
+  :root[data-theme="dark"] {
+    --bg: #0F1512;
+    --surface: #18201C;
+    --ink: #E8ECE6;
+    --ink-soft: #9CA79E;
+    --ink-faint: #6C766E;
+    --line: #29332D;
+    --brand: #2BA06C;
+    --accent: #C5F23E;
+    --accent-ink: #16240C;
+    --cat-laukaukset: #2BA06C;
+    --cat-muu: #8A938B;
+  }
+  /* Käänteiset elementit: tausta on var(--ink) (vaalea tummassa) → tummenna teksti */
+  :root[data-theme="dark"] .toast,
+  :root[data-theme="dark"] .vtab.active,
+  :root[data-theme="dark"] .dp-cell.sel { color: var(--bg); }
+  /* Kovakoodatut vaaleat taustat → teema-tietoiset */
+  :root[data-theme="dark"] .goal-streak { background: rgba(221, 90, 30, 0.18); }
+  :root[data-theme="dark"] .cal-day.thisweek { background: rgba(43, 160, 108, 0.14); }
+  :root[data-theme="dark"] .lb-me { background: rgba(197, 242, 62, 0.10); }
+  :root[data-theme="dark"] .shop-item.is-equipped { background: rgba(43, 160, 108, 0.12); }
+
+  /* Teemanappi (topbar) */
+  .theme-btn {
+    background: none; border: 1px solid var(--line); border-radius: 999px;
+    width: 34px; height: 34px; font-size: 15px; line-height: 1; cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center; padding: 0;
+    transition: border-color 0.15s ease;
+  }
+  .theme-btn:hover { border-color: var(--ink-faint); }
+  .theme-btn:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
