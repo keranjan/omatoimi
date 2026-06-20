@@ -71,50 +71,567 @@ const catById = id => CATEGORIES.find(c => c.id === id) || CATEGORIES[CATEGORIES
 
 /* ---- Harjoitepankki (oletuskestoa ei ole – käyttäjä syöttää keston itse) ---- */
 const EXERCISES = [
-  // Laukaukset
-  { category: 'laukaukset', name: 'Seinälaukaukset', desc: 'Lauko seinään molemmilla jaloilla; tarkkuus ja ensikosketus paluupallosta.' },
-  { category: 'laukaukset', name: 'Tarkkuuslaukaukset kohteisiin', desc: 'Kohteet maalin kulmiin, laukaukset eri etäisyyksiltä.' },
-  { category: 'laukaukset', name: 'Ensikosketus + laukaus', desc: 'Ota syöttö haltuun ja laukaise nopeasti; vaihtele kulmaa.' },
-  { category: 'laukaukset', name: 'Ilmalaukaukset (volley)', desc: 'Pudota pallo ja laukaise ilmasta keskeltä palloa.' },
-  // Syöttely
-  { category: 'syottely', name: 'Seinäsyötöt', desc: 'Matalat, napakat syötöt seinään molemmilla jaloilla.' },
-  { category: 'syottely', name: 'Pitkän syötön tarkkuus', desc: 'Pitkä syöttö kohteeseen kentän poikki.' },
-  { category: 'syottely', name: 'Yhden kosketuksen syötöt', desc: 'Haltuunotto ja syöttö yhdellä kosketuksella.' },
-  { category: 'syottely', name: 'Kartioporttisyötöt', desc: 'Syötä kartioiden väleistä eri etäisyyksiltä.' },
-  // Kuljetus
-  { category: 'kuljetus', name: 'Kartiopujottelu', desc: 'Tiukka rata molemmilla jaloilla, pallo lähellä.' },
-  { category: 'kuljetus', name: '1v1-harhautukset', desc: 'Veto-työntö, kroketti yms. kartiota vastaan + kiihdytys ohi.' },
-  { category: 'kuljetus', name: 'Suunnanmuutoskuljetus', desc: 'Nopeat suunnanvaihdot merkeillä, molemmat jalkaterät.' },
-  { category: 'kuljetus', name: 'Vauhtikuljetus halliten', desc: 'Pitkä matka maksimivauhtia pallo hallinnassa.' },
-  // Pallotaito
-  { category: 'pallotaito', name: 'Pallottelu (jonglööraus)', desc: 'Pallo ilmassa eri kehonosilla; tavoittele toistoennätyksiä.' },
-  { category: 'pallotaito', name: 'Jalkapohjarullaukset & toe taps', desc: 'Nopeat kosketukset ja rullaukset paikallaan.' },
-  { category: 'pallotaito', name: 'Kosketusyhdistelmät', desc: 'Sisä-ulko, V-veto yms. molemmilla jaloilla.' },
-  { category: 'pallotaito', name: 'Pallonhallinta paikallaan', desc: 'Kosketukset sisä-, ulko- ja jalkapohjalla.' },
-  // Nopeus
-  { category: 'nopeus', name: 'Kiihdytykset 10–30 m', desc: 'Täysi teho, täysi palautus välissä.' },
-  { category: 'nopeus', name: 'Ketteryystikkaat', desc: 'Askelkuviot nopeudella ja rytmillä.' },
-  { category: 'nopeus', name: 'Suunnanmuutos 5-10-5', desc: 'Kartioiden välillä nopeat käännökset.' },
-  { category: 'nopeus', name: 'Reaktiolähdöt', desc: 'Lähtö merkistä eri asennoista.' },
-  // Voima
-  { category: 'voima', name: 'Kyykyt & askelkyykyt', desc: 'Kehonpaino tai lisäpaino, jalkojen voima.' },
-  { category: 'voima', name: 'Ponnistushypyt (plyometria)', desc: 'Loikat ja hypyt räjähtävyyteen.' },
-  { category: 'voima', name: 'Keskivartalo (core)', desc: 'Lankku, sivulankku, vatsaliikkeet.' },
-  { category: 'voima', name: 'Takaketju: lantionnostot & sillat', desc: 'Pakara- ja takareisivoima, vammojen ehkäisy.' },
-  // Kestävyys
-  { category: 'kestavyys', name: 'Intervallijuoksu 4×4 min', desc: 'Kovaa, palautus välissä.' },
-  { category: 'kestavyys', name: 'Peruskestävyyslenkki', desc: 'Rauhallinen tasavauhtinen lenkki.' },
-  { category: 'kestavyys', name: 'Mäkivedot', desc: 'Lyhyet kovat ylämäkivedot.' },
-  { category: 'kestavyys', name: 'Pallolliset vetointervallit', desc: 'Kuljetusvedot kovaa + palautuskävely.' },
-  // Liikkuvuus
-  { category: 'liikkuvuus', name: 'Dynaaminen alkulämmittely', desc: 'Jalan heilautukset, lonkka-avaukset ennen treeniä.' },
-  { category: 'liikkuvuus', name: 'Staattinen venyttely', desc: 'Päälihasryhmät treenin jälkeen.' },
-  { category: 'liikkuvuus', name: 'Lonkan & nilkan liikkuvuus', desc: 'Kohdennetut liikkeet jalkapalloilijan niveliin.' },
-  { category: 'liikkuvuus', name: 'Foam roller -palautus', desc: 'Rullaus ja kevyt liike palautumispäivänä.' },
-  // Muu
-  { category: 'muu', name: 'Ottelun analysointi (video)', desc: 'Oma tai huippupelaajan peli; poimi opittavaa.' },
-  { category: 'muu', name: 'Mielikuvaharjoittelu', desc: 'Visualisointi ja keskittyminen.' },
-  { category: 'muu', name: 'Säännöt & taktiikka', desc: 'Opiskele pelipaikan rooleja ja tilanteita.' },
+  {
+    "category": "laukaukset",
+    "name": "Seinälaukaukset",
+    "desc": "Lauko seinään molemmilla jaloilla; tarkkuus ja ensikosketus paluupallosta.",
+    "level": "Helppo",
+    "equipment": "Pallo + seinä",
+    "duration": 20,
+    "steps": [
+      "Asetu 8–12 m päähän seinästä.",
+      "Lauko napakasti seinään ja ota paluupallo haltuun.",
+      "Vuorottele oikea ja vasen jalka."
+    ],
+    "cues": [
+      "Tukijalka pallon viereen.",
+      "Nilkka lukossa, osu pallon keskelle."
+    ],
+    "video": "soccer shooting against wall drill"
+  },
+  {
+    "category": "laukaukset",
+    "name": "Tarkkuuslaukaukset kohteisiin",
+    "desc": "Kohteet maalin kulmiin, laukaukset eri etäisyyksiltä.",
+    "level": "Keskitaso",
+    "equipment": "Pallo + maali/kohteet",
+    "duration": 25,
+    "steps": [
+      "Aseta kohteet maalin kulmiin (esim. pullot).",
+      "Lauko eri etäisyyksiltä kohti kohdetta.",
+      "Laske osumat ja tavoittele ennätystä."
+    ],
+    "cues": [
+      "Valitse kulma ennen laukausta.",
+      "Laatu ennen voimaa."
+    ],
+    "video": "soccer shooting accuracy target drill"
+  },
+  {
+    "category": "laukaukset",
+    "name": "Ensikosketus + laukaus",
+    "desc": "Ota syöttö haltuun ja laukaise nopeasti; vaihtele kulmaa.",
+    "level": "Keskitaso",
+    "equipment": "Pallo + seinä",
+    "duration": 20,
+    "steps": [
+      "Ohjaa tuleva pallo ensikosketuksella maalia kohti.",
+      "Laukaise heti toisella kosketuksella.",
+      "Toista molemmilla jaloilla."
+    ],
+    "cues": [
+      "Suuntaa ensikosketus eteenpäin.",
+      "Nopea toinen kosketus."
+    ],
+    "video": "first touch and shoot soccer drill"
+  },
+  {
+    "category": "laukaukset",
+    "name": "Ilmalaukaukset (volley)",
+    "desc": "Pudota pallo ja laukaise ilmasta keskeltä palloa.",
+    "level": "Haastava",
+    "equipment": "Pallo",
+    "duration": 15,
+    "steps": [
+      "Pudota pallo kädestä.",
+      "Lauko ilmasta osuen pallon keskelle.",
+      "Aloita matalalla, nosta korkeutta hallinnan myötä."
+    ],
+    "cues": [
+      "Nilkka lukossa.",
+      "Pidä vartalo pallon päällä."
+    ],
+    "video": "soccer volley technique tutorial"
+  },
+  {
+    "category": "syottely",
+    "name": "Seinäsyötöt",
+    "desc": "Matalat, napakat syötöt seinään molemmilla jaloilla.",
+    "level": "Helppo",
+    "equipment": "Pallo + seinä",
+    "duration": 15,
+    "steps": [
+      "Syötä matalia, napakoita syöttöjä seinään.",
+      "Ota paluupallo haltuun ja syötä uudelleen.",
+      "Vuorottele jalat ja sisä-/ulkoterä."
+    ],
+    "cues": [
+      "Osu pallon keskelle sisäterällä.",
+      "Tukijalka osoittaa kohteeseen."
+    ],
+    "video": "soccer wall passing drill"
+  },
+  {
+    "category": "syottely",
+    "name": "Pitkän syötön tarkkuus",
+    "desc": "Pitkä syöttö kohteeseen kentän poikki.",
+    "level": "Keskitaso",
+    "equipment": "Pallo + kohde",
+    "duration": 20,
+    "steps": [
+      "Valitse kohde 20–30 m päästä.",
+      "Lyö pitkä syöttö kohteeseen.",
+      "Vaihtele matalat ja ilmasyötöt."
+    ],
+    "cues": [
+      "Osu pallon alaosaan nostoon.",
+      "Seuraa liikettä loppuun."
+    ],
+    "video": "long pass accuracy soccer drill"
+  },
+  {
+    "category": "syottely",
+    "name": "Yhden kosketuksen syötöt",
+    "desc": "Haltuunotto ja syöttö yhdellä kosketuksella.",
+    "level": "Keskitaso",
+    "equipment": "Pallo + seinä",
+    "duration": 15,
+    "steps": [
+      "Syötä seinään ja palauta yhdellä kosketuksella.",
+      "Pidä rytmi tasaisena.",
+      "Lisää tahtia hallinnan myötä."
+    ],
+    "cues": [
+      "Valmista jalka ajoissa.",
+      "Pieni, tarkka kosketus."
+    ],
+    "video": "one touch passing wall soccer"
+  },
+  {
+    "category": "syottely",
+    "name": "Kartioporttisyötöt",
+    "desc": "Syötä kartioiden väleistä eri etäisyyksiltä.",
+    "level": "Helppo",
+    "equipment": "Pallo + 4 kartiota",
+    "duration": 15,
+    "steps": [
+      "Tee kartioista pieniä portteja.",
+      "Syötä pallo portin läpi eri etäisyyksiltä.",
+      "Tavoittele osumia putkeen."
+    ],
+    "cues": [
+      "Tähtää portin keskelle.",
+      "Säädä voimaa etäisyyden mukaan."
+    ],
+    "video": "passing gates accuracy soccer drill"
+  },
+  {
+    "category": "kuljetus",
+    "name": "Kartiopujottelu",
+    "desc": "Tiukka rata molemmilla jaloilla, pallo lähellä.",
+    "level": "Helppo",
+    "equipment": "Pallo + 5–6 kartiota",
+    "duration": 15,
+    "steps": [
+      "Aseta kartiot riviin n. 1 m välein.",
+      "Pujottele pallo läpi pieni kosketus kerrallaan.",
+      "Käytä molempia jalkateriä, lisää vauhtia."
+    ],
+    "cues": [
+      "Pallo lähellä jalkaa.",
+      "Nosta katse välillä ylös."
+    ],
+    "video": "cone dribbling drill soccer"
+  },
+  {
+    "category": "kuljetus",
+    "name": "1v1-harhautukset",
+    "desc": "Veto-työntö, kroketti yms. kartiota vastaan + kiihdytys ohi.",
+    "level": "Keskitaso",
+    "equipment": "Pallo + kartio",
+    "duration": 20,
+    "steps": [
+      "Lähesty kartiota kuin vastustajaa.",
+      "Tee harhautus (veto-työntö, kroketti).",
+      "Kiihdytä terävästi ohi.",
+      "Harjoittele 2–3 eri liikettä."
+    ],
+    "cues": [
+      "Myy harhautus vartalolla.",
+      "Räjähtävä lähtö liikkeen jälkeen."
+    ],
+    "video": "soccer 1v1 moves tutorial"
+  },
+  {
+    "category": "kuljetus",
+    "name": "Suunnanmuutoskuljetus",
+    "desc": "Nopeat suunnanvaihdot merkeillä, molemmat jalkaterät.",
+    "level": "Keskitaso",
+    "equipment": "Pallo + merkit",
+    "duration": 15,
+    "steps": [
+      "Kuljeta merkille ja tee terävä suunnanvaihto.",
+      "Käytä sisä- ja ulkoterää.",
+      "Pidä matala painopiste käännöksissä."
+    ],
+    "cues": [
+      "Kosketus ja käännös samalla.",
+      "Kiihdytä ulos käännöksestä."
+    ],
+    "video": "change of direction dribbling soccer"
+  },
+  {
+    "category": "kuljetus",
+    "name": "Vauhtikuljetus halliten",
+    "desc": "Pitkä matka maksimivauhtia pallo hallinnassa.",
+    "level": "Keskitaso",
+    "equipment": "Pallo + tila",
+    "duration": 15,
+    "steps": [
+      "Kuljeta pitkä matka kovaa vauhtia.",
+      "Pidä pallo hallinnassa isommilla työnnöillä.",
+      "Lopeta hallittuun pysäytykseen."
+    ],
+    "cues": [
+      "Työnnä pallo askelten tahtiin.",
+      "Katse ylhäällä."
+    ],
+    "video": "speed dribbling soccer drill"
+  },
+  {
+    "category": "pallotaito",
+    "name": "Pallottelu (jonglöörays)",
+    "desc": "Pallo ilmassa eri kehonosilla; tavoittele toistoennätyksiä.",
+    "level": "Helppo",
+    "equipment": "Pallo",
+    "duration": 10,
+    "steps": [
+      "Pidä pallo ilmassa jaloilla, reisillä ja päällä.",
+      "Tavoittele toistoennätyksiä.",
+      "Kokeile sarjoja: jalka–reisi–jalka."
+    ],
+    "cues": [
+      "Osu pallon alle, nilkka lukossa.",
+      "Pienet, pehmeät kosketukset."
+    ],
+    "video": "football juggling tutorial beginner"
+  },
+  {
+    "category": "pallotaito",
+    "name": "Jalkapohjarullaukset & toe taps",
+    "desc": "Nopeat kosketukset ja rullaukset paikallaan.",
+    "level": "Helppo",
+    "equipment": "Pallo",
+    "duration": 10,
+    "steps": [
+      "Napauta pallon päältä jalkapohjilla vuorotellen (toe taps).",
+      "Tee rullauksia jalkapohjalla puolelta toiselle.",
+      "Pidä tiheä rytmi 20–30 s sarjoissa."
+    ],
+    "cues": [
+      "Kevyet kosketukset päkiällä.",
+      "Katse ylös välillä."
+    ],
+    "video": "toe taps rolls soccer footwork drill"
+  },
+  {
+    "category": "pallotaito",
+    "name": "Kosketusyhdistelmät",
+    "desc": "Sisä-ulko, V-veto yms. molemmilla jaloilla.",
+    "level": "Keskitaso",
+    "equipment": "Pallo",
+    "duration": 12,
+    "steps": [
+      "Harjoittele sisä-ulko-kosketuksia liikkeessä.",
+      "Lisää V-veto ja käännökset.",
+      "Tee molemmilla jaloilla."
+    ],
+    "cues": [
+      "Pallo lähellä.",
+      "Rytmi tasaiseksi ennen vauhtia."
+    ],
+    "video": "ball mastery drills soccer"
+  },
+  {
+    "category": "pallotaito",
+    "name": "Pallonhallinta paikallaan",
+    "desc": "Kosketukset sisä-, ulko- ja jalkapohjalla.",
+    "level": "Helppo",
+    "equipment": "Pallo",
+    "duration": 10,
+    "steps": [
+      "Liikuttele palloa sisä-, ulko- ja jalkapohjakosketuksin paikallaan.",
+      "Pidä pallo jalkojen lähellä.",
+      "Vaihtele rytmiä."
+    ],
+    "cues": [
+      "Matala asento.",
+      "Pehmeät kosketukset."
+    ],
+    "video": "close control stationary soccer drill"
+  },
+  {
+    "category": "nopeus",
+    "name": "Kiihdytykset 10–30 m",
+    "desc": "Täysi teho, täysi palautus välissä.",
+    "level": "Keskitaso",
+    "equipment": "Merkit + tila",
+    "duration": 15,
+    "steps": [
+      "Merkitse 10–30 m matka.",
+      "Kiihdytä täydellä teholla.",
+      "Kävele takaisin täydeksi palautukseksi.",
+      "Tee 6–10 vetoa."
+    ],
+    "cues": [
+      "Voimakas käsivarsien työ.",
+      "Matala lähtö, nouse vähitellen."
+    ],
+    "video": "sprint acceleration drills football"
+  },
+  {
+    "category": "nopeus",
+    "name": "Ketteryystikkaat",
+    "desc": "Askelkuviot nopeudella ja rytmillä.",
+    "level": "Keskitaso",
+    "equipment": "Ketteryystikkaat tai merkit",
+    "duration": 12,
+    "steps": [
+      "Tee askelkuvioita tikkaiden läpi (1 ja 2 jalkaa/ruutu).",
+      "Pidä rytmi nopeana ja siistinä.",
+      "Lisää käsien työ mukaan."
+    ],
+    "cues": [
+      "Päkiöillä, kevyet askeleet.",
+      "Katse eteen, ei alas."
+    ],
+    "video": "agility ladder drills football"
+  },
+  {
+    "category": "nopeus",
+    "name": "Suunnanmuutos 5-10-5",
+    "desc": "Kartioiden välillä nopeat käännökset.",
+    "level": "Haastava",
+    "equipment": "3 kartiota",
+    "duration": 12,
+    "steps": [
+      "Aseta kartiot 5 m välein.",
+      "Lähde keskeltä, kosketa toinen pää, toinen pää, takaisin.",
+      "Tee terävät käännökset matalana."
+    ],
+    "cues": [
+      "Painopiste alas käännöksessä.",
+      "Räjähdä ulos käännöksestä."
+    ],
+    "video": "5-10-5 agility shuttle drill"
+  },
+  {
+    "category": "nopeus",
+    "name": "Reaktiolähdöt",
+    "desc": "Lähtö merkistä eri asennoista.",
+    "level": "Keskitaso",
+    "equipment": "Merkki tai kaveri",
+    "duration": 10,
+    "steps": [
+      "Lähde sprinttiin merkistä (ääni tai käsi).",
+      "Vaihtele alkuasentoja (seisten, istuen).",
+      "Tee lyhyitä, teräviä lähtöjä."
+    ],
+    "cues": [
+      "Reagoi heti, älä ennakoi.",
+      "Ensiaskeleet lyhyitä ja nopeita."
+    ],
+    "video": "reaction sprint start drills"
+  },
+  {
+    "category": "voima",
+    "name": "Kyykyt & askelkyykyt",
+    "desc": "Kehonpaino tai lisäpaino, jalkojen voima.",
+    "level": "Helppo",
+    "equipment": "Kehonpaino (tai lisäpaino)",
+    "duration": 20,
+    "steps": [
+      "Tee kyykkyjä hallitusti täydellä liikeradalla.",
+      "Lisää askelkyykyt eteen ja taakse.",
+      "3×10–12 toistoa."
+    ],
+    "cues": [
+      "Polvet varpaiden suuntaan.",
+      "Selkä neutraali."
+    ],
+    "video": "bodyweight squat lunge form"
+  },
+  {
+    "category": "voima",
+    "name": "Ponnistushypyt (plyometria)",
+    "desc": "Loikat ja hypyt räjähtävyyteen.",
+    "level": "Haastava",
+    "equipment": "Tila (matala koroke)",
+    "duration": 15,
+    "steps": [
+      "Tee räjähtäviä hyppyjä: tasajalkahypyt, loikat.",
+      "Laskeudu pehmeästi polvet joustaen.",
+      "3×6–8 toistoa, täysi palautus."
+    ],
+    "cues": [
+      "Pehmeä, hiljainen alastulo.",
+      "Laatu ennen määrää."
+    ],
+    "video": "plyometric jumps beginner football"
+  },
+  {
+    "category": "voima",
+    "name": "Keskivartalo (core)",
+    "desc": "Lankku, sivulankku, vatsaliikkeet.",
+    "level": "Helppo",
+    "equipment": "Alusta",
+    "duration": 12,
+    "steps": [
+      "Lankku 30–45 s.",
+      "Sivulankut molemmin puolin.",
+      "Vatsarutistukset ja saksaukset.",
+      "2–3 kierrosta."
+    ],
+    "cues": [
+      "Keho suorana, ei notkolle.",
+      "Hengitä tasaisesti."
+    ],
+    "video": "core workout football players"
+  },
+  {
+    "category": "voima",
+    "name": "Takaketju: lantionnostot & sillat",
+    "desc": "Pakara- ja takareisivoima, vammojen ehkäisy.",
+    "level": "Helppo",
+    "equipment": "Alusta",
+    "duration": 12,
+    "steps": [
+      "Lantionnostot selinmakuulla, purista pakaroita ylhäällä.",
+      "Yhden jalan sillat.",
+      "3×10–12 toistoa."
+    ],
+    "cues": [
+      "Purista pakaroita, älä notkista selkää.",
+      "Hidas, hallittu liike."
+    ],
+    "video": "glute bridge hamstring exercise"
+  },
+  {
+    "category": "kestavyys",
+    "name": "Intervallijuoksu 4×4 min",
+    "desc": "Kovaa, palautus välissä.",
+    "level": "Haastava",
+    "equipment": "Lenkkireitti",
+    "duration": 30,
+    "steps": [
+      "Lämmittele 10 min.",
+      "Juokse 4 min kovaa (n. 90 %), 3 min kevyttä välissä.",
+      "Toista 4 kertaa."
+    ],
+    "cues": [
+      "Pidä vauhti tasaisena koko 4 min.",
+      "Palautus rauhalliseksi."
+    ],
+    "video": "4x4 interval running training"
+  },
+  {
+    "category": "kestavyys",
+    "name": "Peruskestävyyslenkki",
+    "desc": "Rauhallinen tasavauhtinen lenkki.",
+    "level": "Helppo",
+    "equipment": "Lenkkireitti",
+    "duration": 35,
+    "steps": [
+      "Juokse rauhallista, tasaista vauhtia.",
+      "Pysy puhekuntoisella sykkeellä.",
+      "30–45 min."
+    ],
+    "cues": [
+      "Vauhti, jossa jaksat jutella.",
+      "Rento juoksuasento."
+    ],
+    "video": "easy aerobic base run training"
+  },
+  {
+    "category": "kestavyys",
+    "name": "Mäkivedot",
+    "desc": "Lyhyet kovat ylämäkivedot.",
+    "level": "Haastava",
+    "equipment": "Mäki",
+    "duration": 20,
+    "steps": [
+      "Etsi n. 30–60 m mäki.",
+      "Juokse ylös kovaa, kävele alas palautukseksi.",
+      "6–10 vetoa."
+    ],
+    "cues": [
+      "Voimakas käsien työ.",
+      "Ryhdikäs asento, katse eteen."
+    ],
+    "video": "hill sprint training"
+  },
+  {
+    "category": "kestavyys",
+    "name": "Pallolliset vetointervallit",
+    "desc": "Kuljetusvedot kovaa + palautuskävely.",
+    "level": "Keskitaso",
+    "equipment": "Pallo + tila",
+    "duration": 20,
+    "steps": [
+      "Kuljeta palloa kovaa 20–30 m.",
+      "Kävele palloa kuljettaen takaisin.",
+      "Tee 8–10 vetoa."
+    ],
+    "cues": [
+      "Pidä pallo hallinnassa vauhdissa.",
+      "Täysi teho vedoissa."
+    ],
+    "video": "dribbling sprint intervals soccer"
+  },
+  {
+    "category": "liikkuvuus",
+    "name": "Dynaaminen alkulämmittely",
+    "desc": "Jalan heilautukset, lonkka-avaukset ennen treeniä.",
+    "level": "Helppo",
+    "equipment": "Tila",
+    "duration": 10,
+    "steps": [
+      "Jalan heilautukset eteen-taakse ja sivuille.",
+      "Lonkka-avaukset, polvennostot, kantapotkut.",
+      "Kevyet kiihdytykset lopuksi."
+    ],
+    "cues": [
+      "Hallitut liikkeet, ei nykäisyjä.",
+      "Tee aina ennen treeniä."
+    ],
+    "video": "dynamic warm up football"
+  },
+  {
+    "category": "liikkuvuus",
+    "name": "Staattinen venyttely",
+    "desc": "Päälihasryhmät treenin jälkeen.",
+    "level": "Helppo",
+    "equipment": "Alusta",
+    "duration": 10,
+    "steps": [
+      "Venytä takareisi, etureisi, pohje ja lonkka.",
+      "Pidä jokainen venytys 20–30 s.",
+      "Tee treenin jälkeen."
+    ],
+    "cues": [
+      "Venytä mukavuusrajalle, ei kipuun.",
+      "Hengitä rauhallisesti."
+    ],
+    "video": "static stretching routine football"
+  },
+  {
+    "category": "liikkuvuus",
+    "name": "Lonkan & nilkan liikkuvuus",
+    "desc": "Kohdennetut liikkeet jalkapalloilijan niveliin.",
+    "level": "Helppo",
+    "equipment": "Alusta",
+    "duration": 10,
+    "steps": [
+      "Lonkan avaukset (90/90).",
+      "Nilkan liikkuvuus seinää vasten.",
+      "Tee molemmin puolin."
+    ],
+    "cues": [
+      "Liiku hallitusti koko liikeradalla.",
+      "Säännöllisyys ratkaisee."
+    ],
+    "video": "hip ankle mobility drills football"
+  }
 ];
 
 /* ---- Apurit ---- */
@@ -381,35 +898,96 @@ function switchView(v) {
 }
 
 /* ---- Harjoitepankki ---- */
+const LEVEL_CLASS = { 'Helppo': 'easy', 'Keskitaso': 'mid', 'Haastava': 'hard' };
+function bankVideoUrl(ex) {
+  const q = (ex.video || ex.name) + ' football drill';
+  return 'https://www.youtube.com/results?search_query=' + encodeURIComponent(q);
+}
 function renderBank() {
   const box = document.getElementById('bankList');
   box.innerHTML = '';
+  const search = document.createElement('input');
+  search.type = 'text';
+  search.id = 'bankSearch';
+  search.className = 'ics-input bank-search';
+  search.placeholder = 'Hae harjoitetta…';
+  search.autocapitalize = 'none';
+  search.spellcheck = false;
+  box.appendChild(search);
+
   CATEGORIES.forEach(c => {
     const exs = EXERCISES.filter(e => e.category === c.id);
     if (!exs.length) return;
     const group = document.createElement('div');
     group.className = 'bank-group';
-    group.innerHTML = `<div class="bank-head"><span class="dot" style="background:${c.color}"></span>${c.label}</div>`;
+    const ghead = document.createElement('div');
+    ghead.className = 'bank-group-head';
+    ghead.innerHTML = `<span class="dot" style="background:${c.color}"></span>${c.label}`;
+    group.appendChild(ghead);
     const list = document.createElement('div');
     list.className = 'bank-items';
     exs.forEach(ex => {
-      const row = document.createElement('button');
-      row.type = 'button';
-      row.className = 'bank-item';
-      row.innerHTML = `<div class="bank-name">${escapeHtml(ex.name)}</div><div class="bank-desc">${escapeHtml(ex.desc)}</div>`;
-      row.onclick = () => selectExercise(ex);
-      list.appendChild(row);
+      const item = document.createElement('div');
+      item.className = 'bank-item collapsible';
+      item.dataset.name = ex.name.toLowerCase();
+      const lvl = LEVEL_CLASS[ex.level] || 'mid';
+      item.innerHTML = `
+        <button class="bank-head" type="button" aria-expanded="false">
+          <span class="bank-head-main">
+            <span class="bank-name">${escapeHtml(ex.name)}</span>
+            <span class="bank-desc">${escapeHtml(ex.desc)}</span>
+          </span>
+          <span class="bank-head-side">
+            <span class="bank-level ${lvl}">${ex.level}</span>
+            <span class="bank-chevron">▾</span>
+          </span>
+        </button>
+        <div class="bank-detail" hidden>
+          <div class="bank-meta">
+            <span class="bank-meta-item">⏱ ${ex.duration} min</span>
+            <span class="bank-meta-item">🎒 ${escapeHtml(ex.equipment)}</span>
+          </div>
+          <div class="bank-section-label">Suoritus</div>
+          <ol class="bank-steps">${ex.steps.map(s => `<li>${escapeHtml(s)}</li>`).join('')}</ol>
+          <div class="bank-section-label">Muista</div>
+          <ul class="bank-cues">${ex.cues.map(s => `<li>${escapeHtml(s)}</li>`).join('')}</ul>
+          <div class="bank-actions">
+            <button class="btn bank-log-btn" type="button">Kirjaa tämä</button>
+            <a class="bank-video-btn" href="${bankVideoUrl(ex)}" target="_blank" rel="noopener noreferrer">Katso video ▸</a>
+          </div>
+        </div>`;
+      const headBtn = item.querySelector('.bank-head');
+      headBtn.onclick = () => {
+        const exp = headBtn.getAttribute('aria-expanded') === 'true';
+        headBtn.setAttribute('aria-expanded', String(!exp));
+        item.querySelector('.bank-detail').hidden = exp;
+      };
+      item.querySelector('.bank-log-btn').onclick = () => selectExercise(ex);
+      list.appendChild(item);
     });
     group.appendChild(list);
     box.appendChild(group);
   });
+
+  search.oninput = () => {
+    const q = search.value.trim().toLowerCase();
+    box.querySelectorAll('.bank-group').forEach(group => {
+      let visible = 0;
+      group.querySelectorAll('.bank-item').forEach(item => {
+        const match = !q || item.dataset.name.includes(q);
+        item.style.display = match ? '' : 'none';
+        if (match) visible++;
+      });
+      group.style.display = visible ? '' : 'none';
+    });
+  };
 }
 
 function selectExercise(ex) {
   selectedCat = ex.category;
   renderChips();
   document.getElementById('inNote').value = ex.name;
-  document.getElementById('inDuration').value = '';
+  document.getElementById('inDuration').value = ex.duration || '';
   switchView('dash');
   window.scrollTo({ top: 0, behavior: 'smooth' });
   document.getElementById('inDuration').focus();
