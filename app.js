@@ -1358,8 +1358,9 @@ function setAuthMode(m) {
   document.getElementById('authToggle').textContent = m === 'login' ? 'Ei tiliä? Rekisteröidy' : 'Onko jo tili? Kirjaudu';
   document.getElementById('authPass').placeholder = m === 'login' ? 'salasana' : 'vähintään 6 merkkiä';
   const confirmFld = document.getElementById('authConfirmFld');
-  confirmFld.hidden = (m !== 'register');
-  if (m !== 'register') document.getElementById('authConfirm').value = '';
+  if (confirmFld) confirmFld.style.display = (m === 'register') ? '' : 'none';
+  const confirmInput = document.getElementById('authConfirm');
+  if (confirmInput && m !== 'register') confirmInput.value = '';
   authError('');
 }
 function authError(msg) {
@@ -1383,8 +1384,8 @@ async function submitAuth() {
   }
   if (password.length < 6) { authError('Salasanan on oltava vähintään 6 merkkiä.'); return; }
   if (authMode === 'register') {
-    const confirm = document.getElementById('authConfirm').value;
-    if (password !== confirm) { authError('Salasanat eivät täsmää.'); return; }
+    const confirmEl = document.getElementById('authConfirm');
+    if (confirmEl && password !== confirmEl.value) { authError('Salasanat eivät täsmää.'); return; }
   }
   const btn = document.getElementById('authSubmit');
   btn.disabled = true; authError('');
@@ -2228,7 +2229,8 @@ async function boot() {
   document.getElementById('authSubmit').onclick = submitAuth;
   document.getElementById('authToggle').onclick = () => setAuthMode(authMode === 'login' ? 'register' : 'login');
   document.getElementById('authPass').addEventListener('keydown', e => { if (e.key === 'Enter') submitAuth(); });
-  document.getElementById('authConfirm').addEventListener('keydown', e => { if (e.key === 'Enter') submitAuth(); });
+  const authConfirmEl = document.getElementById('authConfirm');
+  if (authConfirmEl) authConfirmEl.addEventListener('keydown', e => { if (e.key === 'Enter') submitAuth(); });
   document.getElementById('logoutBtn').onclick = doSignOut;
   document.getElementById('coachLogoutBtn').onclick = doSignOut;
 
