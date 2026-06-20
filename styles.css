@@ -234,6 +234,177 @@
   .ph-bar { display: block; height: 6px; background: var(--bg); border-radius: 4px; overflow: hidden; margin-top: 2px; }
   .ph-bar-fill { display: block; height: 100%; width: 0; background: var(--accent); border-radius: 4px; transition: width 0.6s ease; }
   .ph-chevron { color: var(--ink-faint); font-size: 24px; flex: none; line-height: 1; }
+
+  /* Jalkapallot: laskuri otsikossa */
+  .ph-balls {
+    display: inline-flex; align-items: center; gap: 4px; flex: none;
+    background: var(--bg); border: 1px solid var(--line); border-radius: 999px;
+    padding: 5px 10px 5px 8px; font-variant-numeric: tabular-nums;
+  }
+  .ph-balls-ic { font-size: 15px; line-height: 1; }
+  .ph-balls-num { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 16px; color: var(--brand); }
+
+  /* Jalkapallot: kortti profiilinäkymässä */
+  .ball-hero { display: flex; align-items: center; gap: 14px; margin: 4px 0 14px; }
+  .ball-emoji { font-size: 46px; line-height: 1; flex: none; }
+  .ball-hero-text { display: flex; flex-direction: column; gap: 2px; }
+  .ball-total {
+    font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 38px;
+    color: var(--brand); line-height: 1; font-variant-numeric: tabular-nums;
+  }
+  .ball-cap-text { font-size: 13px; color: var(--ink-soft); }
+  .ball-breakdown { display: flex; gap: 10px; margin-bottom: 14px; }
+  .ball-chip {
+    flex: 1; display: flex; flex-direction: column; gap: 2px;
+    background: var(--bg); border-radius: 10px; padding: 10px 12px;
+  }
+  .ball-chip span { font-size: 12px; color: var(--ink-soft); }
+  .ball-chip b { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 20px; color: var(--ink); font-variant-numeric: tabular-nums; }
+  .ball-how { border-top: 1px solid var(--line); padding-top: 12px; }
+  .ball-how-title { font-size: 13px; font-weight: 600; color: var(--ink); margin-bottom: 8px; }
+  .ball-how-row {
+    display: flex; justify-content: space-between; align-items: baseline;
+    padding: 5px 0; font-size: 13px; color: var(--ink-soft); border-bottom: 1px dashed var(--line);
+  }
+  .ball-how-row b { color: var(--brand); font-variant-numeric: tabular-nums; }
+  .ball-how-note { font-size: 12px; color: var(--ink-faint); margin-top: 8px; line-height: 1.4; }
+
+  /* Jalkapallot valmentajan raportissa */
+  .rep-balls {
+    margin-left: auto; flex: none; font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 700; font-size: 14px; color: var(--brand); font-variant-numeric: tabular-nums;
+  }
+  .football-status { font-size: 13px; color: var(--ink-soft); margin: 4px 0 8px; }
+  .ch-reward-tag {
+    display: inline-flex; align-items: center; gap: 3px; margin-left: 6px;
+    background: var(--bg); border: 1px solid var(--line); border-radius: 999px;
+    padding: 1px 8px; font-size: 12px; font-weight: 600; color: var(--brand);
+    font-variant-numeric: tabular-nums; white-space: nowrap;
+  }
+
+  /* Tulostaulu */
+  .lb-intro { font-size: 14px; color: var(--ink); margin: 4px 0 6px; line-height: 1.45; }
+  .lb-intro-sub { font-size: 12.5px; color: var(--ink-soft); margin-bottom: 14px; line-height: 1.45; }
+  .lb-join-btn { width: 100%; }
+  .lb-list { display: flex; flex-direction: column; }
+  .lb-row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 8px; border-bottom: 1px solid var(--line);
+  }
+  .lb-row:last-child { border-bottom: none; }
+  .lb-me { background: rgba(197, 242, 62, 0.16); border-radius: 10px; }
+  .lb-rank {
+    flex: none; width: 22px; text-align: center;
+    font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 18px;
+    color: var(--ink-soft); font-variant-numeric: tabular-nums;
+  }
+  .lb-row:nth-child(1) .lb-rank { color: var(--brand); }
+  .lb-badge { flex: none; width: 32px; height: 32px; display: block; }
+  .lb-info { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1; }
+  .lb-name {
+    font-family: 'Barlow Condensed', sans-serif; font-weight: 600; font-size: 17px;
+    color: var(--ink); line-height: 1.1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .lb-you {
+    display: inline-block; margin-left: 4px; padding: 0 6px; border-radius: 999px;
+    background: var(--brand); color: #fff; font-family: 'Barlow', sans-serif;
+    font-weight: 600; font-size: 10px; vertical-align: middle;
+  }
+  .lb-lvl { font-size: 11.5px; color: var(--ink-soft); }
+  .lb-balls {
+    flex: none; font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 17px;
+    color: var(--brand); font-variant-numeric: tabular-nums; white-space: nowrap;
+  }
+  .lb-note { font-size: 12.5px; color: var(--ink-faint); margin-top: 10px; line-height: 1.4; }
+  .lb-leave-btn {
+    margin-top: 12px; background: none; border: none; color: var(--ink-faint);
+    font-family: inherit; font-size: 13px; cursor: pointer; padding: 4px 0; text-decoration: underline;
+  }
+  .lb-leave-btn:hover { color: var(--ink-soft); }
+
+  /* Koristeet (kaupasta) */
+  .cos-title {
+    display: inline-block; margin-left: 5px; padding: 1px 8px; border-radius: 999px;
+    background: var(--accent); color: var(--accent-ink);
+    font-family: 'Barlow', sans-serif; font-weight: 600; font-size: 10px;
+    letter-spacing: 0.02em; vertical-align: middle; white-space: nowrap;
+  }
+  .ph-badge { border-radius: 14px; transition: box-shadow 0.2s ease; }
+  .lb-badge { border-radius: 9px; }
+
+  /* Kauppa */
+  .ball-shop-btn { width: 100%; margin: 2px 0 14px; }
+  .shop-balance-card { display: flex; align-items: center; justify-content: space-between; }
+  .shop-bal-label { font-size: 14px; color: var(--ink-soft); }
+  .shop-bal {
+    font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 30px;
+    color: var(--brand); font-variant-numeric: tabular-nums;
+  }
+  .shop-bal-ic { font-size: 22px; }
+  .shop-section .sec-head { margin-bottom: 12px; }
+  .shop-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .shop-item {
+    display: flex; flex-direction: column; align-items: center; gap: 9px;
+    padding: 14px 10px; background: var(--bg); border: 1px solid var(--line);
+    border-radius: 12px; text-align: center;
+  }
+  .shop-item.is-equipped { border-color: var(--brand); background: rgba(14, 94, 58, 0.06); }
+  .shop-prev { height: 34px; display: flex; align-items: center; justify-content: center; }
+  .shop-prev-name { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 22px; }
+  .shop-prev-title {
+    display: inline-block; padding: 3px 11px; border-radius: 999px;
+    background: var(--accent); color: var(--accent-ink); font-weight: 600; font-size: 12px;
+  }
+  .shop-prev-frame { width: 28px; height: 28px; border-radius: 8px; background: var(--surface); display: inline-block; }
+  .shop-label { font-size: 12.5px; color: var(--ink-soft); font-weight: 500; min-height: 16px; }
+  .shop-btn {
+    width: 100%; padding: 8px 6px; border-radius: 9px; cursor: pointer;
+    font-family: inherit; font-weight: 600; font-size: 12.5px; font-variant-numeric: tabular-nums;
+  }
+  .shop-btn.own { background: var(--surface); border: 1px solid var(--brand); color: var(--brand); }
+  .shop-btn.equipped { background: var(--brand); border: 1px solid var(--brand); color: #fff; }
+  .shop-btn.locked { background: var(--bg); border: 1px solid var(--line); color: var(--ink-faint); cursor: not-allowed; }
+
+  /* Putki-banneri */
+  .streak-banner {
+    display: flex; align-items: center; gap: 12px;
+    padding: 13px 16px; border-radius: var(--radius); margin-bottom: 18px;
+    border: 1px solid var(--line); background: var(--surface);
+  }
+  .streak-banner.active { background: rgba(197, 242, 62, 0.18); border-color: var(--accent); }
+  .streak-banner.risk { background: rgba(221, 90, 30, 0.10); border-color: rgba(221, 90, 30, 0.35); }
+  .streak-banner.start { background: var(--surface); }
+  .streak-fire { font-size: 30px; line-height: 1; flex: none; }
+  .streak-text { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+  .streak-text b {
+    font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 19px;
+    color: var(--ink); line-height: 1.1;
+  }
+  .streak-text span { font-size: 12.5px; color: var(--ink-soft); line-height: 1.3; }
+
+  /* Konfetti */
+  .confetti-canvas {
+    position: fixed; inset: 0; width: 100%; height: 100%;
+    pointer-events: none; z-index: 9999;
+  }
+
+  /* Asetukset: ilmoitukset */
+  .set-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+  .set-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .set-text b { font-size: 14px; color: var(--ink); font-weight: 600; }
+  .set-text span { font-size: 12px; color: var(--ink-soft); line-height: 1.35; }
+  .set-toggle {
+    flex: none; width: 50px; height: 30px; border-radius: 999px; border: none;
+    background: var(--line); position: relative; cursor: pointer; transition: background 0.2s ease;
+    padding: 0;
+  }
+  .set-toggle.on { background: var(--brand); }
+  .set-knob {
+    position: absolute; top: 3px; left: 3px; width: 24px; height: 24px; border-radius: 50%;
+    background: #fff; transition: transform 0.2s ease; box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+  }
+  .set-toggle.on .set-knob { transform: translateX(20px); }
+  .set-note { font-size: 11.5px; color: var(--ink-faint); margin-top: 10px; line-height: 1.4; }
   .back-btn {
     background: none; border: none; color: var(--brand); font-family: inherit; font-size: 14px;
     font-weight: 600; cursor: pointer; padding: 6px 0; margin-bottom: 8px;
@@ -560,61 +731,22 @@
   .view[hidden] { display: none; }
 
   /* Exercise bank */
-  .bank-list { display: flex; flex-direction: column; gap: 20px; }
-  .bank-search { width: 100%; margin-bottom: 2px; }
-  .bank-group-head {
+  .bank-list { display: flex; flex-direction: column; gap: 22px; }
+  .bank-head {
     display: flex; align-items: center; gap: 9px; margin-bottom: 10px;
     font-family: 'Barlow Condensed', sans-serif; font-weight: 600; font-size: 17px;
-    text-transform: uppercase; letter-spacing: 0.03em; color: var(--ink);
+    text-transform: uppercase; letter-spacing: 0.03em;
   }
   .bank-items { display: flex; flex-direction: column; gap: 8px; }
   .bank-item {
-    background: var(--bg); border: 1px solid var(--line); border-radius: 11px;
-    overflow: hidden; transition: border-color 0.12s, background 0.12s;
-  }
-  .bank-item:hover { border-color: var(--ink-soft); }
-  .bank-head {
-    width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 12px;
-    text-align: left; font-family: inherit; cursor: pointer;
-    background: none; border: none; padding: 12px 14px;
-  }
-  .bank-head:focus-visible { outline: 2px solid var(--brand); outline-offset: -2px; border-radius: 11px; }
-  .bank-head-main { display: flex; flex-direction: column; min-width: 0; }
-  .bank-name { font-size: 15px; font-weight: 600; color: var(--ink); }
-  .bank-desc { font-size: 13px; color: var(--ink-soft); margin-top: 3px; }
-  .bank-head-side { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }
-  .bank-level {
-    font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px;
-    text-transform: uppercase; letter-spacing: 0.02em; white-space: nowrap;
-  }
-  .bank-level.easy { background: rgba(14, 94, 58, 0.12); color: var(--brand); }
-  .bank-level.mid  { background: rgba(154, 107, 0, 0.14); color: #8A6200; }
-  .bank-level.hard { background: rgba(176, 46, 46, 0.12); color: #B02E2E; }
-  .bank-chevron { color: var(--ink-faint); font-size: 14px; transition: transform 0.15s; }
-  .bank-head[aria-expanded="true"] .bank-chevron { transform: rotate(180deg); }
-  .bank-detail { padding: 0 14px 14px; border-top: 1px solid var(--line); background: var(--surface); }
-  .bank-meta { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 4px; }
-  .bank-meta-item {
-    font-size: 12px; color: var(--ink-soft); background: var(--bg);
-    border-radius: 8px; padding: 4px 9px; white-space: nowrap;
-  }
-  .bank-section-label {
-    font-family: 'Barlow Condensed', sans-serif; font-weight: 600; font-size: 13px;
-    text-transform: uppercase; letter-spacing: 0.03em; color: var(--ink-faint);
-    margin: 12px 0 5px;
-  }
-  .bank-steps, .bank-cues { margin: 0; padding-left: 20px; }
-  .bank-steps li, .bank-cues li { font-size: 13.5px; color: var(--ink); line-height: 1.5; margin-bottom: 3px; }
-  .bank-cues li { color: var(--ink-soft); }
-  .bank-actions { display: flex; align-items: center; gap: 10px; margin-top: 14px; flex-wrap: wrap; }
-  .bank-log-btn { width: auto; flex: 0 0 auto; padding: 9px 18px; }
-  .bank-video-btn {
-    font-size: 14px; font-weight: 600; color: var(--brand); text-decoration: none;
-    padding: 9px 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface);
+    width: 100%; text-align: left; font-family: inherit; cursor: pointer;
+    background: var(--bg); border: 1px solid var(--line); border-radius: 11px; padding: 12px 14px;
     transition: border-color 0.12s, background 0.12s;
   }
-  .bank-video-btn:hover { border-color: var(--brand); background: var(--bg); }
-
+  .bank-item:hover { border-color: var(--ink-soft); background: var(--surface); }
+  .bank-item:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
+  .bank-name { font-size: 15px; font-weight: 500; color: var(--ink); }
+  .bank-desc { font-size: 13px; color: var(--ink-soft); margin-top: 3px; }
 
   /* Goal card */
   .goal-intro { font-size: 14px; color: var(--ink-soft); margin-bottom: 16px; }
@@ -788,3 +920,37 @@
     .goal-bar-fill { transition: none; }
     .goal-badge { animation: none; }
   }
+
+  /* ===================== Tumma teema ===================== */
+  :root[data-theme="dark"] {
+    --bg: #0F1512;
+    --surface: #18201C;
+    --ink: #E8ECE6;
+    --ink-soft: #9CA79E;
+    --ink-faint: #6C766E;
+    --line: #29332D;
+    --brand: #2BA06C;
+    --accent: #C5F23E;
+    --accent-ink: #16240C;
+    --cat-laukaukset: #2BA06C;
+    --cat-muu: #8A938B;
+  }
+  /* Käänteiset elementit: tausta on var(--ink) (vaalea tummassa) → tummenna teksti */
+  :root[data-theme="dark"] .toast,
+  :root[data-theme="dark"] .vtab.active,
+  :root[data-theme="dark"] .dp-cell.sel { color: var(--bg); }
+  /* Kovakoodatut vaaleat taustat → teema-tietoiset */
+  :root[data-theme="dark"] .goal-streak { background: rgba(221, 90, 30, 0.18); }
+  :root[data-theme="dark"] .cal-day.thisweek { background: rgba(43, 160, 108, 0.14); }
+  :root[data-theme="dark"] .lb-me { background: rgba(197, 242, 62, 0.10); }
+  :root[data-theme="dark"] .shop-item.is-equipped { background: rgba(43, 160, 108, 0.12); }
+
+  /* Teemanappi (topbar) */
+  .theme-btn {
+    background: none; border: 1px solid var(--line); border-radius: 999px;
+    width: 34px; height: 34px; font-size: 15px; line-height: 1; cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center; padding: 0;
+    transition: border-color 0.15s ease;
+  }
+  .theme-btn:hover { border-color: var(--ink-faint); }
+  .theme-btn:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
