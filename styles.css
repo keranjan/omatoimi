@@ -218,10 +218,9 @@
   .profile-header:hover { border-color: var(--brand); }
   .profile-header:active { transform: scale(0.995); }
   .ph-badge {
-    width: 52px; height: 52px; flex: none; display: grid; place-items: center;
-    background: var(--brand); color: #fff; border-radius: 50%;
-    font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 26px;
+    width: 58px; height: 58px; flex: none; display: block;
   }
+  .level-badge-img { width: 100%; height: 100%; object-fit: contain; display: block; }
   .ph-main { display: flex; flex-direction: column; gap: 4px; min-width: 0; flex: 1; }
   .ph-name { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 23px; color: var(--ink); line-height: 1; }
   .ph-level { font-size: 12px; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
@@ -235,9 +234,7 @@
 
   .lvl-hero { display: flex; align-items: center; gap: 14px; margin: 4px 0 12px; }
   .lvl-badge {
-    width: 48px; height: 48px; flex: none; display: grid; place-items: center;
-    background: var(--brand); color: #fff; border-radius: 50%;
-    font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 24px;
+    width: 72px; height: 72px; flex: none; display: block;
   }
   .lvl-hero-text { display: flex; flex-direction: column; gap: 2px; }
   .lvl-name { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 22px; color: var(--ink); line-height: 1; }
@@ -260,7 +257,7 @@
 
   /* Pelaajan taso valmentajan raportissa */
   .rep-level { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
-  .rep-level-badge { width: 24px; height: 24px; flex: none; display: grid; place-items: center; background: var(--brand); color: #fff; border-radius: 50%; font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 13px; }
+  .rep-level-badge { width: 30px; height: 30px; flex: none; display: block; }
   .rep-level-text { font-size: 13px; font-weight: 500; color: var(--ink); }
 
   /* Kannusta pelaajaa (valmentajan raportti) */

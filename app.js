@@ -841,16 +841,20 @@ function renderProgress() {
 
 /* ---- Taso / XP (kausittain nollautuva) ---- */
 const LEVELS = [
-  { lvl: 1, xp: 0,    name: 'Aloittelija' },
-  { lvl: 2, xp: 150,  name: 'Innokas' },
-  { lvl: 3, xp: 400,  name: 'Ahkera' },
-  { lvl: 4, xp: 800,  name: 'Sinnikäs' },
-  { lvl: 5, xp: 1400, name: 'Omistautunut' },
-  { lvl: 6, xp: 2200, name: 'Tähtipelaaja' },
-  { lvl: 7, xp: 3200, name: 'Mestarikokelas' },
-  { lvl: 8, xp: 4500, name: 'Huippu' },
-  { lvl: 9, xp: 6000, name: 'Legenda' },
+  { lvl: 1,  xp: 0,    name: 'Aloittelija' },
+  { lvl: 2,  xp: 150,  name: 'Innokas' },
+  { lvl: 3,  xp: 400,  name: 'Ahkera' },
+  { lvl: 4,  xp: 800,  name: 'Sinnikäs' },
+  { lvl: 5,  xp: 1400, name: 'Omistautunut' },
+  { lvl: 6,  xp: 2200, name: 'Tähtipelaaja' },
+  { lvl: 7,  xp: 3200, name: 'Mestarikokelas' },
+  { lvl: 8,  xp: 4500, name: 'Huippu' },
+  { lvl: 9,  xp: 6000, name: 'Mestari' },
+  { lvl: 10, xp: 8000, name: 'Legenda' },
 ];
+function levelBadgeImg(lvl) {
+  return `<img class="level-badge-img" src="icons/levels/level${lvl}.png" alt="Taso ${lvl}" loading="lazy">`;
+}
 // XP: jokainen treeni 10 XP + 1 XP / minuutti (palkitsee sekä säännöllisyyttä että kestoa).
 function sessionXp(min) { return 10 + min; }
 function levelInfo(xp) {
@@ -880,7 +884,7 @@ function renderLevel() {
   card.innerHTML = `
     <div class="sec-head"><h2>Taso</h2><span class="hint">${seasonLabel}</span></div>
     <div class="lvl-hero">
-      <span class="lvl-badge">${info.cur.lvl}</span>
+      <span class="lvl-badge">${levelBadgeImg(info.cur.lvl)}</span>
       <div class="lvl-hero-text"><span class="lvl-name">${info.cur.name}</span><span class="lvl-xp">${xp} XP</span></div>
     </div>
     ${nextLine}
@@ -899,7 +903,7 @@ function renderProfileHeader() {
   const logs = seasonStart ? lastAll.filter(e => e.date >= seasonStart) : lastAll;
   const xp = logs.reduce((s, e) => s + sessionXp(e.duration), 0);
   const info = levelInfo(xp);
-  document.getElementById('phBadge').textContent = info.cur.lvl;
+  document.getElementById('phBadge').innerHTML = levelBadgeImg(info.cur.lvl);
   document.getElementById('phLevel').textContent = info.next
     ? `Taso ${info.cur.lvl} · ${info.cur.name} · ${xp} / ${info.next.xp} XP`
     : `Taso ${info.cur.lvl} · ${info.cur.name} · ${xp} XP`;
@@ -1652,7 +1656,7 @@ function richPlayerReport(p) {
   const seasonXp = coachLogs.filter(l => l.user_id === p.id && (!seasonStart || l.date >= seasonStart))
     .reduce((sum, l) => sum + sessionXp(l.duration), 0);
   const lvl = levelInfo(seasonXp);
-  const levelLine = `<div class="rep-level"><span class="rep-level-badge">${lvl.cur.lvl}</span><span class="rep-level-text">Taso ${lvl.cur.lvl} · ${lvl.cur.name} · ${seasonXp} XP${seasonStart ? '' : ' (kaikkien aikojen)'}</span></div>`;
+  const levelLine = `<div class="rep-level"><span class="rep-level-badge">${levelBadgeImg(lvl.cur.lvl)}</span><span class="rep-level-text">Taso ${lvl.cur.lvl} · ${lvl.cur.name} · ${seasonXp} XP${seasonStart ? '' : ' (kaikkien aikojen)'}</span></div>`;
   const detail = levelLine
     + (catBars ? `<div class="rep-section-label">Kuukauden jakauma</div>${catBars}` : '')
     + (goalLines ? `<div class="rep-section-label">Tavoitteet (tällä viikolla)</div>${goalLines}` : '')
