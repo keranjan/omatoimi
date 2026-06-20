@@ -1358,7 +1358,7 @@ function setAuthMode(m) {
   document.getElementById('authToggle').textContent = m === 'login' ? 'Ei tiliä? Rekisteröidy' : 'Onko jo tili? Kirjaudu';
   document.getElementById('authPass').placeholder = m === 'login' ? 'salasana' : 'vähintään 6 merkkiä';
   const confirmFld = document.getElementById('authConfirmFld');
-  if (confirmFld) confirmFld.style.display = (m === 'register') ? '' : 'none';
+  if (confirmFld) confirmFld.style.display = (m === 'register') ? 'block' : 'none';
   const confirmInput = document.getElementById('authConfirm');
   if (confirmInput && m !== 'register') confirmInput.value = '';
   authError('');
