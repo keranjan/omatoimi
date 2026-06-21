@@ -1535,7 +1535,14 @@ const SHINY = {
   frame_sapphire: 'sapphire'
 };
 function shinyMat(id) { return id && SHINY[id] ? SHINY[id] : null; }
-function cosNameSpan(itemId, safeText, cls) {
+function nameEffectClass(itemId) {
+  const it = itemId ? cosItem(itemId) : null;
+  if (!it || it.type !== 'name_effect') return null;
+  return 'fx-' + (it.value || 'holo');
+}
+function cosNameSpan(itemId, safeText, cls, effectId) {
+  const fx = effectId ? nameEffectClass(effectId) : null;
+  if (fx) return `<span class="${cls} name-fx ${fx}">${safeText}</span>`;
   const mat = shinyMat(itemId);
   if (mat) return `<span class="${cls} shiny-text shiny-${mat}">${safeText}</span>`;
   const col = itemId ? cosValue(itemId) : null;
@@ -1602,15 +1609,23 @@ function renderProfileHeader() {
   const uname = currentUser ? escapeHtml(currentUser.username) : '';
   const npId = currentUser ? currentUser.cos_nameplate : null;
   const avId = currentUser ? currentUser.cos_avatar : null;
+  const fxId = currentUser ? currentUser.cos_name_effect : null;
   const av = avId ? avatarHtml(avId, '') : '';
   if (npId && cosItem(npId)) {
     nameEl.innerHTML = av + nameplateHtml(npId, currentUser.username, currentUser.jersey_number, 'md')
       + (titleHtml ? ' ' + titleHtml : '');
   } else {
-    nameEl.innerHTML = av + cosNameSpan(ncId, uname, 'cos-name')
+    nameEl.innerHTML = av + cosNameSpan(ncId, uname, 'cos-name', fxId)
       + (titleHtml ? ' ' + titleHtml : '');
   }
   nameEl.style.color = '';
+  const ph = document.getElementById('profileHeader');
+  if (ph) {
+    [...ph.classList].forEach(c => { if (c.indexOf('pbg-') === 0) ph.classList.remove(c); });
+    const bgId = currentUser ? currentUser.cos_profile_bg : null;
+    const bg = bgId ? cosItem(bgId) : null;
+    if (bg && bg.type === 'profile_bg') ph.classList.add('pbg-' + bg.value);
+  }
   const badgeEl = document.getElementById('phBadge');
   if (badgeEl) {
     badgeEl.classList.remove('shiny-frame', 'shiny-gold', 'shiny-silver', 'shiny-bronze', 'shiny-platinum', 'shiny-ruby', 'shiny-sapphire');
@@ -1713,6 +1728,7 @@ async function loadLeaderboard() {
     cos_nameplate: r.cos_nameplate || null,
     jersey_number: (r.jersey_number === null || r.jersey_number === undefined) ? null : Number(r.jersey_number),
     cos_avatar: r.cos_avatar || null,
+    cos_name_effect: r.cos_name_effect || null,
   }));
 }
 async function refreshLeaderboard() {
@@ -1754,7 +1770,7 @@ function renderLeaderboard() {
     const fr = frameAttrs(r.cos_frame, 2);
     const nameInner = r.cos_nameplate && cosItem(r.cos_nameplate)
       ? nameplateHtml(r.cos_nameplate, r.username, r.jersey_number, 'sm')
-      : cosNameSpan(r.cos_name_color, escapeHtml(r.username), 'lb-name-text');
+      : cosNameSpan(r.cos_name_color, escapeHtml(r.username), 'lb-name-text', r.cos_name_effect);
     const av = r.cos_avatar ? avatarHtml(r.cos_avatar, 'sm') : '';
     return `
       <div class="lb-row${me ? ' lb-me' : ''}">
@@ -1836,8 +1852,10 @@ const SHOP_SECTIONS = [
   { key: 'nameplate',  label: 'Nimikyltit' },
   { key: 'avatar',     label: 'Avatarit' },
   { key: 'name_color', label: 'Nimen värit' },
+  { key: 'name_effect', label: 'Nimiefektit' },
   { key: 'title',      label: 'Tittelit' },
   { key: 'frame',      label: 'Tasomerkin kehykset' },
+  { key: 'profile_bg', label: 'Profiilitaustat' },
 ];
 function shopItemHtml(i, bal) {
   const owned = ownedCosmetics.has(i.id);
@@ -1850,6 +1868,8 @@ function shopItemHtml(i, bal) {
   else if (i.type === 'title')  preview = cosTitleHtml(i.id);
   else if (i.type === 'nameplate') preview = nameplateHtml(i.id, currentUser ? currentUser.username : 'NIMI', currentUser ? currentUser.jersey_number : null, 'sm');
   else if (i.type === 'avatar') preview = avatarHtml(i.id, '');
+  else if (i.type === 'name_effect') preview = `<span class="shop-prev-name name-fx fx-${i.value}">${escapeHtml(currentUser ? currentUser.username : 'Nimesi')}</span>`;
+  else if (i.type === 'profile_bg') preview = `<span class="shop-prev-bg pbg-${i.value}"></span>`;
   else preview = mat
     ? `<span class="shop-prev-frame shiny-frame shiny-${mat}"></span>`
     : `<span class="shop-prev-frame" style="box-shadow:0 0 0 3px ${i.value}"></span>`;
@@ -2546,7 +2566,7 @@ async function loadProfile() {
   const { data: { user } } = await sb.auth.getUser();
   if (!user) return null;
   const { data, error } = await sb.from('profiles')
-    .select('id, username, role, team_id, is_admin, leaderboard_opt_in, cos_name_color, cos_title, cos_frame, cos_nameplate, jersey_number, cos_avatar').eq('id', user.id).single();
+    .select('id, username, role, team_id, is_admin, leaderboard_opt_in, cos_name_color, cos_title, cos_frame, cos_nameplate, jersey_number, cos_avatar, cos_profile_bg, cos_name_effect').eq('id', user.id).single();
   if (error) { console.error(error); return null; }
   return data;
 }

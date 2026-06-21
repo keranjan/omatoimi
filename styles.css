@@ -351,6 +351,28 @@
   }
   .cos-avatar.sm { width: 22px; height: 22px; font-size: 13px; margin-right: 5px; }
 
+  /* Profiilikortin taustateemat */
+  .pbg-mint     { --pbg: linear-gradient(135deg, rgba(46, 158, 91, 0.16), rgba(197, 242, 62, 0.10)); }
+  .pbg-sky      { --pbg: linear-gradient(135deg, rgba(46, 107, 200, 0.16), rgba(120, 170, 235, 0.10)); }
+  .pbg-peach    { --pbg: linear-gradient(135deg, rgba(255, 138, 76, 0.18), rgba(255, 200, 120, 0.10)); }
+  .pbg-lavender { --pbg: linear-gradient(135deg, rgba(150, 110, 220, 0.18), rgba(200, 170, 240, 0.10)); }
+  .pbg-gold     { --pbg: linear-gradient(135deg, rgba(212, 175, 55, 0.22), rgba(255, 240, 180, 0.10)); }
+  .pbg-pitch    { --pbg: repeating-linear-gradient(90deg, rgba(14, 94, 58, 0.07) 0 18px, rgba(14, 94, 58, 0.13) 18px 36px); }
+  .profile-header[class*="pbg-"] { background: var(--pbg), var(--surface); }
+  .shop-prev-bg { display: block; width: 50px; height: 32px; border-radius: 8px; border: 1px solid var(--line); background: var(--pbg, var(--surface)); }
+
+  /* Nimiefektit (animoitu gradientti) */
+  .name-fx {
+    background-size: 300% 100%; -webkit-background-clip: text; background-clip: text;
+    color: transparent; -webkit-text-fill-color: transparent;
+    animation: nameFx 5s linear infinite;
+  }
+  .fx-holo   { background-image: linear-gradient(90deg, #ff5f6d, #ffb24c, #5dff9e, #4fb8ff, #b86bff, #ff5f6d); }
+  .fx-aurora { background-image: linear-gradient(90deg, #16d3a3, #21a0e6, #7b5cff, #16d3a3); }
+  .fx-sunset { background-image: linear-gradient(90deg, #ff6a5f, #ff9a4c, #ff5fa2, #ff6a5f); }
+  @keyframes nameFx { to { background-position: 300% 0; } }
+  @media (prefers-reduced-motion: reduce) { .name-fx { animation: none; } }
+
   /* Nimikyltti (nameplate) */
   .plate {
     position: relative; display: inline-flex; align-items: stretch; vertical-align: middle;
