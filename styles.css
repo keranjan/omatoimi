@@ -438,6 +438,9 @@
   }
   .shop-bal-ic { font-size: 22px; }
   .shop-section .sec-head { margin-bottom: 12px; }
+  .shop-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+  .shop-tabs .shop-tab { background: var(--surface); border: 1px solid var(--line); }
+  .shop-tabs .shop-tab.active { background: var(--ink); color: #fff; border-color: var(--ink); }
   .shop-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
   .shop-item {
     display: flex; flex-direction: column; align-items: center; gap: 9px;

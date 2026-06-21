@@ -1685,6 +1685,7 @@ async function refreshFootballs() { myFootballs = await loadFootballEvents(); re
 /* ---- Joukkueen tulostaulu (vapaaehtoinen) ---- */
 let leaderboard = [];
 let shopCatalog = [];                // kaupan tuotteet
+let shopTab = null;                  // valittu kaupan välilehti (tyyppi)
 let ownedCosmetics = new Set();      // omistetut tuote-id:t
 let cosSpent = 0;                    // jalkapalloja käytetty kauppaan
 async function loadLeaderboard() {
@@ -1856,38 +1857,54 @@ function renderShop() {
   const view = document.getElementById('viewShop');
   if (!view) return;
   const bal = footballBalance();
-  const sections = SHOP_SECTIONS.map(s => {
-    const items = shopCatalog.filter(i => i.type === s.key);
-    if (!items.length) return '';
-    let extra = '';
-    if (s.key === 'nameplate') {
-      const jn = (currentUser && currentUser.jersey_number != null) ? currentUser.jersey_number : '';
-      extra = `<div class="np-jersey">
+  const balanceCard = `
+    <div class="card shop-balance-card">
+      <span class="shop-bal-label">Käytettävissä</span>
+      <span class="shop-bal"><span class="shop-bal-ic">⚽</span> ${fmtBalls(bal)}</span>
+    </div>`;
+  const available = SHOP_SECTIONS.filter(s => shopCatalog.some(i => i.type === s.key));
+  if (!available.length) {
+    view.innerHTML = `
+      <button class="back-btn" id="shopBack" type="button">‹ Takaisin profiiliin</button>
+      ${balanceCard}
+      <div class="card"><div class="coach-empty">Kauppa ei ole vielä käytettävissä.</div></div>`;
+    wireShop();
+    return;
+  }
+  if (!shopTab || !available.some(s => s.key === shopTab)) shopTab = available[0].key;
+  const tabs = available.map(s =>
+    `<button class="vtab shop-tab${s.key === shopTab ? ' active' : ''}" data-tab="${s.key}" type="button">${s.label}</button>`).join('');
+  const s = available.find(x => x.key === shopTab);
+  const items = shopCatalog.filter(i => i.type === s.key);
+  let extra = '';
+  if (s.key === 'nameplate') {
+    const jn = (currentUser && currentUser.jersey_number != null) ? currentUser.jersey_number : '';
+    extra = `<div class="np-jersey">
         <label for="jerseyInput">Pelinumerosi (0–99)</label>
         <div class="np-jersey-row">
           <input type="number" id="jerseyInput" min="0" max="99" value="${jn}" placeholder="esim. 7" inputmode="numeric">
           <button class="btn" id="jerseySave" type="button">Tallenna</button>
         </div>
       </div>`;
-    }
-    return `<div class="card shop-section">
+  }
+  const section = `<div class="card shop-section">
       <div class="sec-head"><h2>${s.label}</h2></div>
       ${extra}
       <div class="shop-grid">${items.map(i => shopItemHtml(i, bal)).join('')}</div>
     </div>`;
-  }).join('');
   view.innerHTML = `
     <button class="back-btn" id="shopBack" type="button">‹ Takaisin profiiliin</button>
-    <div class="card shop-balance-card">
-      <span class="shop-bal-label">Käytettävissä</span>
-      <span class="shop-bal"><span class="shop-bal-ic">⚽</span> ${fmtBalls(bal)}</span>
-    </div>
-    ${sections || '<div class="card"><div class="coach-empty">Kauppa ei ole vielä käytettävissä.</div></div>'}`;
+    ${balanceCard}
+    <div class="shop-tabs">${tabs}</div>
+    ${section}`;
   wireShop();
 }
 function wireShop() {
   const back = document.getElementById('shopBack');
   if (back) back.onclick = () => switchView('profile');
+  document.querySelectorAll('#viewShop .shop-tab').forEach(btn => {
+    btn.onclick = () => { shopTab = btn.dataset.tab; renderShop(); };
+  });
   const jsBtn = document.getElementById('jerseySave');
   if (jsBtn) jsBtn.onclick = async () => {
     const inp = document.getElementById('jerseyInput');
