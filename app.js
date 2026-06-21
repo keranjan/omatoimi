@@ -1531,6 +1531,20 @@ function cosTitleHtml(itemId) {
     + (icon ? `<span class="cos-title-ic">${icon}</span>` : '')
     + escapeHtml(it.value) + `</span>`;
 }
+/* Nimikyltti: pelaajan oma nimi + pelinumero, koko 'md' (profiili) tai 'sm' (tulostaulu) */
+function nameplateHtml(itemId, username, jersey, size) {
+  const it = cosItem(itemId);
+  if (!it) return '';
+  const theme = it.value || 'portugal';
+  const name = escapeHtml(String(username || '').toUpperCase());
+  const hasNum = jersey !== null && jersey !== undefined && jersey !== '';
+  const num = hasNum ? escapeHtml(String(jersey)) : '';
+  return `<span class="plate np-${theme} ${size}">`
+    + `<span class="plate-inner">`
+    + `<span class="plate-name"><b>${name}</b></span>`
+    + (hasNum ? `<span class="plate-num"><b>${num}</b></span>` : '')
+    + `</span></span>`;
+}
 
 /* Profiiliotsikko etusivulla: nimi + taso + ohut XP-palkki */
 function renderProfileHeader() {
@@ -1539,8 +1553,14 @@ function renderProfileHeader() {
   const titleHtml = currentUser ? cosTitleHtml(currentUser.cos_title) : '';
   const ncId = currentUser ? currentUser.cos_name_color : null;
   const uname = currentUser ? escapeHtml(currentUser.username) : '';
-  nameEl.innerHTML = cosNameSpan(ncId, uname, 'cos-name')
-    + (titleHtml ? ' ' + titleHtml : '');
+  const npId = currentUser ? currentUser.cos_nameplate : null;
+  if (npId && cosItem(npId)) {
+    nameEl.innerHTML = nameplateHtml(npId, currentUser.username, currentUser.jersey_number, 'md')
+      + (titleHtml ? ' ' + titleHtml : '');
+  } else {
+    nameEl.innerHTML = cosNameSpan(ncId, uname, 'cos-name')
+      + (titleHtml ? ' ' + titleHtml : '');
+  }
   nameEl.style.color = '';
   const badgeEl = document.getElementById('phBadge');
   if (badgeEl) {
@@ -1640,6 +1660,8 @@ async function loadLeaderboard() {
     cos_name_color: r.cos_name_color || null,
     cos_title: r.cos_title || null,
     cos_frame: r.cos_frame || null,
+    cos_nameplate: r.cos_nameplate || null,
+    jersey_number: (r.jersey_number === null || r.jersey_number === undefined) ? null : Number(r.jersey_number),
   }));
 }
 async function refreshLeaderboard() {
@@ -1679,12 +1701,15 @@ function renderLeaderboard() {
     const me = r.user_id === currentUser.id;
     const titleHtml = cosTitleHtml(r.cos_title);
     const fr = frameAttrs(r.cos_frame, 2);
+    const nameInner = r.cos_nameplate && cosItem(r.cos_nameplate)
+      ? nameplateHtml(r.cos_nameplate, r.username, r.jersey_number, 'sm')
+      : cosNameSpan(r.cos_name_color, escapeHtml(r.username), 'lb-name-text');
     return `
       <div class="lb-row${me ? ' lb-me' : ''}">
         <span class="lb-rank">${i + 1}</span>
         <span class="lb-badge${fr.cls}"${fr.style}>${levelBadgeImg(lvl.lvl)}</span>
         <span class="lb-info">
-          <span class="lb-name">${cosNameSpan(r.cos_name_color, escapeHtml(r.username), 'lb-name-text')}${titleHtml ? ' ' + titleHtml : ''}${me ? ' <span class="lb-you">sinä</span>' : ''}</span>
+          <span class="lb-name">${nameInner}${titleHtml ? ' ' + titleHtml : ''}${me ? ' <span class="lb-you">sinä</span>' : ''}</span>
           <span class="lb-lvl">Taso ${lvl.lvl} · ${lvl.name}</span>
         </span>
         <span class="lb-balls">⚽ ${fmtBalls(r.footballs)}</span>
@@ -1748,8 +1773,15 @@ async function unequipCosmetic(type) {
   if (currentUser) currentUser['cos_' + type] = null;
   return true;
 }
+async function setJersey(num) {
+  const { data, error } = await sb.rpc('set_jersey_number', { p_num: num });
+  if (error || (data && data.ok === false)) { return { error: (data && data.error) || 'Ei onnistunut' }; }
+  if (currentUser) currentUser.jersey_number = num;
+  return {};
+}
 
 const SHOP_SECTIONS = [
+  { key: 'nameplate',  label: 'Nimikyltit' },
   { key: 'name_color', label: 'Nimen värit' },
   { key: 'title',      label: 'Tittelit' },
   { key: 'frame',      label: 'Tasomerkin kehykset' },
@@ -1763,6 +1795,7 @@ function shopItemHtml(i, bal) {
     ? `<span class="shop-prev-name shiny-text shiny-${mat}">Nimesi</span>`
     : `<span class="shop-prev-name" style="color:${i.value}">Nimesi</span>`;
   else if (i.type === 'title')  preview = cosTitleHtml(i.id);
+  else if (i.type === 'nameplate') preview = nameplateHtml(i.id, currentUser ? currentUser.username : 'NIMI', currentUser ? currentUser.jersey_number : null, 'sm');
   else preview = mat
     ? `<span class="shop-prev-frame shiny-frame shiny-${mat}"></span>`
     : `<span class="shop-prev-frame" style="box-shadow:0 0 0 3px ${i.value}"></span>`;
@@ -1784,8 +1817,20 @@ function renderShop() {
   const sections = SHOP_SECTIONS.map(s => {
     const items = shopCatalog.filter(i => i.type === s.key);
     if (!items.length) return '';
+    let extra = '';
+    if (s.key === 'nameplate') {
+      const jn = (currentUser && currentUser.jersey_number != null) ? currentUser.jersey_number : '';
+      extra = `<div class="np-jersey">
+        <label for="jerseyInput">Pelinumerosi (0–99)</label>
+        <div class="np-jersey-row">
+          <input type="number" id="jerseyInput" min="0" max="99" value="${jn}" placeholder="esim. 7" inputmode="numeric">
+          <button class="shop-btn" id="jerseySave" type="button">Tallenna</button>
+        </div>
+      </div>`;
+    }
     return `<div class="card shop-section">
       <div class="sec-head"><h2>${s.label}</h2></div>
+      ${extra}
       <div class="shop-grid">${items.map(i => shopItemHtml(i, bal)).join('')}</div>
     </div>`;
   }).join('');
@@ -1801,6 +1846,19 @@ function renderShop() {
 function wireShop() {
   const back = document.getElementById('shopBack');
   if (back) back.onclick = () => switchView('profile');
+  const jsBtn = document.getElementById('jerseySave');
+  if (jsBtn) jsBtn.onclick = async () => {
+    const inp = document.getElementById('jerseyInput');
+    const v = inp.value.trim();
+    let num = v === '' ? null : parseInt(v, 10);
+    if (num !== null && (isNaN(num) || num < 0 || num > 99)) { alert('Anna numero 0–99.'); return; }
+    jsBtn.disabled = true;
+    const { error } = await setJersey(num);
+    jsBtn.disabled = false;
+    if (error) { alert(error); return; }
+    showToast('Pelinumero tallennettu');
+    renderShop(); renderProfileHeader(); refreshLeaderboard();
+  };
   document.querySelectorAll('#viewShop .shop-btn').forEach(btn => {
     const act = btn.dataset.act;
     if (!act) return;
@@ -2396,7 +2454,7 @@ async function loadProfile() {
   const { data: { user } } = await sb.auth.getUser();
   if (!user) return null;
   const { data, error } = await sb.from('profiles')
-    .select('id, username, role, team_id, is_admin, leaderboard_opt_in, cos_name_color, cos_title, cos_frame').eq('id', user.id).single();
+    .select('id, username, role, team_id, is_admin, leaderboard_opt_in, cos_name_color, cos_title, cos_frame, cos_nameplate, jersey_number').eq('id', user.id).single();
   if (error) { console.error(error); return null; }
   return data;
 }

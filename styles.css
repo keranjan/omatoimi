@@ -341,6 +341,61 @@
   .cos-title.tier-gold   { background-image: linear-gradient(100deg, #F7E7A6, #E9C84A 30%, #FFF7D0 50%, #E9C84A 70%, #D4A92A); color: #4A3A06; box-shadow: 0 0 8px rgba(201, 162, 39, 0.50); }
   :root[data-theme="dark"] .cos-title.tier-rare { color: #7FB0EA; }
   :root[data-theme="dark"] .cos-title.tier-epic { color: #A78BFA; }
+
+  /* Nimikyltti (nameplate) */
+  .plate {
+    position: relative; display: inline-flex; align-items: stretch; vertical-align: middle;
+    padding: 3px; border-radius: 12px;
+    background: linear-gradient(165deg, #FBEEB0 0%, #D9B43A 38%, #9C7716 52%, #E9CA56 78%, #B58E22 100%);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.22);
+  }
+  .plate-inner { display: flex; align-items: stretch; overflow: hidden; border-radius: 9px; }
+  .plate-name {
+    position: relative; display: flex; align-items: center;
+    background: linear-gradient(180deg, #C8243A 0%, #A0142A 58%, #8A0F22 100%);
+  }
+  .plate-name::before {
+    content: ''; position: absolute; left: 0; right: 0; top: 0; height: 46%;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.30), rgba(255, 255, 255, 0));
+  }
+  .plate-name b {
+    position: relative; font-family: 'Barlow Condensed', sans-serif; font-weight: 700;
+    color: #fff; letter-spacing: 0.015em; text-shadow: 0 2px 3px rgba(0, 0, 0, 0.40); white-space: nowrap;
+  }
+  .plate-num {
+    position: relative; display: flex; align-items: center; justify-content: center;
+    background: linear-gradient(180deg, #0F7C3D 0%, #0A5A2C 100%);
+    clip-path: polygon(14px 0, 100% 0, 100% 100%, 0 100%);
+  }
+  .plate-num::before {
+    content: ''; position: absolute; left: 0; right: 0; top: 0; height: 46%;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0));
+  }
+  .plate-num b {
+    position: relative; font-family: 'Barlow Condensed', sans-serif; font-weight: 700;
+    background: linear-gradient(180deg, #FFF3C4 0%, #E9C84A 45%, #C9A227 100%);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .plate.md .plate-name { height: 40px; padding: 0 15px; }
+  .plate.md .plate-name b { font-size: 23px; }
+  .plate.md .plate-num { min-width: 44px; margin-left: -12px; padding: 0 12px 0 22px; }
+  .plate.md .plate-num b { font-size: 25px; }
+  .plate.sm { padding: 2px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.20); }
+  .plate.sm .plate-inner { border-radius: 6px; }
+  .plate.sm .plate-name { height: 26px; padding: 0 9px; }
+  .plate.sm .plate-name b { font-size: 15px; }
+  .plate.sm .plate-num { min-width: 26px; margin-left: -8px; padding: 0 8px 0 14px; clip-path: polygon(9px 0, 100% 0, 100% 100%, 0 100%); }
+  .plate.sm .plate-num b { font-size: 16px; }
+  .plate.np-blue { background: linear-gradient(165deg, #CFE0FF, #7FA8E6 40%, #2E5B9E 55%, #A9C5F2 80%, #3F6FB8); }
+  .plate.np-blue .plate-name { background: linear-gradient(180deg, #1E4FA0 0%, #143B80 100%); }
+  .plate.np-blue .plate-num { background: linear-gradient(180deg, #0E2C5E 0%, #0A1F44 100%); }
+  .plate.np-noir .plate-name { background: linear-gradient(180deg, #2A2E2C 0%, #15201B 100%); }
+  .plate.np-noir .plate-num { background: linear-gradient(180deg, #3A3F3C 0%, #22271F 100%); }
+  .np-jersey { margin-bottom: 14px; }
+  .np-jersey label { display: block; font-size: 13px; color: var(--ink-soft); margin-bottom: 6px; }
+  .np-jersey-row { display: flex; gap: 8px; }
+  .np-jersey-row input { width: 100px; }
+  .np-jersey-row .shop-btn { flex: 0 0 auto; }
   .ph-badge { border-radius: 14px; transition: box-shadow 0.2s ease; }
   .lb-badge { border-radius: 9px; }
 
