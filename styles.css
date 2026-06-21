@@ -786,6 +786,30 @@
   }
   .bank-video-btn:hover { border-color: var(--brand); background: var(--bg); }
 
+  /* Vaatii huomiota (valmentaja) */
+  .attention-ok { font-size: 14px; color: var(--ink-soft); padding: 4px 2px 2px; }
+  .attention-list { display: flex; flex-direction: column; gap: 8px; }
+  .attention-item { background: var(--bg); border: 1px solid var(--line); border-radius: 11px; overflow: hidden; }
+  .attention-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 11px 13px; }
+  .attention-info { min-width: 0; }
+  .attention-name { font-size: 15px; font-weight: 600; color: var(--ink); }
+  .attention-sub { font-size: 12.5px; color: var(--ink-soft); margin-top: 2px; }
+  .attention-right { display: flex; align-items: center; gap: 10px; flex: 0 0 auto; }
+  .attention-tag {
+    font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 999px; white-space: nowrap;
+  }
+  .attention-tag.high { background: rgba(217, 84, 78, 0.16); color: #D9544E; }
+  .attention-tag.med  { background: rgba(197, 138, 30, 0.18); color: #C58A1E; }
+  .att-toggle {
+    background: none; border: 1px solid var(--line); border-radius: 9px; padding: 6px 12px;
+    font-family: inherit; font-size: 13px; font-weight: 600; color: var(--brand);
+    cursor: pointer; white-space: nowrap; transition: border-color 0.12s, background 0.12s, color 0.12s;
+  }
+  .att-toggle:hover { border-color: var(--brand); }
+  .att-toggle.open { background: var(--brand); color: #fff; border-color: var(--brand); }
+  .attention-kudos { padding: 10px 13px 13px; border-top: 1px solid var(--line); }
+
+
 
   /* Goal card */
   .goal-intro { font-size: 14px; color: var(--ink-soft); margin-bottom: 16px; }

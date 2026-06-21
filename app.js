@@ -2738,6 +2738,67 @@ function richPlayerReport(p) {
       <div class="player-detail" hidden>${detail || '<div class="coach-empty">Ei lisätietoja.</div>'}</div>
     </div>`;
 }
+function daysBetweenISO(aISO, bISO) {
+  return Math.round((new Date(bISO + 'T00:00:00') - new Date(aISO + 'T00:00:00')) / 86400000);
+}
+function attentionList() {
+  const today = todayISO();
+  const thisMon = weekRangeISO().mondayISO;
+  const lastMon = addDaysISO(thisMon, -7);
+  const teamIds = new Set(coachTeams.map(t => t.id));
+  const out = [];
+  coachPlayers.filter(p => teamIds.has(p.team_id)).forEach(p => {
+    const myLogs = coachLogs.filter(l => l.user_id === p.id);
+    const thisWeek = myLogs.filter(l => l.date >= thisMon).length;
+    if (thisWeek > 0) return; // treenannut tällä viikolla -> ei huomiota
+    const lastWeek = myLogs.filter(l => l.date >= lastMon && l.date < thisMon).length;
+    let lastDate = null;
+    myLogs.forEach(l => { if (!lastDate || l.date > lastDate) lastDate = l.date; });
+    const daysSince = lastDate ? daysBetweenISO(lastDate, today) : Infinity;
+    let tag, sev, sortKey = daysSince;
+    if (!lastDate)            { tag = 'Ei kirjauksia';   sev = 'high'; sortKey = 1e9; }
+    else if (daysSince >= 14) { tag = 'Yli 2 viikkoa';   sev = 'high'; }
+    else if (lastWeek >= 1)   { tag = 'Putki katkesi';   sev = 'med'; }
+    else                      { tag = 'Ei tällä viikolla'; sev = 'med'; }
+    const team = coachTeams.find(t => t.id === p.team_id);
+    out.push({ p, tag, sev, sortKey, daysSince, lastDate, teamName: team ? team.name : '' });
+  });
+  out.sort((a, b) => b.sortKey - a.sortKey);
+  return out;
+}
+function attentionCardHtml() {
+  const totalPlayers = coachPlayers.filter(p => coachTeams.some(t => t.id === p.team_id)).length;
+  if (!totalPlayers) return '';
+  const list = attentionList();
+  if (!list.length) {
+    return `<div class="card attention-card">
+      <div class="sec-head"><h2>Vaatii huomiota</h2></div>
+      <div class="attention-ok">Kaikki pelaajat ovat treenanneet tällä viikolla 💪</div></div>`;
+  }
+  const rows = list.map(a => {
+    const sub = a.lastDate
+      ? `${escapeHtml(a.teamName)} · viimeksi ${a.daysSince} pv sitten`
+      : `${escapeHtml(a.teamName)} · ei yhtään kirjausta`;
+    return `
+      <div class="attention-item">
+        <div class="attention-row">
+          <div class="attention-info">
+            <div class="attention-name">${escapeHtml(a.p.username)}</div>
+            <div class="attention-sub">${sub}</div>
+          </div>
+          <div class="attention-right">
+            <span class="attention-tag ${a.sev}">${a.tag}</span>
+            <button class="att-toggle" data-user="${a.p.id}" type="button">Kannusta</button>
+          </div>
+        </div>
+        <div class="attention-kudos" data-user="${a.p.id}" hidden>${kudosSection(a.p)}</div>
+      </div>`;
+  }).join('');
+  return `<div class="card attention-card">
+    <div class="sec-head"><h2>Vaatii huomiota</h2><span class="hint">${list.length} ${list.length === 1 ? 'pelaaja' : 'pelaajaa'}</span></div>
+    <div class="attention-list">${rows}</div>
+  </div>`;
+}
 function renderCoachPlayers() {
   const view = document.getElementById('coachPlayers');
   if (!coachTeams.length) {
@@ -2745,7 +2806,7 @@ function renderCoachPlayers() {
     return;
   }
   const totalPlayers = coachPlayers.filter(p => coachTeams.some(t => t.id === p.team_id)).length;
-  let html = '';
+  let html = attentionCardHtml();
   if (totalPlayers > 8) {
     html += `<div class="card rep-search-card"><input type="text" id="repSearch" class="ics-input" placeholder="Hae pelaajaa nimellä…" autocapitalize="none" spellcheck="false"></div>`;
   }
@@ -2791,8 +2852,17 @@ function wireCoachReports() {
   });
   document.querySelectorAll('#coachPlayers .kudos-send').forEach(btn => {
     btn.onclick = () => {
-      const inp = document.querySelector(`#coachPlayers .kudos-input[data-user="${btn.dataset.user}"]`);
-      sendKudos(btn.dataset.user, inp.value, btn.closest('.kudos'), btn, inp);
+      const kudosEl = btn.closest('.kudos');
+      const inp = kudosEl ? kudosEl.querySelector('.kudos-input') : null;
+      sendKudos(btn.dataset.user, inp ? inp.value : '', kudosEl, btn, inp);
+    };
+  });
+  document.querySelectorAll('#coachPlayers .att-toggle').forEach(btn => {
+    btn.onclick = () => {
+      const wrap = document.querySelector(`#coachPlayers .attention-kudos[data-user="${btn.dataset.user}"]`);
+      if (!wrap) return;
+      wrap.hidden = !wrap.hidden;
+      btn.classList.toggle('open', !wrap.hidden);
     };
   });
   document.querySelectorAll('#coachPlayers .react-chip').forEach(chip => {
