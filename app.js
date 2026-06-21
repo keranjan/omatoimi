@@ -1575,6 +1575,12 @@ function nameplateHtml(itemId, username, jersey, size) {
     + (hasNum ? `<span class="plate-num"><b>${num}</b></span>` : '')
     + `</span></span>`;
 }
+/* Avatar: pieni emoji-ikoni nimen vasemmalle puolelle. size 'sm' = tulostaulu. */
+function avatarHtml(itemId, size) {
+  const it = cosItem(itemId);
+  if (!it) return '';
+  return `<span class="cos-avatar${size === 'sm' ? ' sm' : ''}">${it.value}</span>`;
+}
 
 /* Profiiliotsikko etusivulla: nimi + taso + ohut XP-palkki */
 function renderProfileHeader() {
@@ -1584,11 +1590,13 @@ function renderProfileHeader() {
   const ncId = currentUser ? currentUser.cos_name_color : null;
   const uname = currentUser ? escapeHtml(currentUser.username) : '';
   const npId = currentUser ? currentUser.cos_nameplate : null;
+  const avId = currentUser ? currentUser.cos_avatar : null;
+  const av = avId ? avatarHtml(avId, '') : '';
   if (npId && cosItem(npId)) {
-    nameEl.innerHTML = nameplateHtml(npId, currentUser.username, currentUser.jersey_number, 'md')
+    nameEl.innerHTML = av + nameplateHtml(npId, currentUser.username, currentUser.jersey_number, 'md')
       + (titleHtml ? ' ' + titleHtml : '');
   } else {
-    nameEl.innerHTML = cosNameSpan(ncId, uname, 'cos-name')
+    nameEl.innerHTML = av + cosNameSpan(ncId, uname, 'cos-name')
       + (titleHtml ? ' ' + titleHtml : '');
   }
   nameEl.style.color = '';
@@ -1692,6 +1700,7 @@ async function loadLeaderboard() {
     cos_frame: r.cos_frame || null,
     cos_nameplate: r.cos_nameplate || null,
     jersey_number: (r.jersey_number === null || r.jersey_number === undefined) ? null : Number(r.jersey_number),
+    cos_avatar: r.cos_avatar || null,
   }));
 }
 async function refreshLeaderboard() {
@@ -1734,12 +1743,13 @@ function renderLeaderboard() {
     const nameInner = r.cos_nameplate && cosItem(r.cos_nameplate)
       ? nameplateHtml(r.cos_nameplate, r.username, r.jersey_number, 'sm')
       : cosNameSpan(r.cos_name_color, escapeHtml(r.username), 'lb-name-text');
+    const av = r.cos_avatar ? avatarHtml(r.cos_avatar, 'sm') : '';
     return `
       <div class="lb-row${me ? ' lb-me' : ''}">
         <span class="lb-rank">${i + 1}</span>
         <span class="lb-badge${fr.cls}"${fr.style}>${levelBadgeImg(lvl.lvl)}</span>
         <span class="lb-info">
-          <span class="lb-name">${nameInner}${titleHtml ? ' ' + titleHtml : ''}${me ? ' <span class="lb-you">sinä</span>' : ''}</span>
+          <span class="lb-name">${av}${nameInner}${titleHtml ? ' ' + titleHtml : ''}${me ? ' <span class="lb-you">sinä</span>' : ''}</span>
           <span class="lb-lvl">Taso ${lvl.lvl} · ${lvl.name}</span>
         </span>
         <span class="lb-balls">⚽ ${fmtBalls(r.footballs)}</span>
@@ -1812,6 +1822,7 @@ async function setJersey(num) {
 
 const SHOP_SECTIONS = [
   { key: 'nameplate',  label: 'Nimikyltit' },
+  { key: 'avatar',     label: 'Avatarit' },
   { key: 'name_color', label: 'Nimen värit' },
   { key: 'title',      label: 'Tittelit' },
   { key: 'frame',      label: 'Tasomerkin kehykset' },
@@ -1826,6 +1837,7 @@ function shopItemHtml(i, bal) {
     : `<span class="shop-prev-name" style="color:${i.value}">Nimesi</span>`;
   else if (i.type === 'title')  preview = cosTitleHtml(i.id);
   else if (i.type === 'nameplate') preview = nameplateHtml(i.id, currentUser ? currentUser.username : 'NIMI', currentUser ? currentUser.jersey_number : null, 'sm');
+  else if (i.type === 'avatar') preview = avatarHtml(i.id, '');
   else preview = mat
     ? `<span class="shop-prev-frame shiny-frame shiny-${mat}"></span>`
     : `<span class="shop-prev-frame" style="box-shadow:0 0 0 3px ${i.value}"></span>`;
@@ -2502,7 +2514,7 @@ async function loadProfile() {
   const { data: { user } } = await sb.auth.getUser();
   if (!user) return null;
   const { data, error } = await sb.from('profiles')
-    .select('id, username, role, team_id, is_admin, leaderboard_opt_in, cos_name_color, cos_title, cos_frame, cos_nameplate, jersey_number').eq('id', user.id).single();
+    .select('id, username, role, team_id, is_admin, leaderboard_opt_in, cos_name_color, cos_title, cos_frame, cos_nameplate, jersey_number, cos_avatar').eq('id', user.id).single();
   if (error) { console.error(error); return null; }
   return data;
 }

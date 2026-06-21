@@ -342,6 +342,15 @@
   :root[data-theme="dark"] .cos-title.tier-rare { color: #7FB0EA; }
   :root[data-theme="dark"] .cos-title.tier-epic { color: #A78BFA; }
 
+  /* Avatar (emoji nimen vieressä) */
+  .cos-avatar {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 26px; height: 26px; border-radius: 50%; vertical-align: middle;
+    background: var(--bg); border: 1px solid var(--line);
+    font-size: 15px; line-height: 1; margin-right: 6px;
+  }
+  .cos-avatar.sm { width: 22px; height: 22px; font-size: 13px; margin-right: 5px; }
+
   /* Nimikyltti (nameplate) */
   .plate {
     position: relative; display: inline-flex; align-items: stretch; vertical-align: middle;
