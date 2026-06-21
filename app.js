@@ -673,6 +673,7 @@ let teamWeek = null;                 // joukkueen yhteisen viikkotavoitteen tila
 let myReactions = {};                // logId -> [emoji] valmentajan reaktiot omiin treeneihin
 let myFootballs = { total: 0, session: 0, challenge: 0 };  // pysyvä jalkapallosaldo
 let footballCfg = { threshold: 30, cap: 400 };             // joukkueen kynnys + päiväkatto
+let boostPeriods = [];               // joukkueen tehostejaksot (tupla XP & pallot)
 
 /* ---- Lomakkeen päivämäärä (oma suomenkielinen valitsin) ---- */
 let formDate = todayISO();
@@ -741,6 +742,7 @@ async function renderAll() {
   myReactions = await loadMyReactions();
   myFootballs = await loadFootballEvents();
   footballCfg = await loadFootballCfg();
+  boostPeriods = await loadBoostPeriods();
   await refreshShopState();
   renderPeriodSelect(all);
   const isAll = selectedPeriod === 'all';
@@ -797,6 +799,7 @@ async function renderAll() {
   renderFootballs();
   refreshLeaderboard();
   renderStreak();
+  renderBoostBanner();
   renderSettings();
   renderTeamGoal();
   renderCalendar();
@@ -1446,6 +1449,33 @@ function levelBadgeImg(lvl) {
 }
 // XP: jokainen treeni 10 XP + 1 XP / minuutti (palkitsee sekä säännöllisyyttä että kestoa).
 function sessionXp(min) { return 10 + min; }
+/* Tehostejaksot: suurin voimassa oleva kerroin annettuna päivänä (oletus 1). */
+function boostMultIn(periods, dateISO, teamId) {
+  let m = 1;
+  if (!periods || !dateISO) return m;
+  for (const b of periods) {
+    if (teamId && b.team_id !== teamId) continue;
+    if (dateISO >= b.starts_on && dateISO <= b.ends_on && b.multiplier > m) m = b.multiplier;
+  }
+  return m;
+}
+function boostMult(dateISO) { return boostMultIn(boostPeriods, dateISO, null); }
+async function loadBoostPeriods() {
+  const { data, error } = await sb.from('boost_periods')
+    .select('id, team_id, label, starts_on, ends_on, multiplier').order('starts_on', { ascending: true });
+  if (error) { console.error(error); return []; }
+  return data || [];
+}
+function activeBoost(periods) {
+  const today = todayISO();
+  let best = null;
+  (periods || []).forEach(b => {
+    if (today >= b.starts_on && today <= b.ends_on) {
+      if (!best || b.multiplier > best.multiplier) best = b;
+    }
+  });
+  return best;
+}
 function levelInfo(xp) {
   let cur = LEVELS[0];
   for (const l of LEVELS) if (xp >= l.xp) cur = l;
@@ -1460,7 +1490,7 @@ function renderLevel() {
   const seasonStart = teamWeek && teamWeek.seasonStart ? teamWeek.seasonStart : null;
   const seasonName = teamWeek && teamWeek.seasonName ? teamWeek.seasonName : null;
   const logs = seasonStart ? lastAll.filter(e => e.date >= seasonStart) : lastAll;
-  const xp = logs.reduce((s, e) => s + sessionXp(e.duration), 0);
+  const xp = logs.reduce((s, e) => s + sessionXp(e.duration) * boostMult(e.date), 0);
   const info = levelInfo(xp);
   checkLevelUp(xp);
   const seasonLabel = seasonName
@@ -1574,7 +1604,7 @@ function renderProfileHeader() {
   }
   const seasonStart = teamWeek && teamWeek.seasonStart ? teamWeek.seasonStart : null;
   const logs = seasonStart ? lastAll.filter(e => e.date >= seasonStart) : lastAll;
-  const xp = logs.reduce((s, e) => s + sessionXp(e.duration), 0);
+  const xp = logs.reduce((s, e) => s + sessionXp(e.duration) * boostMult(e.date), 0);
   const info = levelInfo(xp);
   document.getElementById('phBadge').innerHTML = levelBadgeImg(info.cur.lvl);
   document.getElementById('phLevel').textContent = info.next
@@ -1824,7 +1854,7 @@ function renderShop() {
         <label for="jerseyInput">Pelinumerosi (0–99)</label>
         <div class="np-jersey-row">
           <input type="number" id="jerseyInput" min="0" max="99" value="${jn}" placeholder="esim. 7" inputmode="numeric">
-          <button class="shop-btn" id="jerseySave" type="button">Tallenna</button>
+          <button class="btn" id="jerseySave" type="button">Tallenna</button>
         </div>
       </div>`;
     }
@@ -1965,7 +1995,17 @@ function renderStreak() {
     el.innerHTML = `<span class="streak-fire">🔥</span><div class="streak-text"><b>${streak} viikkoa putkessa</b><span>Treenaa tällä viikolla, niin putki jatkuu — älä katkaise!</span></div>`;
   }
 }
-
+function renderBoostBanner() {
+  const el = document.getElementById('boostBanner');
+  if (!el) return;
+  const b = activeBoost(boostPeriods);
+  if (!b) { el.hidden = true; el.innerHTML = ''; return; }
+  el.hidden = false;
+  el.className = 'boost-banner on';
+  const name = b.label ? escapeHtml(b.label) : 'Tehostejakso';
+  const ends = fmtDateShort(b.ends_on);
+  el.innerHTML = `<span class="boost-mult">${b.multiplier}×</span><div class="boost-text"><b>${name} käynnissä!</b><span>Treeneistä ja haasteista ${b.multiplier}× XP ja jalkapallot — ${ends} asti.</span></div>`;
+}
 /* ---- Ilmoitukset ---- */
 let notifPref = false;
 try { notifPref = (localStorage.getItem('notifPref') === 'on'); } catch (e) {}
@@ -2409,6 +2449,7 @@ async function save() {
   const note = document.getElementById('inNote').value.trim();
   if (!date) { return; }
   if (!duration || duration < 1) { document.getElementById('inDuration').focus(); return; }
+  if (duration > 240) { showToast('Kesto voi olla enintään 240 min (4 t)'); document.getElementById('inDuration').focus(); return; }
   await store.addEntry({ date, category: selectedCat, duration, note });
   document.getElementById('inDuration').value = '';
   document.getElementById('inNote').value = '';
@@ -2656,6 +2697,19 @@ const coachStore = {
   async deleteChallenge(id) {
     return await sb.from('challenges').delete().eq('id', id);
   },
+  async getBoosts() {
+    const { data, error } = await sb.from('boost_periods')
+      .select('id, team_id, label, starts_on, ends_on, multiplier').order('starts_on', { ascending: true });
+    if (error) { console.error(error); return []; }
+    return data || [];
+  },
+  async createBoost(teamId, label, startsOn, endsOn, multiplier) {
+    const row = { team_id: teamId, label: label || null, starts_on: startsOn, ends_on: endsOn, multiplier };
+    return await sb.from('boost_periods').insert(row).select().single();
+  },
+  async deleteBoost(id) {
+    return await sb.from('boost_periods').delete().eq('id', id);
+  },
   async getEncouragements() {
     const { data, error } = await sb.from('encouragements').select('id, user_id, text, created_at').order('created_at', { ascending: false });
     if (error) { console.error(error); return []; }
@@ -2668,6 +2722,7 @@ const coachStore = {
 
 let coachTeams = [], coachPlayers = [], coachLogs = [], coachGoals = [], coachChallenges = [], coachCompletions = [], coachEncouragements = [], coachReactions = [], coachFootballs = {};
 let coachTeamLinks = [], coachAccounts = [];   // admin: valmentaja↔joukkue-liitokset ja valmentajatilit
+let coachBoosts = [];                          // joukkueiden tehostejaksot
 let coachTab = 'players';
 let challengeSetupCat = {};
 let challengeKind = {};   // per-team: 'time' | 'once'
@@ -2701,9 +2756,9 @@ async function coachRefresh() {
   coachFootballs  = await coachStore.getFootballs();
   coachGoals      = await coachStore.getGoals();
   coachChallenges = await coachStore.getChallenges();
-  coachCompletions = await coachStore.getCompletions();
-  coachEncouragements = await coachStore.getEncouragements();
+  coachCompletions = await coachStore.getCompletions();  coachEncouragements = await coachStore.getEncouragements();
   coachReactions = await coachStore.getReactions();
+  coachBoosts = await coachStore.getBoosts();
   if (currentUser.is_admin) {
     coachTeamLinks = await coachStore.getTeamCoaches();
     coachAccounts = await coachStore.getCoachAccounts();
@@ -2832,7 +2887,7 @@ function richPlayerReport(p) {
   const team = coachTeams.find(t => t.id === p.team_id);
   const seasonStart = team && team.season_start ? team.season_start : null;
   const seasonXp = coachLogs.filter(l => l.user_id === p.id && (!seasonStart || l.date >= seasonStart))
-    .reduce((sum, l) => sum + sessionXp(l.duration), 0);
+    .reduce((sum, l) => sum + sessionXp(l.duration) * boostMultIn(coachBoosts, l.date, p.team_id), 0);
   const lvl = levelInfo(seasonXp);
   const balls = coachFootballs[p.id] || 0;
   const levelLine = `<div class="rep-level"><span class="rep-level-badge">${levelBadgeImg(lvl.cur.lvl)}</span><span class="rep-level-text">Taso ${lvl.cur.lvl} · ${lvl.cur.name} · ${seasonXp} XP${seasonStart ? '' : ' (kaikkien aikojen)'}</span><span class="rep-balls">⚽ ${fmtBalls(balls)}</span></div>`;
@@ -3020,8 +3075,41 @@ async function sendKudos(userId, text, kudosEl, btn, inp) {
 }
 
 /* ---- 2) JOUKKUEET (hallinta) ---- */
-function renderCoachTeams() {
-  const view = document.getElementById('coachTeamsView');
+function boostBlockHtml(t) {
+  const today = todayISO();
+  const list = coachBoosts.filter(b => b.team_id === t.id);
+  const rows = list.length ? list.map(b => {
+    const active = today >= b.starts_on && today <= b.ends_on;
+    const upcoming = b.starts_on > today;
+    const tag = active ? '<span class="boost-tag live">Käynnissä</span>'
+      : (upcoming ? '<span class="boost-tag soon">Tulossa</span>' : '<span class="boost-tag past">Päättynyt</span>');
+    const label = b.label ? escapeHtml(b.label) : 'Tehostejakso';
+    return `<div class="boost-row">
+      <span class="boost-row-mult">${b.multiplier}×</span>
+      <span class="boost-row-info"><b>${label}</b><span>${fmtDateShort(b.starts_on)} – ${fmtDateShort(b.ends_on)}</span></span>
+      ${tag}
+      <button class="boost-del" data-boost="${b.id}" type="button">Poista</button>
+    </div>`;
+  }).join('') : '<div class="coach-empty">Ei tehostejaksoja.</div>';
+  return `
+    <div class="boost-block">
+      <div class="ch-form-label">Tehostejaksot (tupla XP & ⚽)</div>
+      <div class="boost-list">${rows}</div>
+      <div class="ch-sub-label">Lisää jakso — jakson päivinä (mukaan lukien) treeneistä ja haasteista saa kertoimen verran XP:tä ja jalkapalloja:</div>
+      <input type="text" class="boost-label-input" data-team="${t.id}" maxlength="40" placeholder="Nimi, esim. Tuplaviikonloppu">
+      <div class="coach-add-row boost-dates">
+        <input type="date" class="boost-start-input" data-team="${t.id}">
+        <input type="date" class="boost-end-input" data-team="${t.id}">
+        <select class="boost-mult-input" data-team="${t.id}">
+          <option value="2">2×</option>
+          <option value="3">3×</option>
+        </select>
+        <button class="btn boost-add-btn" data-team="${t.id}" type="button">Lisää</button>
+      </div>
+      <div class="coach-msg boost-msg" data-team="${t.id}"></div>
+    </div>`;
+}
+function renderCoachTeams() {  const view = document.getElementById('coachTeamsView');
   const isAdmin = !!currentUser.is_admin;
   let html = `
     <div class="card">
@@ -3103,6 +3191,7 @@ function renderCoachTeams() {
           </div>
           <div class="coach-msg fb-msg" data-team="${t.id}"></div>
         </div>
+        ${boostBlockHtml(t)}
         <div class="ics-row">
           <div class="ch-form-label">Kalenteritilaus</div>
           <input type="text" class="ics-input" data-team="${t.id}" placeholder="iCal-osoite: https://… tai webcal://…" value="${t.ics_url ? escapeHtml(t.ics_url) : ''}" autocapitalize="none" spellcheck="false">
@@ -3214,6 +3303,31 @@ function wireCoachTeams() {
       if (tt) { tt.football_threshold_min = threshold; tt.football_daily_cap = cap; }
       msg.textContent = `Tallennettu: kynnys ${threshold} min, päiväkatto ${cap} ⚽.`;
       msg.className = 'coach-msg fb-msg ok';
+    };
+  });
+
+  document.querySelectorAll('#coachTeamsView .boost-add-btn').forEach(btn => {
+    btn.onclick = async () => {
+      const teamId = btn.dataset.team;
+      const wrap = btn.closest('.boost-block');
+      const msg = wrap.querySelector('.boost-msg');
+      const label = wrap.querySelector('.boost-label-input').value.trim();
+      const starts = wrap.querySelector('.boost-start-input').value;
+      const ends = wrap.querySelector('.boost-end-input').value;
+      const mult = parseInt(wrap.querySelector('.boost-mult-input').value, 10) || 2;
+      if (!starts || !ends) { msg.textContent = 'Valitse alku- ja loppupäivä.'; msg.className = 'coach-msg boost-msg error'; return; }
+      if (ends < starts) { msg.textContent = 'Loppupäivä ei voi olla ennen alkupäivää.'; msg.className = 'coach-msg boost-msg error'; return; }
+      const { error } = await coachStore.createBoost(teamId, label, starts, ends, mult);
+      if (error) { msg.textContent = 'Lisäys epäonnistui: ' + error.message; msg.className = 'coach-msg boost-msg error'; return; }
+      coachRefresh();
+    };
+  });
+  document.querySelectorAll('#coachTeamsView .boost-del').forEach(btn => {
+    btn.onclick = async () => {
+      if (!confirm('Poistetaanko tehostejakso?')) return;
+      const { error } = await coachStore.deleteBoost(btn.dataset.boost);
+      if (error) { alert('Poisto epäonnistui: ' + error.message); return; }
+      coachRefresh();
     };
   });
 
