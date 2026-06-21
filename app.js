@@ -1515,8 +1515,10 @@ const TITLE_ICON = {
   title_putkimestari: '🔥', title_ilmaherra: '🦅', title_kotikuningas: '🏠', title_kultajalka: '🦶',
   title_huipputekija: '🚀', title_mestari: '👑'
 };
-function rarityTier(price) {
-  if (price >= 3000) return 'legendary';
+function titleTier(price) {
+  if (price >= 5500) return 'gold';
+  if (price >= 4000) return 'silver';
+  if (price >= 3000) return 'bronze';
   if (price >= 1400) return 'epic';
   if (price >= 700)  return 'rare';
   return 'common';
@@ -1525,7 +1527,7 @@ function cosTitleHtml(itemId) {
   const it = cosItem(itemId);
   if (!it) return '';
   const icon = TITLE_ICON[itemId];
-  return `<span class="cos-title tier-${rarityTier(it.price)}">`
+  return `<span class="cos-title tier-${titleTier(it.price)}">`
     + (icon ? `<span class="cos-title-ic">${icon}</span>` : '')
     + escapeHtml(it.value) + `</span>`;
 }
@@ -1760,7 +1762,7 @@ function shopItemHtml(i, bal) {
   if (i.type === 'name_color') preview = mat
     ? `<span class="shop-prev-name shiny-text shiny-${mat}">Nimesi</span>`
     : `<span class="shop-prev-name" style="color:${i.value}">Nimesi</span>`;
-  else if (i.type === 'title')  preview = `<span class="shop-prev-title">${cosTitleHtml(i.id)}</span>`;
+  else if (i.type === 'title')  preview = cosTitleHtml(i.id);
   else preview = mat
     ? `<span class="shop-prev-frame shiny-frame shiny-${mat}"></span>`
     : `<span class="shop-prev-frame" style="box-shadow:0 0 0 3px ${i.value}"></span>`;
