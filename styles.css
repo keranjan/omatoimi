@@ -393,9 +393,9 @@
   .plate.np-noir .plate-num { background: linear-gradient(180deg, #3A3F3C 0%, #22271F 100%); }
   .np-jersey { margin-bottom: 14px; }
   .np-jersey label { display: block; font-size: 13px; color: var(--ink-soft); margin-bottom: 6px; }
-  .np-jersey-row { display: flex; gap: 8px; }
-  .np-jersey-row input { width: 100px; }
-  .np-jersey-row .shop-btn { flex: 0 0 auto; }
+  .np-jersey-row { display: flex; gap: 8px; align-items: stretch; }
+  .np-jersey-row input { width: 110px; flex: 0 0 110px; }
+  .np-jersey-row .shop-btn { width: auto; flex: 0 0 auto; padding: 0 18px; }
   .ph-badge { border-radius: 14px; transition: box-shadow 0.2s ease; }
   .lb-badge { border-radius: 9px; }
 
