@@ -1484,17 +1484,49 @@ function renderLevel() {
   requestAnimationFrame(() => { fill.style.width = (pct * 100) + '%'; });
 }
 
+/* Kiiltävät premium-koristeet (metalli/jalokivi) — tunnistetaan id:n perusteella */
+const SHINY = {
+  name_gold: 'gold',         frame_gold: 'gold',
+  name_silver: 'silver',     frame_silver: 'silver',
+  name_bronze: 'bronze',     frame_bronze: 'bronze',
+  name_platinum: 'platinum', frame_platinum: 'platinum',
+  name_red: 'ruby',          frame_ruby: 'ruby',
+  frame_sapphire: 'sapphire'
+};
+function shinyMat(id) { return id && SHINY[id] ? SHINY[id] : null; }
+function cosNameSpan(itemId, safeText, cls) {
+  const mat = shinyMat(itemId);
+  if (mat) return `<span class="${cls} shiny-text shiny-${mat}">${safeText}</span>`;
+  const col = itemId ? cosValue(itemId) : null;
+  return `<span class="${cls}"${col ? ` style="color:${col}"` : ''}>${safeText}</span>`;
+}
+function frameAttrs(itemId, px) {
+  const mat = shinyMat(itemId);
+  if (mat) return { cls: ` shiny-frame shiny-${mat}`, style: '' };
+  const col = itemId ? cosValue(itemId) : null;
+  return { cls: '', style: col ? ` style="box-shadow:0 0 0 ${px}px ${col}"` : '' };
+}
+
 /* Profiiliotsikko etusivulla: nimi + taso + ohut XP-palkki */
 function renderProfileHeader() {
   const nameEl = document.getElementById('phName');
   if (!nameEl) return;
   const title = currentUser && currentUser.cos_title ? cosValue(currentUser.cos_title) : null;
-  nameEl.innerHTML = (currentUser ? escapeHtml(currentUser.username) : '')
+  const ncId = currentUser ? currentUser.cos_name_color : null;
+  const uname = currentUser ? escapeHtml(currentUser.username) : '';
+  nameEl.innerHTML = cosNameSpan(ncId, uname, 'cos-name')
     + (title ? ` <span class="cos-title">${escapeHtml(title)}</span>` : '');
-  nameEl.style.color = currentUser && currentUser.cos_name_color ? (cosValue(currentUser.cos_name_color) || '') : '';
+  nameEl.style.color = '';
   const badgeEl = document.getElementById('phBadge');
-  const frameCol = currentUser && currentUser.cos_frame ? cosValue(currentUser.cos_frame) : null;
-  if (badgeEl) badgeEl.style.boxShadow = frameCol ? `0 0 0 3px ${frameCol}` : '';
+  if (badgeEl) {
+    badgeEl.classList.remove('shiny-frame', 'shiny-gold', 'shiny-silver', 'shiny-bronze', 'shiny-platinum', 'shiny-ruby', 'shiny-sapphire');
+    const fmat = currentUser ? shinyMat(currentUser.cos_frame) : null;
+    if (fmat) { badgeEl.classList.add('shiny-frame', 'shiny-' + fmat); badgeEl.style.boxShadow = ''; }
+    else {
+      const frameCol = currentUser && currentUser.cos_frame ? cosValue(currentUser.cos_frame) : null;
+      badgeEl.style.boxShadow = frameCol ? `0 0 0 3px ${frameCol}` : '';
+    }
+  }
   const seasonStart = teamWeek && teamWeek.seasonStart ? teamWeek.seasonStart : null;
   const logs = seasonStart ? lastAll.filter(e => e.date >= seasonStart) : lastAll;
   const xp = logs.reduce((s, e) => s + sessionXp(e.duration), 0);
@@ -1620,15 +1652,14 @@ function renderLeaderboard() {
   const list = rows.map((r, i) => {
     const lvl = levelInfo(r.xp).cur;
     const me = r.user_id === currentUser.id;
-    const nameCol = cosValue(r.cos_name_color);
     const title = cosValue(r.cos_title);
-    const frameCol = cosValue(r.cos_frame);
+    const fr = frameAttrs(r.cos_frame, 2);
     return `
       <div class="lb-row${me ? ' lb-me' : ''}">
         <span class="lb-rank">${i + 1}</span>
-        <span class="lb-badge"${frameCol ? ` style="box-shadow:0 0 0 2px ${frameCol}"` : ''}>${levelBadgeImg(lvl.lvl)}</span>
+        <span class="lb-badge${fr.cls}"${fr.style}>${levelBadgeImg(lvl.lvl)}</span>
         <span class="lb-info">
-          <span class="lb-name"${nameCol ? ` style="color:${nameCol}"` : ''}>${escapeHtml(r.username)}${title ? ` <span class="cos-title">${escapeHtml(title)}</span>` : ''}${me ? ' <span class="lb-you">sinä</span>' : ''}</span>
+          <span class="lb-name">${cosNameSpan(r.cos_name_color, escapeHtml(r.username), 'lb-name-text')}${title ? ` <span class="cos-title">${escapeHtml(title)}</span>` : ''}${me ? ' <span class="lb-you">sinä</span>' : ''}</span>
           <span class="lb-lvl">Taso ${lvl.lvl} · ${lvl.name}</span>
         </span>
         <span class="lb-balls">⚽ ${fmtBalls(r.footballs)}</span>
@@ -1702,9 +1733,14 @@ function shopItemHtml(i, bal) {
   const owned = ownedCosmetics.has(i.id);
   const equipped = currentUser && currentUser['cos_' + i.type] === i.id;
   let preview;
-  if (i.type === 'name_color') preview = `<span class="shop-prev-name" style="color:${i.value}">Nimesi</span>`;
+  const mat = shinyMat(i.id);
+  if (i.type === 'name_color') preview = mat
+    ? `<span class="shop-prev-name shiny-text shiny-${mat}">Nimesi</span>`
+    : `<span class="shop-prev-name" style="color:${i.value}">Nimesi</span>`;
   else if (i.type === 'title')  preview = `<span class="shop-prev-title">${escapeHtml(i.value)}</span>`;
-  else preview = `<span class="shop-prev-frame" style="box-shadow:0 0 0 3px ${i.value}"></span>`;
+  else preview = mat
+    ? `<span class="shop-prev-frame shiny-frame shiny-${mat}"></span>`
+    : `<span class="shop-prev-frame" style="box-shadow:0 0 0 3px ${i.value}"></span>`;
   let action;
   if (equipped) action = `<button class="shop-btn equipped" data-act="unequip" data-type="${i.type}" type="button">Käytössä ✓</button>`;
   else if (owned) action = `<button class="shop-btn own" data-act="equip" data-id="${i.id}" type="button">Ota käyttöön</button>`;

@@ -809,6 +809,32 @@
   .att-toggle.open { background: var(--brand); color: #fff; border-color: var(--brand); }
   .attention-kudos { padding: 10px 13px 13px; border-top: 1px solid var(--line); }
 
+  /* Kiiltävät premium-koristeet (metalli/jalokivi) */
+  .shiny-gold     { --sh1: #F7E7A6; --sh2: #C9A227; --shg: linear-gradient(100deg, #F7E7A6, #C9A227 34%, #FFF7D0 50%, #C9A227 66%, #9A7B16); }
+  .shiny-silver   { --sh1: #F2F4F6; --sh2: #9AA39A; --shg: linear-gradient(100deg, #EDEFF2, #AEB6BD 34%, #FFFFFF 50%, #AEB6BD 66%, #868E96); }
+  .shiny-bronze   { --sh1: #E8C49A; --sh2: #B0794A; --shg: linear-gradient(100deg, #E8C49A, #B0794A 34%, #F3D8B6 50%, #B0794A 66%, #86552F); }
+  .shiny-platinum { --sh1: #FFFFFF; --sh2: #C2CAD2; --shg: linear-gradient(100deg, #FFFFFF, #D8DEE4 34%, #FFFFFF 50%, #C2CAD2 66%, #AAB2BA); }
+  .shiny-sapphire { --sh1: #7FB0EA; --sh2: #2563B0; --shg: linear-gradient(100deg, #7FB0EA, #2563B0 34%, #CBE0FF 50%, #2563B0 66%, #173F73); }
+  .shiny-ruby     { --sh1: #F3838F; --sh2: #D7263D; --shg: linear-gradient(100deg, #F3838F, #D7263D 34%, #FFD2D8 50%, #D7263D 66%, #8E101F); }
+  .shiny-text {
+    display: inline-block;
+    background: var(--shg); background-size: 200% auto;
+    -webkit-background-clip: text; background-clip: text;
+    -webkit-text-fill-color: transparent; color: transparent;
+    animation: shimmerText 2.6s linear infinite;
+  }
+  @keyframes shimmerText { to { background-position: 200% center; } }
+  .shiny-frame { animation: shimmerRing 2.2s ease-in-out infinite; }
+  @keyframes shimmerRing {
+    0%, 100% { box-shadow: 0 0 0 3px var(--sh2), 0 0 5px 1px var(--sh1); }
+    50%      { box-shadow: 0 0 0 3px var(--sh1), 0 0 12px 3px var(--sh2); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .shiny-text  { animation: none; background-position: 50% center; }
+    .shiny-frame { animation: none; box-shadow: 0 0 0 3px var(--sh2); }
+  }
+
+
 
 
   /* Goal card */
