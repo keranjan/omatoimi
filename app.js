@@ -1999,7 +1999,7 @@ function renderBoostBanner() {
   const el = document.getElementById('boostBanner');
   if (!el) return;
   const b = activeBoost(boostPeriods);
-  if (!b) { el.hidden = true; el.innerHTML = ''; return; }
+  if (!b) { el.hidden = true; el.className = 'boost-banner'; el.innerHTML = ''; return; }
   el.hidden = false;
   el.className = 'boost-banner on';
   const name = b.label ? escapeHtml(b.label) : 'Tehostejakso';
@@ -2406,11 +2406,13 @@ function renderDatePicker() {
   }
   for (let day = 1; day <= dim; day++) {
     const iso = `${dpY}-${pad(dpM + 1)}-${pad(day)}`;
+    const future = iso > today;
     const cell = document.createElement('button');
     cell.type = 'button';
-    cell.className = 'dp-cell' + (iso === today ? ' today' : '') + (iso === formDate ? ' sel' : '');
+    cell.className = 'dp-cell' + (iso === today ? ' today' : '') + (iso === formDate ? ' sel' : '') + (future ? ' disabled' : '');
     cell.textContent = day;
-    cell.onclick = () => { formDate = iso; updateDateBtn(); closeDatePicker(); };
+    if (future) { cell.disabled = true; }
+    else { cell.onclick = () => { formDate = iso; updateDateBtn(); closeDatePicker(); }; }
     grid.appendChild(cell);
   }
 }
@@ -2422,6 +2424,10 @@ function openDatePicker() {
 }
 function closeDatePicker() { document.getElementById('datePop').hidden = true; }
 function dpStep(delta) {
+  if (delta > 0) {
+    const now = new Date();
+    if (dpY > now.getFullYear() || (dpY === now.getFullYear() && dpM >= now.getMonth())) return;
+  }
   dpM += delta;
   if (dpM < 0) { dpM = 11; dpY--; }
   else if (dpM > 11) { dpM = 0; dpY++; }
@@ -2448,6 +2454,7 @@ async function save() {
   const duration = parseInt(document.getElementById('inDuration').value, 10);
   const note = document.getElementById('inNote').value.trim();
   if (!date) { return; }
+  if (date > todayISO()) { showToast('Päivää ei voi asettaa tulevaisuuteen'); return; }
   if (!duration || duration < 1) { document.getElementById('inDuration').focus(); return; }
   if (duration > 240) { showToast('Kesto voi olla enintään 240 min (4 t)'); document.getElementById('inDuration').focus(); return; }
   await store.addEntry({ date, category: selectedCat, duration, note });
