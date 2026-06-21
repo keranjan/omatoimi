@@ -1507,15 +1507,38 @@ function frameAttrs(itemId, px) {
   return { cls: '', style: col ? ` style="box-shadow:0 0 0 ${px}px ${col}"` : '' };
 }
 
+/* Titteleiden ikonit ja harvinaisuustaso (johdetaan hinnasta) */
+const TITLE_ICON = {
+  title_tyomyyra: '🐜', title_pommittaja: '💣', title_maestro: '🎼', title_kapteeni: '🧢', title_legenda: '🏆',
+  title_sisukas: '💪', title_joukkuepelaaja: '🤝', title_pallovelho: '🪄', title_salama: '⚡', title_muuri: '🧱',
+  title_maalikone: '🎯', title_taituri: '✨', title_tahti: '⭐', title_vauhtihirmu: '💨', title_pelintekija: '🧠',
+  title_putkimestari: '🔥', title_ilmaherra: '🦅', title_kotikuningas: '🏠', title_kultajalka: '🦶',
+  title_huipputekija: '🚀', title_mestari: '👑'
+};
+function rarityTier(price) {
+  if (price >= 3000) return 'legendary';
+  if (price >= 1400) return 'epic';
+  if (price >= 700)  return 'rare';
+  return 'common';
+}
+function cosTitleHtml(itemId) {
+  const it = cosItem(itemId);
+  if (!it) return '';
+  const icon = TITLE_ICON[itemId];
+  return `<span class="cos-title tier-${rarityTier(it.price)}">`
+    + (icon ? `<span class="cos-title-ic">${icon}</span>` : '')
+    + escapeHtml(it.value) + `</span>`;
+}
+
 /* Profiiliotsikko etusivulla: nimi + taso + ohut XP-palkki */
 function renderProfileHeader() {
   const nameEl = document.getElementById('phName');
   if (!nameEl) return;
-  const title = currentUser && currentUser.cos_title ? cosValue(currentUser.cos_title) : null;
+  const titleHtml = currentUser ? cosTitleHtml(currentUser.cos_title) : '';
   const ncId = currentUser ? currentUser.cos_name_color : null;
   const uname = currentUser ? escapeHtml(currentUser.username) : '';
   nameEl.innerHTML = cosNameSpan(ncId, uname, 'cos-name')
-    + (title ? ` <span class="cos-title">${escapeHtml(title)}</span>` : '');
+    + (titleHtml ? ' ' + titleHtml : '');
   nameEl.style.color = '';
   const badgeEl = document.getElementById('phBadge');
   if (badgeEl) {
@@ -1652,14 +1675,14 @@ function renderLeaderboard() {
   const list = rows.map((r, i) => {
     const lvl = levelInfo(r.xp).cur;
     const me = r.user_id === currentUser.id;
-    const title = cosValue(r.cos_title);
+    const titleHtml = cosTitleHtml(r.cos_title);
     const fr = frameAttrs(r.cos_frame, 2);
     return `
       <div class="lb-row${me ? ' lb-me' : ''}">
         <span class="lb-rank">${i + 1}</span>
         <span class="lb-badge${fr.cls}"${fr.style}>${levelBadgeImg(lvl.lvl)}</span>
         <span class="lb-info">
-          <span class="lb-name">${cosNameSpan(r.cos_name_color, escapeHtml(r.username), 'lb-name-text')}${title ? ` <span class="cos-title">${escapeHtml(title)}</span>` : ''}${me ? ' <span class="lb-you">sinä</span>' : ''}</span>
+          <span class="lb-name">${cosNameSpan(r.cos_name_color, escapeHtml(r.username), 'lb-name-text')}${titleHtml ? ' ' + titleHtml : ''}${me ? ' <span class="lb-you">sinä</span>' : ''}</span>
           <span class="lb-lvl">Taso ${lvl.lvl} · ${lvl.name}</span>
         </span>
         <span class="lb-balls">⚽ ${fmtBalls(r.footballs)}</span>
@@ -1737,7 +1760,7 @@ function shopItemHtml(i, bal) {
   if (i.type === 'name_color') preview = mat
     ? `<span class="shop-prev-name shiny-text shiny-${mat}">Nimesi</span>`
     : `<span class="shop-prev-name" style="color:${i.value}">Nimesi</span>`;
-  else if (i.type === 'title')  preview = `<span class="shop-prev-title">${escapeHtml(i.value)}</span>`;
+  else if (i.type === 'title')  preview = `<span class="shop-prev-title">${cosTitleHtml(i.id)}</span>`;
   else preview = mat
     ? `<span class="shop-prev-frame shiny-frame shiny-${mat}"></span>`
     : `<span class="shop-prev-frame" style="box-shadow:0 0 0 3px ${i.value}"></span>`;

@@ -324,11 +324,24 @@
 
   /* Koristeet (kaupasta) */
   .cos-title {
-    display: inline-block; margin-left: 5px; padding: 1px 8px; border-radius: 999px;
-    background: var(--accent); color: var(--accent-ink);
+    display: inline-flex; align-items: center; gap: 4px; margin-left: 5px;
+    padding: 1px 9px; border-radius: 999px;
     font-family: 'Barlow', sans-serif; font-weight: 600; font-size: 10px;
     letter-spacing: 0.02em; vertical-align: middle; white-space: nowrap;
   }
+  .cos-title-ic { font-size: 10px; line-height: 1; }
+  .cos-title.tier-common { background: var(--bg); color: var(--ink-soft); border: 1px solid var(--line); }
+  .cos-title.tier-rare   { background: rgba(37, 99, 176, 0.16);  color: #2D6FBE; }
+  .cos-title.tier-epic   { background: rgba(106, 75, 214, 0.18); color: #7A5BE0; }
+  .cos-title.tier-legendary {
+    color: #4A3A06;
+    background: linear-gradient(100deg, #F7E7A6, #E9C84A 30%, #FFF7D0 50%, #E9C84A 70%, #D4A92A);
+    background-size: 200% auto;
+    box-shadow: 0 0 8px rgba(201, 162, 39, 0.45);
+    animation: shimmerText 2.6s linear infinite;
+  }
+  :root[data-theme="dark"] .cos-title.tier-rare { color: #7FB0EA; }
+  :root[data-theme="dark"] .cos-title.tier-epic { color: #A78BFA; }
   .ph-badge { border-radius: 14px; transition: box-shadow 0.2s ease; }
   .lb-badge { border-radius: 9px; }
 
@@ -832,6 +845,7 @@
   @media (prefers-reduced-motion: reduce) {
     .shiny-text  { animation: none; background-position: 50% center; }
     .shiny-frame { animation: none; box-shadow: 0 0 0 3px var(--sh2); }
+    .cos-title.tier-legendary { animation: none; background-position: 50% center; }
   }
 
 
