@@ -674,6 +674,7 @@ let myReactions = {};                // logId -> [emoji] valmentajan reaktiot om
 let myFootballs = { total: 0, session: 0, challenge: 0 };  // pysyvä jalkapallosaldo
 let footballCfg = { threshold: 30, cap: 400 };             // joukkueen kynnys + päiväkatto
 let boostPeriods = [];               // joukkueen tehostejaksot (tupla XP & pallot)
+let teamGoalXpRows = [];             // pelaajan yhteistavoite-bonus-XP (rivit)
 
 /* ---- Lomakkeen päivämäärä (oma suomenkielinen valitsin) ---- */
 let formDate = todayISO();
@@ -743,6 +744,7 @@ async function renderAll() {
   myFootballs = await loadFootballEvents();
   footballCfg = await loadFootballCfg();
   boostPeriods = await loadBoostPeriods();
+  teamGoalXpRows = await loadTeamGoalXp();
   await refreshShopState();
   renderPeriodSelect(all);
   const isAll = selectedPeriod === 'all';
@@ -1466,6 +1468,15 @@ async function loadBoostPeriods() {
   if (error) { console.error(error); return []; }
   return data || [];
 }
+async function loadTeamGoalXp() {
+  const { data, error } = await sb.from('team_goal_xp_events').select('week_start, xp');
+  if (error) { console.error(error); return []; }
+  return data || [];
+}
+function teamGoalXpTotal(seasonStart) {
+  return teamGoalXpRows.reduce((s, r) =>
+    (!seasonStart || r.week_start >= seasonStart) ? s + (Number(r.xp) || 0) : s, 0);
+}
 function activeBoost(periods) {
   const today = todayISO();
   let best = null;
@@ -1490,7 +1501,7 @@ function renderLevel() {
   const seasonStart = teamWeek && teamWeek.seasonStart ? teamWeek.seasonStart : null;
   const seasonName = teamWeek && teamWeek.seasonName ? teamWeek.seasonName : null;
   const logs = seasonStart ? lastAll.filter(e => e.date >= seasonStart) : lastAll;
-  const xp = logs.reduce((s, e) => s + sessionXp(e.duration) * boostMult(e.date), 0);
+  const xp = logs.reduce((s, e) => s + sessionXp(e.duration) * boostMult(e.date), 0) + teamGoalXpTotal(seasonStart);
   const info = levelInfo(xp);
   checkLevelUp(xp);
   const seasonLabel = seasonName
@@ -1612,7 +1623,7 @@ function renderProfileHeader() {
   }
   const seasonStart = teamWeek && teamWeek.seasonStart ? teamWeek.seasonStart : null;
   const logs = seasonStart ? lastAll.filter(e => e.date >= seasonStart) : lastAll;
-  const xp = logs.reduce((s, e) => s + sessionXp(e.duration) * boostMult(e.date), 0);
+  const xp = logs.reduce((s, e) => s + sessionXp(e.duration) * boostMult(e.date), 0) + teamGoalXpTotal(seasonStart);
   const info = levelInfo(xp);
   document.getElementById('phBadge').innerHTML = levelBadgeImg(info.cur.lvl);
   document.getElementById('phLevel').textContent = info.next
@@ -2138,8 +2149,12 @@ function renderTeamGoal() {
   const pct = targetMin ? Math.min(100, Math.round(doneMin / targetMin * 100)) : 0;
   const achieved = doneMin >= targetMin && targetMin > 0;
   const remaining = Math.max(0, targetMin - doneMin);
+  const { mondayISO } = weekRangeISO();
+  const participated = lastAll.some(e => e.date >= mondayISO);
   const msg = achieved
-    ? 'Tavoite saavutettu — hienoa joukkuetyötä! 🎉'
+    ? (participated
+        ? 'Tavoite saavutettu — sait palkinnon yhteistavoitteesta! 🎉⚽'
+        : 'Tavoite saavutettu! 🎉 Kirjaa treeni tällä viikolla, niin saat sinäkin palkinnon.')
     : `Jäljellä ${fmtHours(remaining)} — sinunkin treenisi vie joukkuetta eteenpäin!`;
   const players = teamWeek.teamSize
     ? `${teamWeek.activePlayers}/${teamWeek.teamSize} pelaajaa treenannut tällä viikolla`
@@ -2623,7 +2638,7 @@ async function doSignOut() {
    ========================================================================= */
 const coachStore = {
   async getTeams() {
-    const { data, error } = await sb.from('teams').select('id, name, created_at, ics_url, ics_filter, weekly_goal_hours, season_start, season_name, football_threshold_min, football_daily_cap').order('created_at', { ascending: true });
+    const { data, error } = await sb.from('teams').select('id, name, created_at, ics_url, ics_filter, weekly_goal_hours, season_start, season_name, football_threshold_min, football_daily_cap, team_goal_reward').order('created_at', { ascending: true });
     if (error) { console.error(error); return []; }
     return data;
   },
@@ -2638,6 +2653,9 @@ const coachStore = {
   },
   async setTeamGoal(teamId, hours) {
     return await sb.from('teams').update({ weekly_goal_hours: hours }).eq('id', teamId);
+  },
+  async setTeamGoalReward(teamId, reward) {
+    return await sb.from('teams').update({ team_goal_reward: reward }).eq('id', teamId);
   },
   async setTeamFootball(teamId, threshold, cap) {
     return await sb.from('teams').update({ football_threshold_min: threshold, football_daily_cap: cap }).eq('id', teamId);
@@ -2739,6 +2757,11 @@ const coachStore = {
     if (error) { console.error(error); return []; }
     return data || [];
   },
+  async getTeamGoalXp() {
+    const { data, error } = await sb.from('team_goal_xp_events').select('user_id, week_start, xp');
+    if (error) { console.error(error); return []; }
+    return data || [];
+  },
   async createBoost(teamId, label, startsOn, endsOn, multiplier) {
     const row = { team_id: teamId, label: label || null, starts_on: startsOn, ends_on: endsOn, multiplier };
     return await sb.from('boost_periods').insert(row).select().single();
@@ -2759,6 +2782,7 @@ const coachStore = {
 let coachTeams = [], coachPlayers = [], coachLogs = [], coachGoals = [], coachChallenges = [], coachCompletions = [], coachEncouragements = [], coachReactions = [], coachFootballs = {};
 let coachTeamLinks = [], coachAccounts = [];   // admin: valmentaja↔joukkue-liitokset ja valmentajatilit
 let coachBoosts = [];                          // joukkueiden tehostejaksot
+let coachTeamGoalXpRows = [];                   // pelaajien yhteistavoite-bonus-XP
 let coachTab = 'players';
 let challengeSetupCat = {};
 let challengeKind = {};   // per-team: 'time' | 'once'
@@ -2795,6 +2819,7 @@ async function coachRefresh() {
   coachCompletions = await coachStore.getCompletions();  coachEncouragements = await coachStore.getEncouragements();
   coachReactions = await coachStore.getReactions();
   coachBoosts = await coachStore.getBoosts();
+  coachTeamGoalXpRows = await coachStore.getTeamGoalXp();
   if (currentUser.is_admin) {
     coachTeamLinks = await coachStore.getTeamCoaches();
     coachAccounts = await coachStore.getCoachAccounts();
@@ -2923,7 +2948,9 @@ function richPlayerReport(p) {
   const team = coachTeams.find(t => t.id === p.team_id);
   const seasonStart = team && team.season_start ? team.season_start : null;
   const seasonXp = coachLogs.filter(l => l.user_id === p.id && (!seasonStart || l.date >= seasonStart))
-    .reduce((sum, l) => sum + sessionXp(l.duration) * boostMultIn(coachBoosts, l.date, p.team_id), 0);
+    .reduce((sum, l) => sum + sessionXp(l.duration) * boostMultIn(coachBoosts, l.date, p.team_id), 0)
+    + coachTeamGoalXpRows.filter(r => r.user_id === p.id && (!seasonStart || r.week_start >= seasonStart))
+        .reduce((s, r) => s + (Number(r.xp) || 0), 0);
   const lvl = levelInfo(seasonXp);
   const balls = coachFootballs[p.id] || 0;
   const levelLine = `<div class="rep-level"><span class="rep-level-badge">${levelBadgeImg(lvl.cur.lvl)}</span><span class="rep-level-text">Taso ${lvl.cur.lvl} · ${lvl.cur.name} · ${seasonXp} XP${seasonStart ? '' : ' (kaikkien aikojen)'}</span><span class="rep-balls">⚽ ${fmtBalls(balls)}</span></div>`;
@@ -3201,6 +3228,11 @@ function renderCoachTeams() {  const view = document.getElementById('coachTeamsV
             <input type="number" class="team-goal-input" data-team="${t.id}" min="0" step="0.5" placeholder="tuntia / viikko (tyhjä = poista)" value="${t.weekly_goal_hours != null ? t.weekly_goal_hours : ''}">
             <button class="btn team-goal-btn" data-team="${t.id}" type="button">Tallenna</button>
           </div>
+          <div class="ch-sub-label">Palkinto kun tavoite täyttyy — jokaiselle viikon osallistujalle (≥1 treeni). Lisäksi kiinteä +100 XP.</div>
+          <div class="coach-add-row">
+            <input type="number" class="team-goal-reward-input" data-team="${t.id}" min="0" step="10" placeholder="jalkapalloa / pelaaja" value="${t.team_goal_reward != null ? t.team_goal_reward : 150}">
+            <button class="btn team-goal-reward-btn" data-team="${t.id}" type="button">Tallenna palkinto</button>
+          </div>
           <div class="coach-msg team-goal-msg" data-team="${t.id}"></div>
         </div>
         <div class="season-block">
@@ -3322,6 +3354,22 @@ function wireCoachTeams() {
       if (error) { msg.textContent = 'Tallennus epäonnistui: ' + error.message; msg.className = 'coach-msg team-goal-msg error'; return; }
       const tt = coachTeams.find(t => t.id === teamId); if (tt) tt.weekly_goal_hours = hours;
       msg.textContent = hours == null ? 'Tavoite poistettu.' : `Tavoite asetettu: ${hoursShort(hours)} / viikko.`;
+      msg.className = 'coach-msg team-goal-msg ok';
+    };
+  });
+  document.querySelectorAll('#coachTeamsView .team-goal-reward-btn').forEach(btn => {
+    btn.onclick = async () => {
+      const teamId = btn.dataset.team;
+      const input = document.querySelector(`#coachTeamsView .team-goal-reward-input[data-team="${teamId}"]`);
+      const msg = document.querySelector(`#coachTeamsView .team-goal-msg[data-team="${teamId}"]`);
+      const reward = parseInt(input.value, 10);
+      if (!isFinite(reward) || reward < 0) { msg.textContent = 'Anna palkinto numerona (0 = ei jalkapalloja).'; msg.className = 'coach-msg team-goal-msg error'; return; }
+      btn.disabled = true;
+      const { error } = await coachStore.setTeamGoalReward(teamId, reward);
+      btn.disabled = false;
+      if (error) { msg.textContent = 'Tallennus epäonnistui: ' + error.message; msg.className = 'coach-msg team-goal-msg error'; return; }
+      const tt = coachTeams.find(t => t.id === teamId); if (tt) tt.team_goal_reward = reward;
+      msg.textContent = `Palkinto asetettu: ${reward} ⚽ / osallistuja.`;
       msg.className = 'coach-msg team-goal-msg ok';
     };
   });
