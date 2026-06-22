@@ -2469,7 +2469,7 @@ function renderCalendar() {
     const iso = `${calY}-${pad(calM + 1)}-${pad(day)}`;
     const dayEntries = lastAll.filter(e => e.date === iso);
     const cats = CATEGORIES.filter(c => dayEntries.some(e => e.category === c.id));
-    const hasEvent = calEvents.some(ev => ev.date === iso);
+    const dayEvents = calEvents.filter(ev => ev.date === iso);
 
     const cell = document.createElement('button');
     cell.type = 'button';
@@ -2480,7 +2480,12 @@ function renderCalendar() {
 
     const shown = cats.slice(0, 5);
     const extra = cats.length - shown.length;
-    const evtMark = hasEvent ? `<span class="evt-dot" title="Kalenteritapahtuma"></span>` : '';
+    const evtCap = 4;
+    const evtShown = dayEvents.slice(0, evtCap);
+    const evtExtra = dayEvents.length - evtShown.length;
+    const evtMark = evtShown.map(ev =>
+      `<span class="evt-dot" title="${escapeHtml(ev.title || 'Kalenteritapahtuma')}"></span>`).join('')
+      + (evtExtra > 0 ? `<span class="cal-more cal-more-evt">+${evtExtra}</span>` : '');
     const dotsHtml = evtMark
       + shown.map(c => `<span class="dot" style="background:${c.color}"></span>`).join('')
       + (extra > 0 ? `<span class="cal-more">+${extra}</span>` : '');
