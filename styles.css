@@ -204,6 +204,22 @@
   .team-goal-done { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 30px; color: var(--ink); line-height: 1; }
   .team-goal-target { font-size: 15px; color: var(--ink-soft); }
   .team-goal-players { font-size: 13px; color: var(--ink-soft); margin-top: 8px; }
+  .team-goal-reward {
+    margin-top: 8px; font-size: 12.5px; font-weight: 600; color: var(--brand);
+    background: rgba(197, 242, 62, 0.16); border-radius: 8px; padding: 6px 10px; display: inline-block;
+  }
+  .boost-badge {
+    display: inline-flex; align-items: center; justify-content: center; vertical-align: middle;
+    font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 13px;
+    color: var(--accent-ink); background: var(--accent); border-radius: 999px;
+    padding: 1px 8px; margin-left: 6px; line-height: 1.5;
+    animation: boostGlow 1.6s ease-in-out infinite;
+  }
+  @keyframes boostGlow {
+    0%, 100% { box-shadow: 0 0 4px rgba(197, 242, 62, 0.6), 0 0 8px rgba(197, 242, 62, 0.3); }
+    50%      { box-shadow: 0 0 9px rgba(197, 242, 62, 0.95), 0 0 18px rgba(197, 242, 62, 0.6); }
+  }
+  @media (prefers-reduced-motion: reduce) { .boost-badge { animation: none; } }
   /* Joukkueen viikkotavoite (valmentaja) */
   .team-goal-block { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--line); }
   .team-goal-status { font-size: 13px; color: var(--ink-soft); margin: 2px 0 10px; font-variant-numeric: tabular-nums; }
@@ -490,6 +506,10 @@
   .np-jersey { margin-bottom: 14px; }
   .np-jersey label { display: block; font-size: 13px; color: var(--ink-soft); margin-bottom: 6px; }
   .np-jersey-row { display: flex; gap: 10px; align-items: center; }
+  .np-name-row { display: flex; gap: 10px; align-items: center; }
+  .np-name-row input { flex: 1 1 auto; min-width: 0; }
+  .np-name-row .btn { flex: none; width: auto; margin-top: 0; padding: 11px 18px; white-space: nowrap; }
+  .np-jersey-label2 { margin-top: 12px; }
   .np-jersey-row input { flex: 0 0 110px; }
   .np-jersey-row .btn { flex: none; width: auto; margin-top: 0; padding: 11px 18px; white-space: nowrap; }
   .ph-badge { border-radius: 14px; transition: box-shadow 0.2s ease; }

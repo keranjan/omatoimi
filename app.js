@@ -1487,6 +1487,12 @@ function activeBoost(periods) {
   });
   return best;
 }
+/* Hohtava ×N-merkki kun tehostejakso on voimassa (tyhjä jos ei). */
+function boostBadgeHtml() {
+  const b = activeBoost(boostPeriods);
+  if (!b) return '';
+  return `<span class="boost-badge" title="Tehostejakso käynnissä — tupla palkinto">×${b.multiplier}</span>`;
+}
 function levelInfo(xp) {
   let cur = LEVELS[0];
   for (const l of LEVELS) if (xp >= l.xp) cur = l;
@@ -1614,7 +1620,7 @@ function renderProfileHeader() {
   const fxId = currentUser ? currentUser.cos_name_effect : null;
   const av = avId ? avatarHtml(avId, '') : '';
   if (npId && cosItem(npId)) {
-    nameEl.innerHTML = av + nameplateHtml(npId, currentUser.username, currentUser.jersey_number, 'md')
+    nameEl.innerHTML = av + nameplateHtml(npId, currentUser.plate_name || currentUser.username, currentUser.jersey_number, 'md')
       + (titleHtml ? ' ' + titleHtml : '');
   } else {
     nameEl.innerHTML = av + cosNameSpan(ncId, uname, 'cos-name', fxId)
@@ -1731,6 +1737,7 @@ async function loadLeaderboard() {
     jersey_number: (r.jersey_number === null || r.jersey_number === undefined) ? null : Number(r.jersey_number),
     cos_avatar: r.cos_avatar || null,
     cos_name_effect: r.cos_name_effect || null,
+    plate_name: r.plate_name || null,
   }));
 }
 async function refreshLeaderboard() {
@@ -1771,7 +1778,7 @@ function renderLeaderboard() {
     const titleHtml = cosTitleHtml(r.cos_title);
     const fr = frameAttrs(r.cos_frame, 2);
     const nameInner = r.cos_nameplate && cosItem(r.cos_nameplate)
-      ? nameplateHtml(r.cos_nameplate, r.username, r.jersey_number, 'sm')
+      ? nameplateHtml(r.cos_nameplate, r.plate_name || r.username, r.jersey_number, 'sm')
       : cosNameSpan(r.cos_name_color, escapeHtml(r.username), 'lb-name-text', r.cos_name_effect);
     const av = r.cos_avatar ? avatarHtml(r.cos_avatar, 'sm') : '';
     return `
@@ -1849,6 +1856,12 @@ async function setJersey(num) {
   if (currentUser) currentUser.jersey_number = num;
   return {};
 }
+async function setPlateName(name) {
+  const { data, error } = await sb.rpc('set_plate_name', { p_name: name });
+  if (error || (data && data.ok === false)) { return { error: (data && data.error) || 'Ei onnistunut' }; }
+  if (currentUser) currentUser.plate_name = (data && data.plate_name) || null;
+  return {};
+}
 
 const SHOP_SECTIONS = [
   { key: 'nameplate',  label: 'Nimikyltit' },
@@ -1868,7 +1881,7 @@ function shopItemHtml(i, bal) {
     ? `<span class="shop-prev-name shiny-text shiny-${mat}">Nimesi</span>`
     : `<span class="shop-prev-name" style="color:${i.value}">Nimesi</span>`;
   else if (i.type === 'title')  preview = cosTitleHtml(i.id);
-  else if (i.type === 'nameplate') preview = nameplateHtml(i.id, currentUser ? currentUser.username : 'NIMI', currentUser ? currentUser.jersey_number : null, 'sm');
+  else if (i.type === 'nameplate') preview = nameplateHtml(i.id, currentUser ? (currentUser.plate_name || currentUser.username) : 'NIMI', currentUser ? currentUser.jersey_number : null, 'sm');
   else if (i.type === 'avatar') preview = avatarHtml(i.id, '');
   else if (i.type === 'name_effect') preview = `<span class="shop-prev-name name-fx fx-${i.value}">${escapeHtml(currentUser ? currentUser.username : 'Nimesi')}</span>`;
   else if (i.type === 'profile_bg') preview = `<span class="shop-prev-bg pbg-${i.value}"></span>`;
@@ -1912,8 +1925,14 @@ function renderShop() {
   let extra = '';
   if (s.key === 'nameplate') {
     const jn = (currentUser && currentUser.jersey_number != null) ? currentUser.jersey_number : '';
+    const pn = (currentUser && currentUser.plate_name) ? escapeHtml(currentUser.plate_name) : '';
     extra = `<div class="np-jersey">
-        <label for="jerseyInput">Pelinumerosi (0–99)</label>
+        <label for="plateNameInput">Kyltin nimi (valinnainen, max 20)</label>
+        <div class="np-name-row">
+          <input type="text" id="plateNameInput" maxlength="20" value="${pn}" placeholder="oletus: käyttäjänimesi">
+          <button class="btn" id="plateNameSave" type="button">Tallenna</button>
+        </div>
+        <label for="jerseyInput" class="np-jersey-label2">Pelinumerosi (0–99)</label>
         <div class="np-jersey-row">
           <input type="number" id="jerseyInput" min="0" max="99" value="${jn}" placeholder="esim. 7" inputmode="numeric">
           <button class="btn" id="jerseySave" type="button">Tallenna</button>
@@ -1949,6 +1968,18 @@ function wireShop() {
     jsBtn.disabled = false;
     if (error) { alert(error); return; }
     showToast('Pelinumero tallennettu');
+    renderShop(); renderProfileHeader(); refreshLeaderboard();
+  };
+  const pnBtn = document.getElementById('plateNameSave');
+  if (pnBtn) pnBtn.onclick = async () => {
+    const inp = document.getElementById('plateNameInput');
+    const v = inp.value.trim();
+    if (v.length > 20) { alert('Nimi voi olla enintään 20 merkkiä.'); return; }
+    pnBtn.disabled = true;
+    const { error } = await setPlateName(v);
+    pnBtn.disabled = false;
+    if (error) { alert(error); return; }
+    showToast(v ? 'Kyltin nimi tallennettu' : 'Kyltin nimi tyhjennetty');
     renderShop(); renderProfileHeader(); refreshLeaderboard();
   };
   document.querySelectorAll('#viewShop .shop-btn').forEach(btn => {
@@ -2154,6 +2185,10 @@ async function loadTeamWeek() {
   if (error) { console.error(error); return null; }
   const row = Array.isArray(data) ? data[0] : data;
   if (!row) return null;
+  let goalReward = 150, goalXp = 100;
+  const { data: ri } = await sb.rpc('team_goal_reward_info');
+  const rr = Array.isArray(ri) ? ri[0] : ri;
+  if (rr) { goalReward = Number(rr.reward); goalXp = Number(rr.xp); }
   return {
     totalMin: Number(row.total_min) || 0,
     activePlayers: Number(row.active_players) || 0,
@@ -2161,6 +2196,8 @@ async function loadTeamWeek() {
     goalHours: row.goal_hours == null ? null : Number(row.goal_hours),
     seasonStart: row.season_start || null,
     seasonName: row.season_name || null,
+    goalReward: isFinite(goalReward) ? goalReward : 150,
+    goalXp: isFinite(goalXp) ? goalXp : 100,
   };
 }
 function renderTeamGoal() {
@@ -2181,11 +2218,18 @@ function renderTeamGoal() {
   const players = teamWeek.teamSize
     ? `${teamWeek.activePlayers}/${teamWeek.teamSize} pelaajaa treenannut tällä viikolla`
     : `${teamWeek.activePlayers} pelaajaa treenannut tällä viikolla`;
+  const rewardBits = [];
+  if (teamWeek.goalReward > 0) rewardBits.push(`⚽ ${fmtBalls(teamWeek.goalReward)}`);
+  if (teamWeek.goalXp > 0) rewardBits.push(`+${teamWeek.goalXp} XP`);
+  const rewardLine = rewardBits.length
+    ? `<div class="team-goal-reward">Osallistujille tavoitteen täyttyessä: ${rewardBits.join(' ja ')}</div>`
+    : '';
   const inner = `
-    <div class="sec-head"><h2>Joukkueen viikkotavoite</h2><span class="hint">yhdessä</span></div>
+    <div class="sec-head"><h2>Joukkueen viikkotavoite</h2><span class="hint">yhdessä</span>${boostBadgeHtml()}</div>
     <div class="team-goal-nums"><span class="team-goal-done">${fmtHours(doneMin)}</span><span class="team-goal-target">/ ${fmtHours(targetMin)}</span></div>
     <div class="goal-bar"><div class="goal-bar-fill team-goal-fill" data-pct="${pct / 100}" style="width:0; background:${achieved ? 'var(--accent)' : 'var(--brand)'}"></div></div>
     <div class="team-goal-players">${players}</div>
+    ${rewardLine}
     <div class="goal-encour">${msg}</div>`;
   cards.forEach(card => {
     card.hidden = false;
@@ -2201,7 +2245,7 @@ function challengeRowHtml(ch) {
   const dueLabel = ch.due_date ? `${fmtDateShort(ch.due_date)} mennessä` : null;
   const pastDue = challengePastDue(ch);
   const personalTag = ch.user_id ? '<span class="personal-tag">henkilökohtainen</span>' : '';
-  const rewardTag = `<span class="ch-reward-tag">⚽ ${ch.football_reward == null ? 250 : ch.football_reward}</span>`;
+  const rewardTag = `<span class="ch-reward-tag">⚽ ${ch.football_reward == null ? 250 : ch.football_reward}</span>${boostBadgeHtml()}`;
   if (ch.hours == null) {
     const done = isChallengeDone(ch);
     let action;
@@ -2568,7 +2612,7 @@ async function loadProfile() {
   const { data: { user } } = await sb.auth.getUser();
   if (!user) return null;
   const { data, error } = await sb.from('profiles')
-    .select('id, username, role, team_id, is_admin, leaderboard_opt_in, cos_name_color, cos_title, cos_frame, cos_nameplate, jersey_number, cos_avatar, cos_profile_bg, cos_name_effect').eq('id', user.id).single();
+    .select('id, username, role, team_id, is_admin, leaderboard_opt_in, cos_name_color, cos_title, cos_frame, cos_nameplate, jersey_number, cos_avatar, cos_profile_bg, cos_name_effect, plate_name').eq('id', user.id).single();
   if (error) { console.error(error); return null; }
   return data;
 }
