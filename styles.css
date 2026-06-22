@@ -385,7 +385,8 @@
   .pbg-ocean    { --pbg: linear-gradient(120deg, rgba(20, 176, 166, 0.16), rgba(46, 107, 200, 0.16), rgba(20, 176, 166, 0.16)); }
   .pbg-ember    { --pbg: linear-gradient(120deg, rgba(255, 109, 76, 0.16), rgba(255, 95, 162, 0.12), rgba(255, 178, 76, 0.16)); }
   .pbg-holo     { --pbg: linear-gradient(120deg, rgba(255, 95, 109, 0.10), rgba(255, 178, 76, 0.10), rgba(93, 255, 158, 0.10), rgba(79, 169, 255, 0.10), rgba(184, 107, 255, 0.10), rgba(255, 95, 109, 0.10)); }
-  .pbg-aurora, .pbg-ocean, .pbg-ember, .pbg-holo { background-size: 280% 280%; animation: pbgFlow 10s ease infinite; }
+  .pbg-summer   { --pbg: linear-gradient(120deg, rgba(255, 200, 60, 0.20), rgba(255, 138, 76, 0.16), rgba(255, 95, 140, 0.16), rgba(255, 200, 60, 0.20)); }
+  .pbg-aurora, .pbg-ocean, .pbg-ember, .pbg-holo, .pbg-summer { background-size: 280% 280%; animation: pbgFlow 10s ease infinite; }
   @keyframes pbgFlow { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
 
   /* Premium-taustat: kiiltopyyhkäisy */
@@ -431,6 +432,7 @@
   .shop-prev-bg.pbg-ocean   { --pbg: linear-gradient(120deg, rgba(20, 176, 166, 0.6), rgba(46, 107, 200, 0.6), rgba(20, 176, 166, 0.6)); }
   .shop-prev-bg.pbg-ember   { --pbg: linear-gradient(120deg, rgba(255, 109, 76, 0.6), rgba(255, 95, 162, 0.5), rgba(255, 178, 76, 0.6)); }
   .shop-prev-bg.pbg-holo    { --pbg: linear-gradient(120deg, rgba(255, 95, 109, 0.5), rgba(255, 178, 76, 0.5), rgba(93, 255, 158, 0.5), rgba(79, 169, 255, 0.5), rgba(184, 107, 255, 0.5), rgba(255, 95, 109, 0.5)); }
+  .shop-prev-bg.pbg-summer  { --pbg: linear-gradient(120deg, rgba(255, 200, 60, 0.7), rgba(255, 138, 76, 0.6), rgba(255, 95, 140, 0.6), rgba(255, 200, 60, 0.7)); }
   .shop-prev-bg.pbg-sparkle, .shop-prev-bg.pbg-rosegold { background-color: #20203c; }
   .shop-prev-bg.pbg-sparkle::before, .shop-prev-bg.pbg-rosegold::before {
     background-size: 13px 13px, 19px 19px;
@@ -443,7 +445,7 @@
   .shop-prev-bg.pbg-shimmer::after, .shop-prev-bg.pbg-goldlux::after { width: 50%; }
 
   @media (prefers-reduced-motion: reduce) {
-    .pbg-aurora, .pbg-ocean, .pbg-ember, .pbg-holo { animation: none; }
+    .pbg-aurora, .pbg-ocean, .pbg-ember, .pbg-holo, .pbg-summer { animation: none; }
     .pbg-shimmer::after, .pbg-goldlux::after { animation: none; opacity: 0; }
     .pbg-sparkle::before, .pbg-rosegold::before { animation: none; opacity: 0.5; }
     .pbg-sparkle::after, .pbg-rosegold::after { animation: none; opacity: 0.5; }
@@ -548,6 +550,9 @@
   .plate.np-green_yellow .plate-name { background: linear-gradient(180deg, #1FA350 0%, #0E7A36 100%); }
   .plate.np-green_yellow .plate-num { background: linear-gradient(180deg, #FFD651 0%, #F0B400 100%); }
   .plate.np-green_yellow .plate-num b { background: linear-gradient(180deg, #0E7A36, #0A5A28); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .plate.np-summer .plate-name { background: linear-gradient(180deg, #FF9F3C 0%, #F4731E 100%); }
+  .plate.np-summer .plate-num { background: linear-gradient(180deg, #FFE066 0%, #FFC233 100%); }
+  .plate.np-summer .plate-num b { background: linear-gradient(180deg, #C2521A, #8A3A10); -webkit-background-clip: text; background-clip: text; color: transparent; }
   .plate.np-blue_white { background: linear-gradient(165deg, #F4F6F9, #C9CFD8 40%, #99A2AE 55%, #E5E9EE 80%, #AEB6C0); }
   .plate.np-blue_white .plate-name { background: linear-gradient(180deg, #2A68CC 0%, #184FA8 100%); }
   .plate.np-blue_white .plate-num { background: linear-gradient(180deg, #FFFFFF 0%, #E6EAF0 100%); }
@@ -684,6 +689,26 @@
   .quest-bar-fill { height: 100%; background: var(--brand); border-radius: 999px; transition: width 0.4s ease; }
   .quest-row.is-done .quest-bar-fill { background: var(--accent); }
   .quest-prog { font-size: 11.5px; color: var(--ink-faint); margin-top: 4px; }
+
+  /* Kausitapahtuma */
+  .event-banner { display: none; }
+  .event-banner.on {
+    display: flex; align-items: center; gap: 12px; margin: 0 0 14px;
+    padding: 12px 14px; border-radius: var(--radius);
+    background: linear-gradient(135deg, rgba(255, 178, 76, 0.22), rgba(255, 95, 162, 0.14));
+    border: 1px solid rgba(255, 150, 80, 0.6);
+  }
+  .event-emoji { font-size: 26px; line-height: 1; }
+  .event-text { display: flex; flex-direction: column; }
+  .event-text b { font-size: 14px; color: var(--ink); }
+  .event-text span { font-size: 12.5px; color: var(--ink-soft); line-height: 1.3; }
+  .shop-item.is-season { position: relative; border-color: rgba(255, 150, 80, 0.6); }
+  .shop-season-badge {
+    position: absolute; top: 6px; right: 6px;
+    font-size: 10px; font-weight: 700; color: #7a3e00;
+    background: linear-gradient(135deg, #FFD651, #FFA63C);
+    border-radius: 999px; padding: 2px 7px; line-height: 1.4;
+  }
 
   /* Tehostejaksot (valmentaja) */
   .boost-block { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line); }

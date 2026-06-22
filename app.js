@@ -656,6 +656,7 @@ let currentGoals = [];               // [{ category, hours }]
 let myChallenges = [];               // joukkueen haasteet (valmentajan asettamat)
 let calEvents = [];                  // joukkueen kalenteritapahtumat (iCal-tilaus)
 let questDefs = [];                  // kuluvan viikon viikkotehtävät
+let activeEvent = null;              // käynnissä oleva kausitapahtuma
 let myCompletions = new Set();       // tällä viikolla suoritetut kertasuoritus-haasteet
 let myEncouragements = [];           // valmentajan kannustukset
 let goalSetupCat = null;             // lisäyslomakkeessa valittu kategoria
@@ -737,7 +738,7 @@ function renderPeriodSelect(all) {
 }
 
 async function renderAll() {
-  const [all, goals, tw, reactions, footballs, fcfg, boosts, tgxp, quests] = await Promise.all([
+  const [all, goals, tw, reactions, footballs, fcfg, boosts, tgxp, quests, evt] = await Promise.all([
     store.getEntries(),
     goalStore.get(),
     loadTeamWeek(),
@@ -747,6 +748,7 @@ async function renderAll() {
     loadBoostPeriods(),
     loadTeamGoalXp(),
     loadQuests(),
+    loadActiveEvent(),
     refreshShopState(),
   ]);
   lastAll = all;
@@ -758,6 +760,7 @@ async function renderAll() {
   boostPeriods = boosts;
   teamGoalXpRows = tgxp;
   questDefs = quests;
+  activeEvent = evt;
   renderPeriodSelect(all);
   const isAll = selectedPeriod === 'all';
   const periodEntries = isAll ? all : all.filter(e => monthKey(e.date) === selectedPeriod);
@@ -813,6 +816,7 @@ async function renderAll() {
   renderFootballs();
   refreshLeaderboard();
   renderStreak();
+  renderEventBanner();
   renderQuests();
   renderHeatmap();
   renderBoostBanner();
@@ -1844,7 +1848,7 @@ function renderLeaderboard() {
 
 /* ---- Kauppa (jalkapallojen käyttö koristeisiin) ---- */
 async function loadShopCatalog() {
-  const { data, error } = await sb.from('shop_items').select('id, type, label, value, price, sort').order('sort', { ascending: true });
+  const { data, error } = await sb.from('shop_items').select('id, type, label, value, price, sort, available_from, available_to').order('sort', { ascending: true });
   if (error) { console.error(error); return []; }
   return data;
 }
@@ -1857,6 +1861,14 @@ async function loadOwnedCosmetics() {
 }
 function cosItem(id) { return id ? shopCatalog.find(i => i.id === id) || null : null; }
 function cosValue(id) { const it = cosItem(id); return it ? it.value : null; }
+function cosLimited(it) { return !!(it && (it.available_from || it.available_to)); }
+function cosAvailable(it) {
+  if (!it) return false;
+  const t = todayISO();
+  if (it.available_from && t < it.available_from) return false;
+  if (it.available_to && t > it.available_to) return false;
+  return true;
+}
 function footballBalance() { return Math.max(0, (myFootballs.total || 0) - cosSpent); }
 async function refreshShopState() {
   if (!shopCatalog.length) shopCatalog = await loadShopCatalog();
@@ -1927,7 +1939,8 @@ function shopItemHtml(i, bal) {
   else if (owned) action = `<button class="shop-btn own" data-act="equip" data-id="${i.id}" type="button">Ota käyttöön</button>`;
   else if (bal >= i.price) action = `<button class="btn shop-btn buy" data-act="buy" data-id="${i.id}" type="button">Osta · ⚽ ${fmtBalls(i.price)}</button>`;
   else action = `<button class="shop-btn locked" type="button" disabled>⚽ ${fmtBalls(i.price)}</button>`;
-  return `<div class="shop-item${equipped ? ' is-equipped' : ''}">
+  return `<div class="shop-item${equipped ? ' is-equipped' : ''}${cosLimited(i) ? ' is-season' : ''}">
+    ${cosLimited(i) ? '<span class="shop-season-badge">⏳ kausi</span>' : ''}
     <div class="shop-prev">${preview}</div>
     <div class="shop-label">${escapeHtml(i.label)}</div>
     ${action}
@@ -1955,7 +1968,7 @@ function renderShop() {
   const tabs = available.map(s =>
     `<button class="vtab shop-tab${s.key === shopTab ? ' active' : ''}" data-tab="${s.key}" type="button">${s.label}</button>`).join('');
   const s = available.find(x => x.key === shopTab);
-  const items = shopCatalog.filter(i => i.type === s.key);
+  const items = shopCatalog.filter(i => i.type === s.key && (cosAvailable(i) || ownedCosmetics.has(i.id)));
   let extra = '';
   if (s.key === 'nameplate') {
     const jn = (currentUser && currentUser.jersey_number != null) ? currentUser.jersey_number : '';
@@ -2236,6 +2249,34 @@ async function claimQuest(id, btn) {
   renderQuests();
   renderFootballs();
   refreshLeaderboard();
+}
+async function loadActiveEvent() {
+  const t = todayISO();
+  const { data, error } = await sb.from('season_events')
+    .select('id, label, emoji, blurb, starts_on, ends_on')
+    .lte('starts_on', t).gte('ends_on', t)
+    .order('ends_on', { ascending: true }).limit(1);
+  if (error) { console.error(error); return null; }
+  return (data && data[0]) || null;
+}
+function renderEventBanner() {
+  const el = document.getElementById('eventBanner');
+  if (!el) return;
+  if (!activeEvent) { el.hidden = true; el.className = 'event-banner'; return; }
+  el.hidden = false;
+  el.className = 'event-banner on';
+  const ends = activeEvent.ends_on;
+  let daysLeft = '';
+  try {
+    const d = Math.round((new Date(ends + 'T00:00:00') - new Date(todayISO() + 'T00:00:00')) / 86400000);
+    if (d >= 0) daysLeft = d === 0 ? 'päättyy tänään' : `${d} pv jäljellä`;
+  } catch (e) {}
+  el.innerHTML = `
+    <span class="event-emoji">${escapeHtml(activeEvent.emoji || '🎉')}</span>
+    <div class="event-text">
+      <b>${escapeHtml(activeEvent.label)}</b>
+      <span>${escapeHtml(activeEvent.blurb || '')}${daysLeft ? ` · ${daysLeft}` : ''}</span>
+    </div>`;
 }
 function renderBoostBanner() {
   const el = document.getElementById('boostBanner');
