@@ -736,16 +736,25 @@ function renderPeriodSelect(all) {
 }
 
 async function renderAll() {
-  const all = await store.getEntries();
+  const [all, goals, tw, reactions, footballs, fcfg, boosts, tgxp] = await Promise.all([
+    store.getEntries(),
+    goalStore.get(),
+    loadTeamWeek(),
+    loadMyReactions(),
+    loadFootballEvents(),
+    loadFootballCfg(),
+    loadBoostPeriods(),
+    loadTeamGoalXp(),
+    refreshShopState(),
+  ]);
   lastAll = all;
-  currentGoals = await goalStore.get();
-  teamWeek = await loadTeamWeek();
-  myReactions = await loadMyReactions();
-  myFootballs = await loadFootballEvents();
-  footballCfg = await loadFootballCfg();
-  boostPeriods = await loadBoostPeriods();
-  teamGoalXpRows = await loadTeamGoalXp();
-  await refreshShopState();
+  currentGoals = goals;
+  teamWeek = tw;
+  myReactions = reactions;
+  myFootballs = footballs;
+  footballCfg = fcfg;
+  boostPeriods = boosts;
+  teamGoalXpRows = tgxp;
   renderPeriodSelect(all);
   const isAll = selectedPeriod === 'all';
   const periodEntries = isAll ? all : all.filter(e => monthKey(e.date) === selectedPeriod);
@@ -2679,8 +2688,9 @@ let currentUser = null;          // { id, username, role, team_id }
 let authMode = 'login';          // 'login' | 'register'
 let playerWired = false;
 
-async function loadProfile() {
-  const { data: { user } } = await sb.auth.getUser();
+async function loadProfile(authUser) {
+  let user = authUser;
+  if (!user) { const r = await sb.auth.getUser(); user = r.data && r.data.user; }
   if (!user) return null;
   const { data, error } = await sb.from('profiles')
     .select('id, username, role, team_id, is_admin, leaderboard_opt_in, cos_name_color, cos_title, cos_frame, cos_nameplate, jersey_number, cos_avatar, cos_profile_bg, cos_name_effect, plate_name').eq('id', user.id).single();
@@ -2700,11 +2710,17 @@ async function startPlayer() {
   document.getElementById('playerWrap').hidden = false;
   document.getElementById('userChip').textContent = currentUser.username;
   if (!playerWired) { wirePlayerApp(); playerWired = true; }
-  myChallenges = await loadMyChallenges();
-  myCompletions = await loadMyCompletions();
-  myEncouragements = await loadMyEncouragements();
-  calEvents = await loadCalEvents();
+  const [mc, cp, en] = await Promise.all([
+    loadMyChallenges(),
+    loadMyCompletions(),
+    loadMyEncouragements(),
+  ]);
+  myChallenges = mc;
+  myCompletions = cp;
+  myEncouragements = en;
   await renderAll();
+  // Kalenteritilaus (ICS) on usein hidas — haetaan taustalla, ei viivytetä etusivua
+  loadCalEvents().then(ev => { calEvents = ev; renderCalendar(); renderDayPanel(); });
 }
 
 function setAuthMode(m) {
@@ -3815,7 +3831,7 @@ async function boot() {
 
   const { data: { session } } = await sb.auth.getSession();
   if (!session) { showAuth(); return; }
-  currentUser = await loadProfile();
+  currentUser = await loadProfile(session.user);
   if (!currentUser) { showAuth(); return; }
   if (currentUser.role === 'coach' || currentUser.is_admin) startCoach(); else startPlayer();
 }
