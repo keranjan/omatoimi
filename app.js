@@ -1583,11 +1583,13 @@ function cosTitleHtml(itemId) {
 function nameplateHtml(itemId, username, jersey, size) {
   const it = cosItem(itemId);
   if (!it) return '';
-  const theme = it.value || 'portugal';
+  const parts = (it.value || 'portugal').split(':');
+  const theme = parts[0];
+  const shine = parts[1] === 'shine';
   const name = escapeHtml(String(username || '').toUpperCase());
   const hasNum = jersey !== null && jersey !== undefined && jersey !== '';
   const num = hasNum ? escapeHtml(String(jersey)) : '';
-  return `<span class="plate np-${theme} ${size}">`
+  return `<span class="plate np-${theme} ${size}${shine ? ' shine' : ''}">`
     + `<span class="plate-inner">`
     + `<span class="plate-name"><b>${name}</b></span>`
     + (hasNum ? `<span class="plate-num"><b>${num}</b></span>` : '')

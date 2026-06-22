@@ -361,17 +361,52 @@
   .profile-header[class*="pbg-"] { background: var(--pbg), var(--surface); }
   .shop-prev-bg { display: block; width: 50px; height: 32px; border-radius: 8px; border: 1px solid var(--line); background: var(--pbg, var(--surface)); }
 
-  /* Nimiefektit (animoitu gradientti) */
-  .name-fx {
+  /* Nimiefektit — selkeästi erottuvat mekanismit */
+  .name-fx { position: relative; }
+  /* Holografinen: sateenkaariliuku */
+  .fx-holo {
+    background-image: linear-gradient(90deg, #ff5f6d, #ffb24c, #5dff9e, #4fb8ff, #b86bff, #ff5f6d);
     background-size: 300% 100%; -webkit-background-clip: text; background-clip: text;
     color: transparent; -webkit-text-fill-color: transparent;
-    animation: nameFx 5s linear infinite;
+    animation: nameHolo 4s linear infinite;
   }
-  .fx-holo   { background-image: linear-gradient(90deg, #ff5f6d, #ffb24c, #5dff9e, #4fb8ff, #b86bff, #ff5f6d); }
-  .fx-aurora { background-image: linear-gradient(90deg, #16d3a3, #21a0e6, #7b5cff, #16d3a3); }
-  .fx-sunset { background-image: linear-gradient(90deg, #ff6a5f, #ff9a4c, #ff5fa2, #ff6a5f); }
-  @keyframes nameFx { to { background-position: 300% 0; } }
-  @media (prefers-reduced-motion: reduce) { .name-fx { animation: none; } }
+  @keyframes nameHolo { to { background-position: 300% 0; } }
+  /* Neon: kirkas väri + sykkivä hehku */
+  .fx-neon {
+    color: #2BFF88; -webkit-text-fill-color: #2BFF88;
+    animation: nameNeon 1.8s ease-in-out infinite;
+  }
+  @keyframes nameNeon {
+    0%, 100% { text-shadow: 0 0 3px rgba(43, 255, 136, 0.7), 0 0 8px rgba(43, 255, 136, 0.4); }
+    50%      { text-shadow: 0 0 6px rgba(43, 255, 136, 1), 0 0 16px rgba(43, 255, 136, 0.8), 0 0 26px rgba(43, 255, 136, 0.5); }
+  }
+  /* Liekki: tulinen pystyliuku + lepatus */
+  .fx-flame {
+    background-image: linear-gradient(0deg, #ff2d00, #ff8a00, #ffd000);
+    -webkit-background-clip: text; background-clip: text;
+    color: transparent; -webkit-text-fill-color: transparent;
+    animation: nameFlame 1.2s ease-in-out infinite;
+  }
+  @keyframes nameFlame {
+    0%, 100% { filter: drop-shadow(0 0 2px rgba(255, 80, 0, 0.5)); }
+    50%      { filter: drop-shadow(0 0 6px rgba(255, 140, 0, 0.9)); }
+  }
+  /* Tähtituike: normaali teksti + tuikkivat tähdet ympärillä */
+  .fx-sparkle::before, .fx-sparkle::after {
+    content: '✦'; position: absolute; font-size: 0.62em; color: #FFD86B;
+    text-shadow: 0 0 5px rgba(255, 216, 107, 0.9); pointer-events: none;
+    animation: nameTwinkle 1.5s ease-in-out infinite;
+  }
+  .fx-sparkle::before { top: -0.35em; left: -0.7em; }
+  .fx-sparkle::after  { bottom: -0.3em; right: -0.66em; animation-delay: 0.75s; }
+  @keyframes nameTwinkle {
+    0%, 100% { opacity: 0.15; transform: scale(0.6) rotate(0deg); }
+    50%      { opacity: 1; transform: scale(1.15) rotate(25deg); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .fx-holo, .fx-neon, .fx-flame { animation: none; }
+    .fx-sparkle::before, .fx-sparkle::after { animation: none; opacity: 0.8; }
+  }
 
   /* Nimikyltti (nameplate) */
   .plate {
@@ -442,6 +477,16 @@
   .plate.np-purple_gold .plate-name { background: linear-gradient(180deg, #6A3FD0 0%, #4E2BA8 100%); }
   .plate.np-purple_gold .plate-num { background: linear-gradient(180deg, #FFD651 0%, #E0A409 100%); }
   .plate.np-purple_gold .plate-num b { background: linear-gradient(180deg, #4E2BA8, #37207A); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  /* Kiiltoversio: liikkuva valojuova koko kyltin yli */
+  .plate.shine { overflow: hidden; }
+  .plate.shine::after {
+    content: ''; position: absolute; top: 0; left: -60%; width: 45%; height: 100%;
+    background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.55), transparent);
+    transform: skewX(-18deg); pointer-events: none;
+    animation: plateShine 3.2s ease-in-out infinite;
+  }
+  @keyframes plateShine { 0% { left: -60%; } 55%, 100% { left: 150%; } }
+  @media (prefers-reduced-motion: reduce) { .plate.shine::after { animation: none; opacity: 0; } }
   .np-jersey { margin-bottom: 14px; }
   .np-jersey label { display: block; font-size: 13px; color: var(--ink-soft); margin-bottom: 6px; }
   .np-jersey-row { display: flex; gap: 10px; align-items: center; }
