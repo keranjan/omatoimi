@@ -801,6 +801,7 @@ async function renderAll() {
   renderFootballs();
   refreshLeaderboard();
   renderStreak();
+  renderHeatmap();
   renderBoostBanner();
   renderSettings();
   renderTeamGoal();
@@ -1291,18 +1292,28 @@ function renderEncouragements() {
 function addDaysISO(iso, n) { const d = new Date(iso + 'T00:00:00'); d.setDate(d.getDate() + n); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; }
 function mondayOfISO(iso) { return weekRangeISO(new Date(iso + 'T00:00:00')).mondayISO; }
 
-function weeklyStreak() {
-  if (!lastAll.length) return 0;
-  const weeks = new Set(lastAll.map(e => mondayOfISO(e.date)));
-  let cursor = weekRangeISO().mondayISO;          // kuluva viikko
-  if (!weeks.has(cursor)) {                        // jos tällä viikolla ei vielä treeniä, putki säilyy edellisestä
+function streakInfo() {
+  if (!lastAll.length) return { streak: 0, shieldUsed: false };
+  const active = new Set(lastAll.map(e => mondayOfISO(e.date)));
+  const earliest = [...active].sort()[0];
+  const currentMon = weekRangeISO().mondayISO;
+  let streak = 0, shieldUsed = false, first = true, cursor = currentMon;
+  while (cursor >= earliest) {
+    if (active.has(cursor)) {
+      streak++;
+    } else if (first) {
+      // kuluva viikko vielä kesken — armonaika, ei katkaise eikä kuluta suojaa
+    } else if (!shieldUsed) {
+      shieldUsed = true;            // yksi väliin jäänyt viikko suojataan
+    } else {
+      break;                       // toinen peräkkäinen aukko katkaisee putken
+    }
+    first = false;
     cursor = addDaysISO(cursor, -7);
-    if (!weeks.has(cursor)) return 0;
   }
-  let n = 0;
-  while (weeks.has(cursor)) { n++; cursor = addDaysISO(cursor, -7); }
-  return n;
+  return { streak, shieldUsed };
 }
+function weeklyStreak() { return streakInfo().streak; }
 
 const ACH_TRACKS = [
   { key: 'count',  icon: '🎯',  unit: 'treeniä',      tiers: [10, 25, 50, 100, 200, 365] },
@@ -2068,13 +2079,14 @@ function celebrate(opts = {}) {
        Käyttää samaa weeklyStreak()-laskuria kuin ennätyskortti. ---- */
 function computeStreak() {
   const trainedThisWeek = lastAll.some(e => mondayOfISO(e.date) === weekRangeISO().mondayISO);
-  return { streak: weeklyStreak(), trainedThisWeek };
+  const { streak, shieldUsed } = streakInfo();
+  return { streak, trainedThisWeek, shieldUsed };
 }
 function renderStreak() {
   const el = document.getElementById('streakBanner');
   if (!el) return;
   el.hidden = false;
-  const { streak, trainedThisWeek } = computeStreak();
+  const { streak, trainedThisWeek, shieldUsed } = computeStreak();
   if (streak < 2) {
     el.className = 'streak-banner start';
     if (streak === 1 && trainedThisWeek) {
@@ -2086,11 +2098,61 @@ function renderStreak() {
   }
   if (trainedThisWeek) {
     el.className = 'streak-banner active';
-    el.innerHTML = `<span class="streak-fire">🔥</span><div class="streak-text"><b>${streak} viikkoa putkeen!</b><span>Hienoa — jatka myös ensi viikolla.</span></div>`;
+    const extra = shieldUsed
+      ? '🛡️ Yksi väliviikko suojattu — putki säilyi.'
+      : 'Hienoa — jatka myös ensi viikolla.';
+    el.innerHTML = `<span class="streak-fire">🔥</span><div class="streak-text"><b>${streak} viikkoa putkeen!</b><span>${extra}</span></div>`;
   } else {
     el.className = 'streak-banner risk';
-    el.innerHTML = `<span class="streak-fire">🔥</span><div class="streak-text"><b>${streak} viikkoa putkessa</b><span>Treenaa tällä viikolla, niin putki jatkuu — älä katkaise!</span></div>`;
+    const extra = shieldUsed
+      ? 'Suoja on jo käytössä — treenaa tällä viikolla, ettei putki katkea!'
+      : 'Treenaa tällä viikolla. Jos väliin jää yksi viikko, suoja pelastaa putken kerran.';
+    el.innerHTML = `<span class="streak-fire">🔥</span><div class="streak-text"><b>${streak} viikkoa putkessa</b><span>${extra}</span></div>`;
   }
+}
+function heatLevel(min) {
+  if (min <= 0) return 0;
+  if (min < 30) return 1;
+  if (min < 60) return 2;
+  if (min < 120) return 3;
+  return 4;
+}
+function renderHeatmap() {
+  const card = document.getElementById('calHeatmap');
+  if (!card) return;
+  card.hidden = false;
+  if (!lastAll.length) {
+    card.innerHTML = `<div class="sec-head"><h2>Treenikalenteri</h2></div>
+      <div class="coach-empty">Kirjaa ensimmäinen treeni, niin ruudukko alkaa täyttyä.</div>`;
+    return;
+  }
+  const WEEKS = 18;
+  const mins = {};
+  lastAll.forEach(e => { mins[e.date] = (mins[e.date] || 0) + e.duration; });
+  const today = todayISO();
+  const startMon = addDaysISO(weekRangeISO().mondayISO, -7 * (WEEKS - 1));
+  let cols = '';
+  for (let w = 0; w < WEEKS; w++) {
+    const weekMon = addDaysISO(startMon, 7 * w);
+    let cells = '';
+    for (let dRow = 0; dRow < 7; dRow++) {
+      const dISO = addDaysISO(weekMon, dRow);
+      const future = dISO > today;
+      const m = mins[dISO] || 0;
+      const lvl = heatLevel(m);
+      const title = future ? '' : `${fmtDateShort(dISO)} · ${m} min`;
+      cells += `<span class="hm-cell ${future ? 'hm-future' : 'l' + lvl}"${title ? ` title="${title}"` : ''}></span>`;
+    }
+    cols += `<div class="hm-col">${cells}</div>`;
+  }
+  const labels = `<div class="hm-labels"><span>Ma</span><span></span><span>Ke</span><span></span><span>Pe</span><span></span><span>Su</span></div>`;
+  const legend = `<div class="heatmap-legend"><span>vähemmän</span>`
+    + `<span class="hm-cell l0"></span><span class="hm-cell l1"></span><span class="hm-cell l2"></span><span class="hm-cell l3"></span><span class="hm-cell l4"></span>`
+    + `<span>enemmän</span></div>`;
+  card.innerHTML = `
+    <div class="sec-head"><h2>Treenikalenteri</h2><span class="hint">viim. ${WEEKS} vk</span></div>
+    <div class="heatmap-wrap"><div class="heatmap">${labels}${cols}</div></div>
+    ${legend}`;
 }
 function renderBoostBanner() {
   const el = document.getElementById('boostBanner');
