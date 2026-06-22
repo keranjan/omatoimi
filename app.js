@@ -655,6 +655,7 @@ let selectedCat = CATEGORIES[0].id;
 let currentGoals = [];               // [{ category, hours }]
 let myChallenges = [];               // joukkueen haasteet (valmentajan asettamat)
 let calEvents = [];                  // joukkueen kalenteritapahtumat (iCal-tilaus)
+let questDefs = [];                  // kuluvan viikon viikkotehtävät
 let myCompletions = new Set();       // tällä viikolla suoritetut kertasuoritus-haasteet
 let myEncouragements = [];           // valmentajan kannustukset
 let goalSetupCat = null;             // lisäyslomakkeessa valittu kategoria
@@ -736,7 +737,7 @@ function renderPeriodSelect(all) {
 }
 
 async function renderAll() {
-  const [all, goals, tw, reactions, footballs, fcfg, boosts, tgxp] = await Promise.all([
+  const [all, goals, tw, reactions, footballs, fcfg, boosts, tgxp, quests] = await Promise.all([
     store.getEntries(),
     goalStore.get(),
     loadTeamWeek(),
@@ -745,6 +746,7 @@ async function renderAll() {
     loadFootballCfg(),
     loadBoostPeriods(),
     loadTeamGoalXp(),
+    loadQuests(),
     refreshShopState(),
   ]);
   lastAll = all;
@@ -755,6 +757,7 @@ async function renderAll() {
   footballCfg = fcfg;
   boostPeriods = boosts;
   teamGoalXpRows = tgxp;
+  questDefs = quests;
   renderPeriodSelect(all);
   const isAll = selectedPeriod === 'all';
   const periodEntries = isAll ? all : all.filter(e => monthKey(e.date) === selectedPeriod);
@@ -810,6 +813,7 @@ async function renderAll() {
   renderFootballs();
   refreshLeaderboard();
   renderStreak();
+  renderQuests();
   renderHeatmap();
   renderBoostBanner();
   renderSettings();
@@ -1704,11 +1708,13 @@ function renderFootballs() {
     <div class="ball-breakdown">
       <div class="ball-chip"><span>Harjoituksista</span><b>${fmtBalls(myFootballs.session)}</b></div>
       <div class="ball-chip"><span>Haasteista</span><b>${fmtBalls(myFootballs.challenge)}</b></div>
+      ${myFootballs.quest > 0 ? `<div class="ball-chip"><span>Viikkotehtävistä</span><b>${fmtBalls(myFootballs.quest)}</b></div>` : ''}
       ${spentLine}
     </div>
     <button class="btn ball-shop-btn" id="ballShopBtn" type="button">Avaa kauppa — käytä jalkapallosi →</button>
     <div class="ball-how">
       <div class="ball-how-title">Näin keräät lisää</div>
+      <div class="ball-how-row"><span>Harjoitus väh. ${Math.floor(T / 2)} min</span><b>+25 ⚽</b></div>
       <div class="ball-how-row"><span>Harjoitus väh. ${T} min</span><b>+50 ⚽</b></div>
       <div class="ball-how-row"><span>Harjoitus väh. ${2 * T} min</span><b>+120 ⚽</b></div>
       <div class="ball-how-row"><span>Harjoitus väh. ${3 * T} min</span><b>+200 ⚽</b></div>
@@ -1723,10 +1729,14 @@ function renderFootballs() {
 const fmtBalls = n => (n || 0).toLocaleString('fi-FI');
 async function loadFootballEvents() {
   const { data, error } = await sb.from('football_events').select('amount, source');
-  if (error) { console.error(error); return { total: 0, session: 0, challenge: 0 }; }
-  let session = 0, challenge = 0;
-  data.forEach(r => { if (r.source === 'challenge') challenge += r.amount; else session += r.amount; });
-  return { total: session + challenge, session, challenge };
+  if (error) { console.error(error); return { total: 0, session: 0, challenge: 0, quest: 0 }; }
+  let session = 0, challenge = 0, quest = 0;
+  data.forEach(r => {
+    if (r.source === 'challenge') challenge += r.amount;
+    else if (r.source === 'quest') quest += r.amount;
+    else session += r.amount;
+  });
+  return { total: session + challenge + quest, session, challenge, quest };
 }
 async function loadFootballCfg() {
   if (!currentUser || !currentUser.team_id) return { threshold: 30, cap: 400 };
@@ -2162,6 +2172,70 @@ function renderHeatmap() {
     <div class="sec-head"><h2>Treenikalenteri</h2><span class="hint">viim. ${WEEKS} vk</span></div>
     <div class="heatmap-wrap"><div class="heatmap">${labels}${cols}</div></div>
     ${legend}`;
+}
+async function loadQuests() {
+  const { data, error } = await sb.rpc('weekly_quests');
+  if (error) { console.error(error); return []; }
+  return data || [];
+}
+function questProgress(q) {
+  const { mondayISO, sundayISO } = weekRangeISO();
+  const wk = lastAll.filter(e => e.date >= mondayISO && e.date <= sundayISO);
+  if (q.kind === 'sessions') return wk.length;
+  if (q.kind === 'total_min') return wk.reduce((s, e) => s + e.duration, 0);
+  if (q.kind === 'category_min') return wk.filter(e => e.category === q.category).reduce((s, e) => s + e.duration, 0);
+  if (q.kind === 'single_min') return wk.reduce((m, e) => Math.max(m, e.duration), 0);
+  return 0;
+}
+function renderQuests() {
+  const card = document.getElementById('questCard');
+  if (!card) return;
+  if (!questDefs.length) { card.hidden = true; return; }
+  card.hidden = false;
+  const rows = questDefs.map(q => {
+    const prog = questProgress(q);
+    const done = prog >= q.target;
+    const pct = Math.max(0, Math.min(1, prog / q.target));
+    const unit = q.kind === 'sessions' ? '' : ' min';
+    const progText = `${Math.min(prog, q.target)}${unit} / ${q.target}${unit}`;
+    let action;
+    if (q.claimed) {
+      action = `<span class="quest-done">✓ Lunastettu</span>`;
+    } else if (done) {
+      action = `<button class="btn quest-claim" data-quest="${q.id}" type="button">Lunasta +${fmtBalls(q.reward)} ⚽</button>`;
+    } else {
+      action = `<span class="quest-reward">+${fmtBalls(q.reward)} ⚽</span>`;
+    }
+    return `
+      <div class="quest-row${done ? ' is-done' : ''}">
+        <div class="quest-top"><span class="quest-label">${escapeHtml(q.label)}</span>${action}</div>
+        <div class="quest-bar"><div class="quest-bar-fill" style="width:${pct * 100}%"></div></div>
+        <div class="quest-prog">${progText}</div>
+      </div>`;
+  }).join('');
+  card.innerHTML = `
+    <div class="sec-head"><h2>Viikkotehtävät</h2><span class="hint">vaihtuvat viikoittain</span></div>
+    <div class="quest-list">${rows}</div>`;
+  card.querySelectorAll('.quest-claim').forEach(b => {
+    b.onclick = () => claimQuest(b.dataset.quest, b);
+  });
+}
+async function claimQuest(id, btn) {
+  if (btn) { btn.disabled = true; btn.textContent = 'Lunastetaan…'; }
+  const { data, error } = await sb.rpc('claim_quest', { p_quest_id: id });
+  if (error || !data || data.ok === false) {
+    alert((data && data.error) || (error && error.message) || 'Lunastus ei onnistunut');
+    if (btn) { btn.disabled = false; }
+    questDefs = await loadQuests();
+    renderQuests();
+    return;
+  }
+  if (typeof celebrate === 'function') celebrate();
+  questDefs = await loadQuests();
+  myFootballs = await loadFootballEvents();
+  renderQuests();
+  renderFootballs();
+  refreshLeaderboard();
 }
 function renderBoostBanner() {
   const el = document.getElementById('boostBanner');

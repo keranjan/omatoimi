@@ -673,6 +673,18 @@
   .heatmap-legend { display: flex; align-items: center; gap: 4px; margin-top: 10px; font-size: 11px; color: var(--ink-soft); }
   .heatmap-legend .hm-cell { width: 12px; height: 12px; }
 
+  /* Viikkotehtävät */
+  .quest-list { display: flex; flex-direction: column; gap: 14px; margin-top: 6px; }
+  .quest-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 6px; }
+  .quest-label { font-size: 13.5px; font-weight: 600; color: var(--ink); }
+  .quest-reward { font-size: 12.5px; font-weight: 700; color: var(--ink-soft); white-space: nowrap; }
+  .quest-done { font-size: 12.5px; font-weight: 700; color: var(--brand); white-space: nowrap; }
+  .quest-claim { width: auto; padding: 7px 13px; font-size: 13px; white-space: nowrap; }
+  .quest-bar { height: 8px; background: var(--line); border-radius: 999px; overflow: hidden; }
+  .quest-bar-fill { height: 100%; background: var(--brand); border-radius: 999px; transition: width 0.4s ease; }
+  .quest-row.is-done .quest-bar-fill { background: var(--accent); }
+  .quest-prog { font-size: 11.5px; color: var(--ink-faint); margin-top: 4px; }
+
   /* Tehostejaksot (valmentaja) */
   .boost-block { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line); }
   .boost-list { display: flex; flex-direction: column; gap: 7px; margin: 8px 0 4px; }
