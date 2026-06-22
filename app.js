@@ -1529,6 +1529,10 @@ function renderLevel() {
   const fill = card.querySelector('.lvl-bar-fill');
   const pct = parseFloat(fill.dataset.pct);
   requestAnimationFrame(() => { fill.style.width = (pct * 100) + '%'; });
+  [...card.classList].forEach(c => { if (c.indexOf('pbg-') === 0) card.classList.remove(c); });
+  const bgId = currentUser ? currentUser.cos_profile_bg : null;
+  const bg = bgId ? cosItem(bgId) : null;
+  if (bg && bg.type === 'profile_bg') card.classList.add('pbg-' + bg.value);
 }
 
 /* Kiiltävät premium-koristeet (metalli/jalokivi) — tunnistetaan id:n perusteella */
@@ -3294,9 +3298,9 @@ function renderCoachTeams() {  const view = document.getElementById('coachTeamsV
             <input type="number" class="team-goal-input" data-team="${t.id}" min="0" step="0.5" placeholder="tuntia / viikko (tyhjä = poista)" value="${t.weekly_goal_hours != null ? t.weekly_goal_hours : ''}">
             <button class="btn team-goal-btn" data-team="${t.id}" type="button">Tallenna</button>
           </div>
-          <div class="ch-sub-label">Palkinto kun tavoite täyttyy — jokaiselle viikon osallistujalle (≥1 treeni). Lisäksi kiinteä +100 XP.</div>
+          <div class="ch-sub-label">Jalkapallopalkinto (⚽) kun tavoite täyttyy — jokaiselle viikon osallistujalle (≥1 treeni). Oletus 150 ⚽. Lisäksi kiinteä +100 XP.</div>
           <div class="coach-add-row">
-            <input type="number" class="team-goal-reward-input" data-team="${t.id}" min="0" step="10" placeholder="jalkapalloa / pelaaja" value="${t.team_goal_reward != null ? t.team_goal_reward : 150}">
+            <input type="number" class="team-goal-reward-input" data-team="${t.id}" min="0" step="10" placeholder="jalkapalloa / pelaaja (oletus 150)" value="${t.team_goal_reward != null ? t.team_goal_reward : 150}">
             <button class="btn team-goal-reward-btn" data-team="${t.id}" type="button">Tallenna palkinto</button>
           </div>
           <div class="coach-msg team-goal-msg" data-team="${t.id}"></div>
