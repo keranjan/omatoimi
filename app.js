@@ -656,6 +656,8 @@ let currentGoals = [];               // [{ category, hours }]
 let myChallenges = [];               // joukkueen haasteet (valmentajan asettamat)
 let calEvents = [];                  // joukkueen kalenteritapahtumat (iCal-tilaus)
 let questDefs = [];                  // kuluvan viikon viikkotehtävät
+let challengeDoneCount = 0;          // suoritetut haasteet yhteensä (saavutukset)
+let questClaimCount = 0;             // lunastetut viikkotehtävät yhteensä (saavutukset)
 let activeEvent = null;              // käynnissä oleva kausitapahtuma
 let myCompletions = new Set();       // tällä viikolla suoritetut kertasuoritus-haasteet
 let myEncouragements = [];           // valmentajan kannustukset
@@ -738,7 +740,7 @@ function renderPeriodSelect(all) {
 }
 
 async function renderAll() {
-  const [all, goals, tw, reactions, footballs, fcfg, boosts, tgxp, quests, evt] = await Promise.all([
+  const [all, goals, tw, reactions, footballs, fcfg, boosts, tgxp, quests, evt, chDone, qClaims] = await Promise.all([
     store.getEntries(),
     goalStore.get(),
     loadTeamWeek(),
@@ -749,6 +751,8 @@ async function renderAll() {
     loadTeamGoalXp(),
     loadQuests(),
     loadActiveEvent(),
+    loadChallengeDoneCount(),
+    loadQuestClaimCount(),
     refreshShopState(),
   ]);
   lastAll = all;
@@ -761,6 +765,8 @@ async function renderAll() {
   teamGoalXpRows = tgxp;
   questDefs = quests;
   activeEvent = evt;
+  challengeDoneCount = chDone;
+  questClaimCount = qClaims;
   renderPeriodSelect(all);
   const isAll = selectedPeriod === 'all';
   const periodEntries = isAll ? all : all.filter(e => monthKey(e.date) === selectedPeriod);
@@ -1336,6 +1342,13 @@ const ACH_TRACKS = [
   { key: 'count',  icon: '🎯',  unit: 'treeniä',      tiers: [10, 25, 50, 100, 200, 365] },
   { key: 'hours',  icon: '⏱️', unit: 'tuntia',       tiers: [10, 25, 50, 100, 200] },
   { key: 'streak', icon: '🔥',  unit: 'vko putkeen',  tiers: [2, 4, 8, 12, 26, 52] },
+  { key: 'challenges', icon: '🏆', unit: 'haastetta',       tiers: [1, 5, 10, 25, 50, 100] },
+  { key: 'quests',     icon: '📋', unit: 'viikkotehtävää',  tiers: [1, 5, 10, 25, 50] },
+  { key: 'footballs',  icon: '⚽', unit: 'jalkapalloa',     tiers: [500, 1000, 2500, 5000, 10000, 25000] },
+  { key: 'categories', icon: '🧩', unit: 'lajitaitoa',      tiers: [3, 5, 7, 9] },
+  { key: 'longest',    icon: '💪', unit: 'min kerralla',    tiers: [60, 90, 120, 180, 240] },
+  { key: 'beststreak', icon: '⚡', unit: 'vko paras putki', tiers: [2, 4, 8, 12, 26, 52] },
+  { key: 'weeks',      icon: '🗓️', unit: 'aktiivista viikkoa', tiers: [4, 12, 26, 52, 104] },
 ];
 function renderAchievements() {
   const card = document.getElementById('achieveCard');
@@ -1344,8 +1357,16 @@ function renderAchievements() {
     count: lastAll.length,
     hours: lastAll.reduce((s, e) => s + e.duration, 0) / 60,
     streak: weeklyStreak(),
+    challenges: challengeDoneCount,
+    quests: questClaimCount,
+    footballs: myFootballs ? (myFootballs.total || 0) : 0,
+    categories: new Set(lastAll.map(e => e.category)).size,
+    longest: lastAll.reduce((m, e) => Math.max(m, e.duration), 0),
+    beststreak: longestStreak(),
+    weeks: new Set(lastAll.map(e => mondayOfISO(e.date))).size,
   };
-  const fmtVal = (key, v) => key === 'hours' ? hoursShort(Math.round(v * 10) / 10) : String(Math.round(v));
+  const fmtVal = (key, v) => key === 'hours' ? hoursShort(Math.round(v * 10) / 10) : key === 'footballs' ? fmtBalls(Math.round(v)) : String(Math.round(v));
+  const fmtT = (key, t) => key === 'footballs' ? fmtBalls(t) : String(t);
   const streak = vals.streak;
   const streakHero = streak >= 1
     ? `<div class="streak-hero"><span class="streak-flame">🔥</span><span class="streak-num">${streak}</span><span class="streak-label">${streak === 1 ? 'viikko' : 'viikkoa'} putkeen</span></div>`
@@ -1360,10 +1381,10 @@ function renderAchievements() {
         <div class="ach-track-top">
           <span class="ach-icon">${tr.icon}</span>
           <span class="ach-track-label">${fmtVal(tr.key, v)} ${tr.unit}</span>
-          ${earned ? `<span class="ach-earned">🏅 ${earned}</span>` : ''}
+          ${earned ? `<span class="ach-earned">🏅 ${fmtT(tr.key, earned)}</span>` : ''}
         </div>
         ${next
-          ? `<div class="ach-bar"><div class="ach-bar-fill" style="width:${pct}%"></div></div><div class="ach-next">Seuraava merkki: ${next} ${tr.unit}</div>`
+          ? `<div class="ach-bar"><div class="ach-bar-fill" style="width:${pct}%"></div></div><div class="ach-next">Seuraava merkki: ${fmtT(tr.key, next)} ${tr.unit}</div>`
           : `<div class="ach-next ach-max">Kaikki merkit ansaittu! 🎉</div>`}
       </div>`;
   }).join('');
@@ -2190,6 +2211,16 @@ async function loadQuests() {
   const { data, error } = await sb.rpc('weekly_quests');
   if (error) { console.error(error); return []; }
   return data || [];
+}
+async function loadChallengeDoneCount() {
+  const { data, error } = await sb.from('challenge_completions').select('challenge_id');
+  if (error) { console.error(error); return 0; }
+  return (data || []).length;
+}
+async function loadQuestClaimCount() {
+  const { data, error } = await sb.from('quest_claims').select('quest_id');
+  if (error) { console.error(error); return 0; }
+  return (data || []).length;
 }
 function questProgress(q) {
   const { mondayISO, sundayISO } = weekRangeISO();
