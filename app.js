@@ -824,7 +824,7 @@ async function renderAll() {
   renderStreak();
   renderEventBanner();
   renderQuests();
-  renderHeatmap();
+  renderDrill();
   renderBoostBanner();
   renderSettings();
   renderTeamGoal();
@@ -2163,50 +2163,6 @@ function renderStreak() {
     el.innerHTML = `<span class="streak-fire">🔥</span><div class="streak-text"><b>${streak} viikkoa putkessa</b><span>${extra}</span></div>`;
   }
 }
-function heatLevel(min) {
-  if (min <= 0) return 0;
-  if (min < 30) return 1;
-  if (min < 60) return 2;
-  if (min < 120) return 3;
-  return 4;
-}
-function renderHeatmap() {
-  const card = document.getElementById('calHeatmap');
-  if (!card) return;
-  card.hidden = false;
-  if (!lastAll.length) {
-    card.innerHTML = `<div class="sec-head"><h2>Treenikalenteri</h2></div>
-      <div class="coach-empty">Kirjaa ensimmäinen treeni, niin ruudukko alkaa täyttyä.</div>`;
-    return;
-  }
-  const WEEKS = 18;
-  const mins = {};
-  lastAll.forEach(e => { mins[e.date] = (mins[e.date] || 0) + e.duration; });
-  const today = todayISO();
-  const startMon = addDaysISO(weekRangeISO().mondayISO, -7 * (WEEKS - 1));
-  let cols = '';
-  for (let w = 0; w < WEEKS; w++) {
-    const weekMon = addDaysISO(startMon, 7 * w);
-    let cells = '';
-    for (let dRow = 0; dRow < 7; dRow++) {
-      const dISO = addDaysISO(weekMon, dRow);
-      const future = dISO > today;
-      const m = mins[dISO] || 0;
-      const lvl = heatLevel(m);
-      const title = future ? '' : `${fmtDateShort(dISO)} · ${m} min`;
-      cells += `<span class="hm-cell ${future ? 'hm-future' : 'l' + lvl}"${title ? ` title="${title}"` : ''}></span>`;
-    }
-    cols += `<div class="hm-col">${cells}</div>`;
-  }
-  const labels = `<div class="hm-labels"><span>Ma</span><span></span><span>Ke</span><span></span><span>Pe</span><span></span><span>Su</span></div>`;
-  const legend = `<div class="heatmap-legend"><span>vähemmän</span>`
-    + `<span class="hm-cell l0"></span><span class="hm-cell l1"></span><span class="hm-cell l2"></span><span class="hm-cell l3"></span><span class="hm-cell l4"></span>`
-    + `<span>enemmän</span></div>`;
-  card.innerHTML = `
-    <div class="sec-head"><h2>Treenikalenteri</h2><span class="hint">viim. ${WEEKS} vk</span></div>
-    <div class="heatmap-wrap"><div class="heatmap">${labels}${cols}</div></div>
-    ${legend}`;
-}
 async function loadQuests() {
   const { data, error } = await sb.rpc('weekly_quests');
   if (error) { console.error(error); return []; }
@@ -2308,6 +2264,52 @@ function renderEventBanner() {
       <b>${escapeHtml(activeEvent.label)}</b>
       <span>${escapeHtml(activeEvent.blurb || '')}${daysLeft ? ` · ${daysLeft}` : ''}</span>
     </div>`;
+}
+const DRILLS = [
+  { name: 'Haaraputken pujottelu', cat: 'kuljetus', min: 30, desc: 'Aseta 6–8 merkkiä riviin n. metrin välein ja pujottele pallo läpi molemmilla jaloilla. 8–10 kierrosta, lisää vauhtia kun sujuu.' },
+  { name: 'Seinäsyötöt molemmilla jaloilla', cat: 'syottely', min: 30, desc: 'Syötä palloa seinään ja ota haltuun vuorotellen oikealla ja vasemmalla. 5×3 min, pidä kosketukset napakkoina.' },
+  { name: 'Viimeistely alueen reunalta', cat: 'laukaukset', min: 45, desc: 'Kuljeta pallo rangaistusalueen reunalle ja laukaise maalia kohti. 30–40 laukausta, vaihtele kulmaa ja jalkaa.' },
+  { name: 'Pallonhallinta tiukassa tilassa', cat: 'pallotaito', min: 30, desc: 'Rajaa 3×3 m alue ja pidä pallo hallussa pienin kosketuksin — käännökset ja suojaukset mukaan. 6×2 min.' },
+  { name: 'Kiihdytykset ja suunnanmuutokset', cat: 'nopeus', min: 30, desc: '10 m kiihdytys, terävä käännös ja paluu. 10–12 toistoa täydellä teholla, palautus kävellen.' },
+  { name: 'Ydintukiharjoittelu', cat: 'voima', min: 30, desc: 'Lankku, sivulankku ja vatsarutistukset kiertäen. 3 kierrosta, 40 s per liike, 20 s tauko.' },
+  { name: 'Intervallijuoksu', cat: 'kestavyys', min: 45, desc: '4×4 min reipasta juoksua, välissä 2 min kevyttä. Pidä kova mutta hallittu vauhti.' },
+  { name: 'Liikkuvuus ja venyttely', cat: 'liikkuvuus', min: 30, desc: 'Dynaaminen lämmittely + lonkkien, takareisien ja nilkkojen liikkuvuus. Pidä venytykset 20–30 s.' },
+  { name: 'Ensimmäinen kosketus ilmasta', cat: 'pallotaito', min: 30, desc: 'Heitä pallo ilmaan ja ota haltuun pehmeästi reidellä, rinnalla ja jalalla. 8×2 min.' },
+  { name: 'Pitkät ja lyhyet syötöt', cat: 'syottely', min: 45, desc: 'Vuorottele lyhyitä tarkkoja ja pitkiä ilmasyöttöjä merkkiin. 40 syöttöä molemmilla jaloilla.' },
+  { name: 'Yksi vastaan yksi -harhautukset', cat: 'kuljetus', min: 30, desc: 'Harjoittele 2–3 harhautusta merkkiä vastaan ja kiihdytä ohi. 10–12 toistoa per harhautus.' },
+  { name: 'Volley-laukaukset', cat: 'laukaukset', min: 30, desc: 'Pudota tai pomputa pallo ja laukaise ilmasta. 30 laukausta — keskity osumaan ja tasapainoon.' },
+];
+function weeklyDrill() {
+  const mon = weekRangeISO().mondayISO;
+  const idx = Math.floor(new Date(mon + 'T00:00:00').getTime() / 604800000);
+  const n = DRILLS.length;
+  return DRILLS[((idx % n) + n) % n];
+}
+function drillXp(min) { return Math.round(sessionXp(min) * boostMult(todayISO())); }
+function drillFootballs(min) {
+  const T = (footballCfg && footballCfg.threshold) || 30;
+  let base = 0;
+  if (min >= 3 * T) base = 200;
+  else if (min >= 2 * T) base = 120;
+  else if (min >= T) base = 50;
+  else if (min >= Math.floor(T / 2)) base = 25;
+  return base * boostMult(todayISO());
+}
+function renderDrill() {
+  const card = document.getElementById('drillCard');
+  if (!card) return;
+  const dr = weeklyDrill();
+  const cat = CATEGORIES.find(c => c.id === dr.cat);
+  const xp = drillXp(dr.min);
+  const balls = drillFootballs(dr.min);
+  const boosted = boostMult(todayISO()) > 1;
+  const catChip = cat ? `<span class="drill-cat"><span class="dot" style="background:${cat.color}"></span>${escapeHtml(cat.label)}</span>` : '';
+  card.innerHTML = `
+    <div class="sec-head"><h2>Viikon harjoite</h2><span class="hint">vaihtuu viikoittain</span></div>
+    <div class="drill-name">${escapeHtml(dr.name)}</div>
+    <div class="drill-meta">${catChip}<span class="drill-dur">~${dr.min} min</span></div>
+    <div class="drill-desc">${escapeHtml(dr.desc)}</div>
+    <div class="drill-reward">Kun kirjaat tämän (~${dr.min} min): <b>+${xp} XP</b> ja <b>⚽ ${fmtBalls(balls)}</b>${boosted ? ' ' + boostBadgeHtml() : ''}</div>`;
 }
 function renderBoostBanner() {
   const el = document.getElementById('boostBanner');
