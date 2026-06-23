@@ -2875,7 +2875,6 @@ async function startPlayer() {
   document.getElementById('authScreen').hidden = true;
   document.getElementById('coachWrap').hidden = true;
   document.getElementById('playerWrap').hidden = false;
-  document.getElementById('userChip').textContent = currentUser.username;
   if (!playerWired) { wirePlayerApp(); playerWired = true; }
   const [mc, cp, en] = await Promise.all([
     loadMyChallenges(),
