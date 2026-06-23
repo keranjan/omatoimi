@@ -653,6 +653,11 @@
     background: linear-gradient(135deg, rgba(197, 242, 62, 0.22), rgba(14, 94, 58, 0.12));
     border: 1px solid var(--accent);
   }
+  .boost-banner.on.upcoming {
+    background: linear-gradient(135deg, rgba(197, 242, 62, 0.12), rgba(14, 94, 58, 0.06));
+    border-style: dashed;
+  }
+  .boost-mult.boost-soon { background: var(--line); color: var(--brand); }
   .boost-mult {
     flex: 0 0 auto; font-family: 'Barlow Condensed', sans-serif; font-weight: 700;
     font-size: 26px; line-height: 1; color: var(--brand);

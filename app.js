@@ -1536,6 +1536,18 @@ function activeBoost(periods) {
   });
   return best;
 }
+/* Lähin tehostejakso joka alkaa seuraavan N päivän sisällä (ei vielä käynnissä). */
+function upcomingBoost(periods, withinDays) {
+  const today = todayISO();
+  const limit = addDaysISO(today, withinDays);
+  let best = null;
+  (periods || []).forEach(b => {
+    if (b.starts_on > today && b.starts_on <= limit) {
+      if (!best || b.starts_on < best.starts_on) best = b;
+    }
+  });
+  return best;
+}
 /* Hohtava ×N-merkki kun tehostejakso on voimassa (tyhjä jos ei). */
 function boostBadgeHtml() {
   const b = activeBoost(boostPeriods);
@@ -2315,12 +2327,25 @@ function renderBoostBanner() {
   const el = document.getElementById('boostBanner');
   if (!el) return;
   const b = activeBoost(boostPeriods);
-  if (!b) { el.hidden = true; el.className = 'boost-banner'; el.innerHTML = ''; return; }
-  el.hidden = false;
-  el.className = 'boost-banner on';
-  const name = b.label ? escapeHtml(b.label) : 'Tehostejakso';
-  const ends = fmtDateShort(b.ends_on);
-  el.innerHTML = `<span class="boost-mult">${b.multiplier}×</span><div class="boost-text"><b>${name} käynnissä!</b><span>Treeneistä ja haasteista ${b.multiplier}× XP ja jalkapallot — ${ends} asti.</span></div>`;
+  if (b) {
+    el.hidden = false;
+    el.className = 'boost-banner on';
+    const name = b.label ? escapeHtml(b.label) : 'Tehostejakso';
+    const ends = fmtDateShort(b.ends_on);
+    el.innerHTML = `<span class="boost-mult">${b.multiplier}×</span><div class="boost-text"><b>${name} käynnissä!</b><span>Treeneistä ja haasteista ${b.multiplier}× XP ja jalkapallot — ${ends} asti.</span></div>`;
+    return;
+  }
+  const up = upcomingBoost(boostPeriods, 3);
+  if (up) {
+    el.hidden = false;
+    el.className = 'boost-banner on upcoming';
+    const name = up.label ? escapeHtml(up.label) : 'Tehostejakso';
+    const days = Math.round((new Date(up.starts_on + 'T00:00:00') - new Date(todayISO() + 'T00:00:00')) / 86400000);
+    const when = days <= 1 ? 'huomenna' : `${days} päivän päästä`;
+    el.innerHTML = `<span class="boost-mult boost-soon">${up.multiplier}×</span><div class="boost-text"><b>${name} tulossa!</b><span>Alkaa ${when} (${fmtDateShort(up.starts_on)}) — säästä haasteet siihen, niin saat ${up.multiplier}× XP ja jalkapallot.</span></div>`;
+    return;
+  }
+  el.hidden = true; el.className = 'boost-banner'; el.innerHTML = '';
 }
 /* ---- Ilmoitukset ---- */
 let notifPref = false;
