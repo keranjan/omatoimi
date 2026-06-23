@@ -87,10 +87,8 @@
     <span class="ph-chevron">›</span>
   </button>
 
-  <!-- Putki (peräkkäiset treenipäivät) -->
-  <div id="streakBanner" class="streak-banner" hidden></div>
-  <div id="boostBanner" class="boost-banner" hidden></div>
-  <div id="eventBanner" class="event-banner" hidden></div>
+  <!-- Tilarivi: putki, buusti ja tapahtuma kompaktisti -->
+  <div id="statusStrip" class="status-strip" hidden></div>
 
   <!-- Kirjauslomake -->
   <div class="card">
@@ -118,23 +116,23 @@
     <button class="btn" id="saveBtn">Tallenna kirjaus</button>
   </div>
 
-  <!-- Valmentajan kannustukset -->
-  <div class="card" id="coachMsgCard" hidden></div>
-
-  <!-- Tavoite (viikkotavoitteet) -->
+  <!-- TÄMÄ VIIKKO -->
+  <div class="zone-head">Tämä viikko</div>
   <div class="card" id="goalCard"></div>
-
-  <!-- Viikkotehtävät (vaihtuvat viikoittain) -->
   <div class="card" id="questCard" hidden></div>
-
-  <!-- Viikon harjoite (vaihtuu viikoittain) -->
   <div class="card" id="drillCard"></div>
 
-  <!-- Joukkueen haaste -->
+  <!-- JOUKKUE -->
+  <div class="zone-head" id="zoneTeam" hidden>Joukkue</div>
+  <div class="card" id="coachMsgCard" hidden></div>
   <div class="card" id="challengeCard" hidden></div>
-
-  <!-- Joukkueen yhteinen viikkotavoite -->
   <div class="card" id="teamGoalCard" hidden></div>
+
+  <!-- HISTORIA (avattava, kiinni oletuksena) -->
+  <button class="hist-toggle" id="histToggle" type="button" aria-expanded="false" aria-controls="histBody">
+    <span>Historia ja tilastot</span><span class="hist-chevron">▾</span>
+  </button>
+  <div id="histBody" hidden>
 
   <!-- Hero: valitun jakson yhteenveto -->
   <div class="card">
@@ -185,6 +183,8 @@
     </div>
     <div class="log" id="log"></div>
   </div>
+
+  </div><!-- /histBody -->
 
   </div><!-- /viewDash -->
 

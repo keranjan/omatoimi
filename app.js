@@ -821,13 +821,12 @@ async function renderAll() {
   renderProfileHeader();
   renderFootballs();
   refreshLeaderboard();
-  renderStreak();
-  renderEventBanner();
+  renderStatusStrip();
   renderQuests();
   renderDrill();
-  renderBoostBanner();
   renderSettings();
   renderTeamGoal();
+  updateZoneHeaders();
   renderCalendar();
   renderDayPanel();
 
@@ -2147,33 +2146,43 @@ function computeStreak() {
   const { streak, shieldUsed } = streakInfo();
   return { streak, trainedThisWeek, shieldUsed };
 }
-function renderStreak() {
-  const el = document.getElementById('streakBanner');
+function renderStatusStrip() {
+  const el = document.getElementById('statusStrip');
   if (!el) return;
-  el.hidden = false;
+  const chips = [];
   const { streak, trainedThisWeek, shieldUsed } = computeStreak();
-  if (streak < 2) {
-    el.className = 'streak-banner start';
-    if (streak === 1 && trainedThisWeek) {
-      el.innerHTML = `<span class="streak-fire">⚡</span><div class="streak-text"><b>Hyvä alku!</b><span>Treenaa myös ensi viikolla, niin putki käynnistyy.</span></div>`;
-    } else {
-      el.innerHTML = `<span class="streak-fire">⚡</span><div class="streak-text"><b>Aloita putki tällä viikolla</b><span>Treenaa vähintään kerran viikossa, niin putki lähtee käyntiin.</span></div>`;
-    }
-    return;
+  if (streak >= 2) {
+    const cls = trainedThisWeek ? 's-fire' : 's-fire s-risk';
+    const txt = trainedThisWeek ? `${streak} vk putkeen` : `${streak} vk — treenaa!`;
+    const sh = shieldUsed ? ' 🛡️' : '';
+    chips.push(`<span class="s-chip ${cls}" title="Treeniputki">🔥 ${txt}${sh}</span>`);
   }
-  if (trainedThisWeek) {
-    el.className = 'streak-banner active';
-    const extra = shieldUsed
-      ? '🛡️ Yksi väliviikko suojattu — putki säilyi.'
-      : 'Hienoa — jatka myös ensi viikolla.';
-    el.innerHTML = `<span class="streak-fire">🔥</span><div class="streak-text"><b>${streak} viikkoa putkeen!</b><span>${extra}</span></div>`;
+  const ab = activeBoost(boostPeriods);
+  if (ab) {
+    chips.push(`<span class="s-chip s-boost" title="Tehostejakso käynnissä">⚡ ${ab.multiplier}× käynnissä</span>`);
   } else {
-    el.className = 'streak-banner risk';
-    const extra = shieldUsed
-      ? 'Suoja on jo käytössä — treenaa tällä viikolla, ettei putki katkea!'
-      : 'Treenaa tällä viikolla. Jos väliin jää yksi viikko, suoja pelastaa putken kerran.';
-    el.innerHTML = `<span class="streak-fire">🔥</span><div class="streak-text"><b>${streak} viikkoa putkessa</b><span>${extra}</span></div>`;
+    const up = upcomingBoost(boostPeriods, 3);
+    if (up) {
+      const days = Math.round((new Date(up.starts_on + 'T00:00:00') - new Date(todayISO() + 'T00:00:00')) / 86400000);
+      const when = days <= 1 ? 'huom.' : `${days} pv`;
+      chips.push(`<span class="s-chip s-boost s-soon" title="Tehostejakso alkaa pian">⚡ ${up.multiplier}× tulossa ${when}</span>`);
+    }
   }
+  if (activeEvent) {
+    chips.push(`<span class="s-chip s-evt" title="${escapeHtml(activeEvent.blurb || '')}">${escapeHtml(activeEvent.emoji || '🎉')} ${escapeHtml(activeEvent.label)}</span>`);
+  }
+  if (!chips.length) { el.hidden = true; el.innerHTML = ''; return; }
+  el.hidden = false;
+  el.innerHTML = chips.join('');
+}
+function updateZoneHeaders() {
+  const z = document.getElementById('zoneTeam');
+  if (!z) return;
+  const any = ['coachMsgCard', 'challengeCard', 'teamGoalCard'].some(id => {
+    const c = document.getElementById(id);
+    return c && !c.hidden;
+  });
+  z.hidden = !any;
 }
 async function loadQuests() {
   const { data, error } = await sb.rpc('weekly_quests');
@@ -2258,25 +2267,6 @@ async function loadActiveEvent() {
   if (error) { console.error(error); return null; }
   return (data && data[0]) || null;
 }
-function renderEventBanner() {
-  const el = document.getElementById('eventBanner');
-  if (!el) return;
-  if (!activeEvent) { el.hidden = true; el.className = 'event-banner'; return; }
-  el.hidden = false;
-  el.className = 'event-banner on';
-  const ends = activeEvent.ends_on;
-  let daysLeft = '';
-  try {
-    const d = Math.round((new Date(ends + 'T00:00:00') - new Date(todayISO() + 'T00:00:00')) / 86400000);
-    if (d >= 0) daysLeft = d === 0 ? 'päättyy tänään' : `${d} pv jäljellä`;
-  } catch (e) {}
-  el.innerHTML = `
-    <span class="event-emoji">${escapeHtml(activeEvent.emoji || '🎉')}</span>
-    <div class="event-text">
-      <b>${escapeHtml(activeEvent.label)}</b>
-      <span>${escapeHtml(activeEvent.blurb || '')}${daysLeft ? ` · ${daysLeft}` : ''}</span>
-    </div>`;
-}
 const DRILLS = [
   { name: 'Haaraputken pujottelu', cat: 'kuljetus', min: 30, desc: 'Aseta 6–8 merkkiä riviin n. metrin välein ja pujottele pallo läpi molemmilla jaloilla. 8–10 kierrosta, lisää vauhtia kun sujuu.' },
   { name: 'Seinäsyötöt molemmilla jaloilla', cat: 'syottely', min: 30, desc: 'Syötä palloa seinään ja ota haltuun vuorotellen oikealla ja vasemmalla. 5×3 min, pidä kosketukset napakkoina.' },
@@ -2322,30 +2312,6 @@ function renderDrill() {
     <div class="drill-meta">${catChip}<span class="drill-dur">~${dr.min} min</span></div>
     <div class="drill-desc">${escapeHtml(dr.desc)}</div>
     <div class="drill-reward">Kun kirjaat tämän (~${dr.min} min): <b>+${xp} XP</b> ja <b>⚽ ${fmtBalls(balls)}</b>${boosted ? ' ' + boostBadgeHtml() : ''}</div>`;
-}
-function renderBoostBanner() {
-  const el = document.getElementById('boostBanner');
-  if (!el) return;
-  const b = activeBoost(boostPeriods);
-  if (b) {
-    el.hidden = false;
-    el.className = 'boost-banner on';
-    const name = b.label ? escapeHtml(b.label) : 'Tehostejakso';
-    const ends = fmtDateShort(b.ends_on);
-    el.innerHTML = `<span class="boost-mult">${b.multiplier}×</span><div class="boost-text"><b>${name} käynnissä!</b><span>Treeneistä ja haasteista ${b.multiplier}× XP ja jalkapallot — ${ends} asti.</span></div>`;
-    return;
-  }
-  const up = upcomingBoost(boostPeriods, 3);
-  if (up) {
-    el.hidden = false;
-    el.className = 'boost-banner on upcoming';
-    const name = up.label ? escapeHtml(up.label) : 'Tehostejakso';
-    const days = Math.round((new Date(up.starts_on + 'T00:00:00') - new Date(todayISO() + 'T00:00:00')) / 86400000);
-    const when = days <= 1 ? 'huomenna' : `${days} päivän päästä`;
-    el.innerHTML = `<span class="boost-mult boost-soon">${up.multiplier}×</span><div class="boost-text"><b>${name} tulossa!</b><span>Alkaa ${when} (${fmtDateShort(up.starts_on)}) — säästä haasteet siihen, niin saat ${up.multiplier}× XP ja jalkapallot.</span></div>`;
-    return;
-  }
-  el.hidden = true; el.className = 'boost-banner'; el.innerHTML = '';
 }
 /* ---- Ilmoitukset ---- */
 let notifPref = false;
@@ -2831,6 +2797,14 @@ async function save() {
 function wirePlayerApp() {
   updateDateBtn();
   document.getElementById('saveBtn').onclick = save;
+  const histT = document.getElementById('histToggle');
+  if (histT) histT.onclick = () => {
+    const body = document.getElementById('histBody');
+    const willOpen = body.hidden;
+    body.hidden = !willOpen;
+    histT.setAttribute('aria-expanded', String(willOpen));
+    histT.classList.toggle('open', willOpen);
+  };
   document.getElementById('dateBtn').onclick = e => {
     e.stopPropagation();
     const pop = document.getElementById('datePop');
