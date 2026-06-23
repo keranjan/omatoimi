@@ -2149,31 +2149,51 @@ function computeStreak() {
 function renderStatusStrip() {
   const el = document.getElementById('statusStrip');
   if (!el) return;
+  const detail = document.getElementById('statusDetail');
+  if (detail) { detail.hidden = true; detail.textContent = ''; }
   const chips = [];
   const { streak, trainedThisWeek, shieldUsed } = computeStreak();
   if (streak >= 2) {
     const cls = trainedThisWeek ? 's-fire' : 's-fire s-risk';
     const txt = trainedThisWeek ? `${streak} vk putkeen` : `${streak} vk — treenaa!`;
     const sh = shieldUsed ? ' 🛡️' : '';
-    chips.push(`<span class="s-chip ${cls}" title="Treeniputki">🔥 ${txt}${sh}</span>`);
+    const info = `Treeniputki: ${streak} viikkoa peräkkäin, joina olet treenannut vähintään kerran.`
+      + (shieldUsed ? ' 🛡️ Yksi väliin jäänyt viikko on suojattu — putki säilyi.' : ' Yksi väliin jäänyt viikko ei katkaise putkea.')
+      + (trainedThisWeek ? '' : ' Muista treenata vielä tällä viikolla, ettei putki katkea!');
+    chips.push(`<button type="button" class="s-chip ${cls}" data-info="${escapeHtml(info)}">🔥 ${txt}${sh}</button>`);
   }
   const ab = activeBoost(boostPeriods);
   if (ab) {
-    chips.push(`<span class="s-chip s-boost" title="Tehostejakso käynnissä">⚡ ${ab.multiplier}× käynnissä</span>`);
+    const info = `Tehostejakso käynnissä: saat treeneistä ja haasteista ${ab.multiplier}× XP ja jalkapallot ${fmtDateShort(ab.ends_on)} asti.`;
+    chips.push(`<button type="button" class="s-chip s-boost" data-info="${escapeHtml(info)}">⚡ ${ab.multiplier}× käynnissä</button>`);
   } else {
     const up = upcomingBoost(boostPeriods, 3);
     if (up) {
       const days = Math.round((new Date(up.starts_on + 'T00:00:00') - new Date(todayISO() + 'T00:00:00')) / 86400000);
       const when = days <= 1 ? 'huom.' : `${days} pv`;
-      chips.push(`<span class="s-chip s-boost s-soon" title="Tehostejakso alkaa pian">⚡ ${up.multiplier}× tulossa ${when}</span>`);
+      const whenLong = days <= 1 ? 'huomenna' : `${days} päivän päästä`;
+      const info = `Tehostejakso alkaa ${whenLong} (${fmtDateShort(up.starts_on)}): silloin saat ${up.multiplier}× XP ja jalkapallot. Säästä haasteet siihen!`;
+      chips.push(`<button type="button" class="s-chip s-boost s-soon" data-info="${escapeHtml(info)}">⚡ ${up.multiplier}× tulossa ${when}</button>`);
     }
   }
   if (activeEvent) {
-    chips.push(`<span class="s-chip s-evt" title="${escapeHtml(activeEvent.blurb || '')}">${escapeHtml(activeEvent.emoji || '🎉')} ${escapeHtml(activeEvent.label)}</span>`);
+    const info = `Kausitapahtuma${activeEvent.blurb ? ': ' + activeEvent.blurb : '.'} Kaupassa on rajoitetun ajan kausikosmetiikkaa. Päättyy ${fmtDateShort(activeEvent.ends_on)}.`;
+    chips.push(`<button type="button" class="s-chip s-evt" data-info="${escapeHtml(info)}">${escapeHtml(activeEvent.emoji || '🎉')} ${escapeHtml(activeEvent.label)}</button>`);
   }
   if (!chips.length) { el.hidden = true; el.innerHTML = ''; return; }
   el.hidden = false;
   el.innerHTML = chips.join('');
+  el.querySelectorAll('.s-chip').forEach(btn => {
+    btn.onclick = () => {
+      if (!detail) return;
+      const wasOpen = btn.classList.contains('open');
+      el.querySelectorAll('.s-chip').forEach(b => b.classList.remove('open'));
+      if (wasOpen) { detail.hidden = true; detail.textContent = ''; return; }
+      btn.classList.add('open');
+      detail.textContent = btn.getAttribute('data-info') || '';
+      detail.hidden = false;
+    };
+  });
 }
 function updateZoneHeaders() {
   const z = document.getElementById('zoneTeam');
@@ -3228,6 +3248,40 @@ function kudosSection(p) {
       <div class="kudos-last">${last ? `Viimeksi: "${escapeHtml(last.text)}" (${timeAgo(last.created_at)})` : ''}</div>
     </div>`;
 }
+const CHEAT = { dayMaxMin: 300, maxDur: 240, manySessions: 5 };
+/* Etsii pelaajan epätavalliset kirjauspäivät (mahdollinen liioittelu/huijaus). */
+function playerAnomalies(userId) {
+  const byDate = {};
+  coachLogs.filter(l => l.user_id === userId).forEach(l => {
+    (byDate[l.date] = byDate[l.date] || []).push(l);
+  });
+  const flags = [];
+  Object.keys(byDate).forEach(date => {
+    const logs = byDate[date];
+    const total = logs.reduce((s, l) => s + l.duration, 0);
+    const maxCount = logs.filter(l => l.duration >= CHEAT.maxDur).length;
+    const reasons = [];
+    if (maxCount >= 2) reasons.push(`${maxCount} × ${CHEAT.maxDur} min samana päivänä`);
+    if (total > CHEAT.dayMaxMin) reasons.push(`yhteensä ${fmtHours(total)} yhtenä päivänä`);
+    if (logs.length >= CHEAT.manySessions) reasons.push(`${logs.length} kirjausta samana päivänä`);
+    if (reasons.length) flags.push({ date, total, count: logs.length, reasons });
+  });
+  flags.sort((a, b) => b.date.localeCompare(a.date));
+  return flags;
+}
+function flaggedPlayers() {
+  return coachPlayers.filter(p => coachTeams.some(t => t.id === p.team_id) && playerAnomalies(p.id).length);
+}
+function cheatSummaryCard() {
+  const flagged = flaggedPlayers();
+  if (!flagged.length) return '';
+  const chips = flagged.map(p => `<span class="cheat-chip">⚠️ ${escapeHtml(p.username)}</span>`).join('');
+  return `<div class="card cheat-card">
+    <div class="sec-head"><h2>⚠️ Tarkista kirjaukset</h2><span class="hint">${flagged.length} ${flagged.length === 1 ? 'pelaaja' : 'pelaajaa'}</span></div>
+    <div class="cheat-note">Näillä pelaajilla on epätavallisen suuria tai toistuvia kirjauksia (esim. useita maksimikestoisia treenejä samana päivänä). Kyse voi olla virheestä tai liioittelusta — avaa pelaajan tiedot nähdäksesi päivät ja jutelkaa tarvittaessa.</div>
+    <div class="cheat-players">${chips}</div>
+  </div>`;
+}
 function richPlayerReport(p) {
   const s = playerStats(p.id);
   const cats = CATEGORIES.filter(c => s.byCat[c.id]);
@@ -3254,7 +3308,11 @@ function richPlayerReport(p) {
   const lvl = levelInfo(seasonXp);
   const balls = coachFootballs[p.id] || 0;
   const levelLine = `<div class="rep-level"><span class="rep-level-badge">${levelBadgeImg(lvl.cur.lvl)}</span><span class="rep-level-text">Taso ${lvl.cur.lvl} · ${lvl.cur.name} · ${seasonXp} XP${seasonStart ? '' : ' (kaikkien aikojen)'}</span><span class="rep-balls">⚽ ${fmtBalls(balls)}</span></div>`;
+  const anomalies = playerAnomalies(p.id);
+  const cheatSection = anomalies.length ? `<div class="rep-section-label rep-flag-label">⚠️ Tarkista nämä kirjaukset</div>`
+    + `<div class="rep-flags">${anomalies.slice(0, 8).map(a => `<div class="rep-flag"><b>${fmtDateShort(a.date)}</b> — ${a.reasons.map(escapeHtml).join('; ')}</div>`).join('')}</div>` : '';
   const detail = levelLine
+    + cheatSection
     + (catBars ? `<div class="rep-section-label">Kuukauden jakauma</div>${catBars}` : '')
     + (goalLines ? `<div class="rep-section-label">Tavoitteet (tällä viikolla)</div>${goalLines}` : '')
     + (chLines ? `<div class="rep-section-label">Haasteet</div>${chLines}` : '')
@@ -3268,6 +3326,7 @@ function richPlayerReport(p) {
           <span class="player-stats">${statsLine}</span>
         </span>
         <span class="player-head-side">
+          ${anomalies.length ? '<span class="player-flag" title="Epätavallisia kirjauksia">⚠️</span>' : ''}
           <span class="player-count">${s.monthCount} / kk</span>
           <span class="player-chevron">▾</span>
         </span>
@@ -3343,7 +3402,7 @@ function renderCoachPlayers() {
     return;
   }
   const totalPlayers = coachPlayers.filter(p => coachTeams.some(t => t.id === p.team_id)).length;
-  let html = attentionCardHtml();
+  let html = attentionCardHtml() + cheatSummaryCard();
   if (totalPlayers > 8) {
     html += `<div class="card rep-search-card"><input type="text" id="repSearch" class="ics-input" placeholder="Hae pelaajaa nimellä…" autocapitalize="none" spellcheck="false"></div>`;
   }
