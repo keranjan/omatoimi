@@ -2287,25 +2287,17 @@ async function loadActiveEvent() {
   if (error) { console.error(error); return null; }
   return (data && data[0]) || null;
 }
-const DRILLS = [
-  { name: 'Haaraputken pujottelu', cat: 'kuljetus', min: 30, desc: 'Aseta 6–8 merkkiä riviin n. metrin välein ja pujottele pallo läpi molemmilla jaloilla. 8–10 kierrosta, lisää vauhtia kun sujuu.' },
-  { name: 'Seinäsyötöt molemmilla jaloilla', cat: 'syottely', min: 30, desc: 'Syötä palloa seinään ja ota haltuun vuorotellen oikealla ja vasemmalla. 5×3 min, pidä kosketukset napakkoina.' },
-  { name: 'Viimeistely alueen reunalta', cat: 'laukaukset', min: 45, desc: 'Kuljeta pallo rangaistusalueen reunalle ja laukaise maalia kohti. 30–40 laukausta, vaihtele kulmaa ja jalkaa.' },
-  { name: 'Pallonhallinta tiukassa tilassa', cat: 'pallotaito', min: 30, desc: 'Rajaa 3×3 m alue ja pidä pallo hallussa pienin kosketuksin — käännökset ja suojaukset mukaan. 6×2 min.' },
-  { name: 'Kiihdytykset ja suunnanmuutokset', cat: 'nopeus', min: 30, desc: '10 m kiihdytys, terävä käännös ja paluu. 10–12 toistoa täydellä teholla, palautus kävellen.' },
-  { name: 'Ydintukiharjoittelu', cat: 'voima', min: 30, desc: 'Lankku, sivulankku ja vatsarutistukset kiertäen. 3 kierrosta, 40 s per liike, 20 s tauko.' },
-  { name: 'Intervallijuoksu', cat: 'kestavyys', min: 45, desc: '4×4 min reipasta juoksua, välissä 2 min kevyttä. Pidä kova mutta hallittu vauhti.' },
-  { name: 'Liikkuvuus ja venyttely', cat: 'liikkuvuus', min: 30, desc: 'Dynaaminen lämmittely + lonkkien, takareisien ja nilkkojen liikkuvuus. Pidä venytykset 20–30 s.' },
-  { name: 'Ensimmäinen kosketus ilmasta', cat: 'pallotaito', min: 30, desc: 'Heitä pallo ilmaan ja ota haltuun pehmeästi reidellä, rinnalla ja jalalla. 8×2 min.' },
-  { name: 'Pitkät ja lyhyet syötöt', cat: 'syottely', min: 45, desc: 'Vuorottele lyhyitä tarkkoja ja pitkiä ilmasyöttöjä merkkiin. 40 syöttöä molemmilla jaloilla.' },
-  { name: 'Yksi vastaan yksi -harhautukset', cat: 'kuljetus', min: 30, desc: 'Harjoittele 2–3 harhautusta merkkiä vastaan ja kiihdytä ohi. 10–12 toistoa per harhautus.' },
-  { name: 'Volley-laukaukset', cat: 'laukaukset', min: 30, desc: 'Pudota tai pomputa pallo ja laukaise ilmasta. 30 laukausta — keskity osumaan ja tasapainoon.' },
-];
 function weeklyDrill() {
+  if (!EXERCISES.length) return null;
   const mon = weekRangeISO().mondayISO;
   const idx = Math.floor(new Date(mon + 'T00:00:00').getTime() / 604800000);
-  const n = DRILLS.length;
-  return DRILLS[((idx % n) + n) % n];
+  const n = EXERCISES.length;
+  return EXERCISES[((idx % n) + n) % n];
+}
+function drillDoneThisWeek(dr) {
+  if (!dr) return false;
+  const { mondayISO, sundayISO } = weekRangeISO();
+  return lastAll.some(e => e.date >= mondayISO && e.date <= sundayISO && e.category === dr.category);
 }
 function drillXp(min) { return Math.round(sessionXp(min) * boostMult(todayISO())); }
 function drillFootballs(min) {
@@ -2321,17 +2313,24 @@ function renderDrill() {
   const card = document.getElementById('drillCard');
   if (!card) return;
   const dr = weeklyDrill();
-  const cat = CATEGORIES.find(c => c.id === dr.cat);
-  const xp = drillXp(dr.min);
-  const balls = drillFootballs(dr.min);
+  if (!dr) { card.hidden = true; return; }
+  card.hidden = false;
+  const dur = dr.duration || 30;
+  const cat = CATEGORIES.find(c => c.id === dr.category);
+  const done = drillDoneThisWeek(dr);
+  const xp = drillXp(dur);
+  const balls = drillFootballs(dur);
   const boosted = boostMult(todayISO()) > 1;
   const catChip = cat ? `<span class="drill-cat"><span class="dot" style="background:${cat.color}"></span>${escapeHtml(cat.label)}</span>` : '';
+  const rewardLine = done
+    ? `<div class="drill-reward drill-reward-done">✓ Tehty tällä viikolla — hienoa työtä!</div>`
+    : `<div class="drill-reward">Kun kirjaat tämän (~${dur} min): <b>+${xp} XP</b> ja <b>⚽ ${fmtBalls(balls)}</b>${boosted ? ' ' + boostBadgeHtml() : ''}</div>`;
   card.innerHTML = `
-    <div class="sec-head"><h2>Viikon harjoite</h2><span class="hint">vaihtuu viikoittain</span></div>
+    <div class="sec-head"><h2>Viikon harjoite</h2>${done ? '<span class="drill-done">✓ Tehty</span>' : '<span class="hint">vaihtuu viikoittain</span>'}</div>
     <div class="drill-name">${escapeHtml(dr.name)}</div>
-    <div class="drill-meta">${catChip}<span class="drill-dur">~${dr.min} min</span></div>
+    <div class="drill-meta">${catChip}<span class="drill-dur">~${dur} min</span></div>
     <div class="drill-desc">${escapeHtml(dr.desc)}</div>
-    <div class="drill-reward">Kun kirjaat tämän (~${dr.min} min): <b>+${xp} XP</b> ja <b>⚽ ${fmtBalls(balls)}</b>${boosted ? ' ' + boostBadgeHtml() : ''}</div>`;
+    ${rewardLine}`;
 }
 /* ---- Ilmoitukset ---- */
 let notifPref = false;
