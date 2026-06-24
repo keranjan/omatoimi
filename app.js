@@ -2160,8 +2160,8 @@ function renderDailyModal() {
   const doors = document.getElementById('dailyDoors');
   const foot = document.getElementById('dailyFoot');
   if (!st || !doors) return;
-  const schedule = st.schedule || [10, 15, 20, 25, 30, 40, 100, 30, 40, 50, 60, 75, 90, 250];
-  const steady = st.steady || 50;
+  const schedule = st.schedule || [50, 60, 70, 80, 90, 100, 150, 175, 200, 225, 250, 275, 300, 350];
+  const steady = st.steady || 150;
   const day = st.day;
   const claimed = st.claimed_today;
   const allDone = day > 14;
