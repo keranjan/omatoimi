@@ -659,6 +659,7 @@ let questDefs = [];                  // kuluvan viikon viikkotehtävät
 let challengeDoneCount = 0;          // suoritetut haasteet yhteensä (saavutukset)
 let questClaimCount = 0;             // lunastetut viikkotehtävät yhteensä (saavutukset)
 let activeEvent = null;              // käynnissä oleva kausitapahtuma
+let dailyStatus = null;              // päivittäisen palkinnon tila
 let myCompletions = new Set();       // tällä viikolla suoritetut kertasuoritus-haasteet
 let myEncouragements = [];           // valmentajan kannustukset
 let goalSetupCat = null;             // lisäyslomakkeessa valittu kategoria
@@ -1745,6 +1746,7 @@ function renderFootballs() {
       <div class="ball-chip"><span>Harjoituksista</span><b>${fmtBalls(myFootballs.session)}</b></div>
       <div class="ball-chip"><span>Haasteista</span><b>${fmtBalls(myFootballs.challenge)}</b></div>
       ${myFootballs.quest > 0 ? `<div class="ball-chip"><span>Viikkotehtävistä</span><b>${fmtBalls(myFootballs.quest)}</b></div>` : ''}
+      ${myFootballs.daily > 0 ? `<div class="ball-chip"><span>Päivittäisistä</span><b>${fmtBalls(myFootballs.daily)}</b></div>` : ''}
       ${spentLine}
     </div>
     <button class="btn ball-shop-btn" id="ballShopBtn" type="button">Avaa kauppa — käytä jalkapallosi →</button>
@@ -1765,14 +1767,15 @@ function renderFootballs() {
 const fmtBalls = n => (n || 0).toLocaleString('fi-FI');
 async function loadFootballEvents() {
   const { data, error } = await sb.from('football_events').select('amount, source');
-  if (error) { console.error(error); return { total: 0, session: 0, challenge: 0, quest: 0 }; }
-  let session = 0, challenge = 0, quest = 0;
+  if (error) { console.error(error); return { total: 0, session: 0, challenge: 0, quest: 0, daily: 0 }; }
+  let session = 0, challenge = 0, quest = 0, daily = 0;
   data.forEach(r => {
     if (r.source === 'challenge') challenge += r.amount;
     else if (r.source === 'quest') quest += r.amount;
+    else if (r.source === 'daily') daily += r.amount;
     else session += r.amount;
   });
-  return { total: session + challenge + quest, session, challenge, quest };
+  return { total: session + challenge + quest + daily, session, challenge, quest, daily };
 }
 async function loadFootballCfg() {
   if (!currentUser || !currentUser.team_id) return { threshold: 30, cap: 400 };
@@ -2145,6 +2148,76 @@ function computeStreak() {
   const trainedThisWeek = lastAll.some(e => mondayOfISO(e.date) === weekRangeISO().mondayISO);
   const { streak, shieldUsed } = streakInfo();
   return { streak, trainedThisWeek, shieldUsed };
+}
+async function loadDailyStatus() {
+  const { data, error } = await sb.rpc('daily_status');
+  if (error) { console.error(error); return null; }
+  return data;
+}
+function renderDailyModal() {
+  const st = dailyStatus;
+  const sub = document.getElementById('dailySub');
+  const doors = document.getElementById('dailyDoors');
+  const foot = document.getElementById('dailyFoot');
+  if (!st || !doors) return;
+  const schedule = st.schedule || [10, 15, 20, 25, 30, 40, 100, 30, 40, 50, 60, 75, 90, 250];
+  const steady = st.steady || 50;
+  const day = st.day;
+  const claimed = st.claimed_today;
+  const allDone = day > 14;
+  const dispDay = Math.min(day, 14);
+  sub.textContent = claimed
+    ? `Tulit jo tänään! Putki: ${st.streak} päivää. Palaa huomenna.`
+    : `Putki: ${st.streak} ${st.streak === 1 ? 'päivä' : 'päivää'} — avaa tämän päivän luukku!`;
+  let html = '';
+  for (let d = 1; d <= 14; d++) {
+    const reward = schedule[d - 1];
+    const special = (d === 7 || d === 14) ? ' special' : '';
+    const star = (d === 7 || d === 14) ? ' ⭐' : '';
+    const opened = allDone || (claimed ? d <= dispDay : d < dispDay);
+    const isToday = !claimed && !allDone && d === dispDay;
+    let state, inner;
+    if (opened) { state = 'opened'; inner = `<span class="dd-day">Päivä ${d}</span><span class="dd-rew">✓ ⚽${reward}</span>`; }
+    else if (isToday) { state = 'today'; inner = `<span class="dd-day">Päivä ${d}${star}</span><span class="dd-rew">⚽${reward}</span><span class="dd-open">Avaa</span>`; }
+    else { state = 'locked'; inner = `<span class="dd-day">Päivä ${d}${star}</span><span class="dd-rew">⚽${reward}</span>`; }
+    html += `<button type="button" class="dd${special} dd-${state}" ${isToday ? 'data-claim="1"' : 'disabled'}>${inner}</button>`;
+  }
+  doors.innerHTML = html;
+  if (allDone && !claimed) {
+    foot.innerHTML = `<div class="daily-steady">Olet suorittanut 14 päivän putken! 🎉<br>Tämän päivän palkinto: <b>⚽ ${steady}</b></div><button type="button" class="btn daily-claim" id="dailySteadyBtn">Avaa päivän palkinto</button>`;
+  } else if (claimed) {
+    foot.innerHTML = `<div class="daily-steady">Nähdään huomenna! 👋</div>`;
+  } else {
+    foot.innerHTML = '';
+  }
+  doors.querySelectorAll('[data-claim]').forEach(b => { b.onclick = () => claimDaily(); });
+  const sBtn = document.getElementById('dailySteadyBtn');
+  if (sBtn) sBtn.onclick = () => claimDaily();
+}
+async function claimDaily() {
+  const { data, error } = await sb.rpc('claim_daily');
+  if (error || !data) { alert('Lunastus ei onnistunut'); return; }
+  if (data.ok) {
+    if (typeof celebrate === 'function') celebrate();
+    dailyStatus = await loadDailyStatus();
+    myFootballs = await loadFootballEvents();
+    renderDailyModal();
+    renderFootballs();
+    refreshLeaderboard();
+  } else {
+    dailyStatus = await loadDailyStatus();
+    renderDailyModal();
+  }
+}
+async function showDailyModal() {
+  if (!dailyStatus) dailyStatus = await loadDailyStatus();
+  renderDailyModal();
+  const ov = document.getElementById('dailyOverlay');
+  if (ov) ov.hidden = false;
+}
+function closeDailyModal() {
+  const ov = document.getElementById('dailyOverlay');
+  if (ov) ov.hidden = true;
 }
 function renderStatusStrip() {
   const el = document.getElementById('statusStrip');
@@ -2824,6 +2897,12 @@ function wirePlayerApp() {
     histT.setAttribute('aria-expanded', String(willOpen));
     histT.classList.toggle('open', willOpen);
   };
+  const dBtn = document.getElementById('dailyBtn');
+  if (dBtn) dBtn.onclick = () => showDailyModal();
+  const dClose = document.getElementById('dailyClose');
+  if (dClose) dClose.onclick = () => closeDailyModal();
+  const dOv = document.getElementById('dailyOverlay');
+  if (dOv) dOv.onclick = (e) => { if (e.target === dOv) closeDailyModal(); };
   document.getElementById('dateBtn').onclick = e => {
     e.stopPropagation();
     const pop = document.getElementById('datePop');
@@ -2886,6 +2965,9 @@ async function startPlayer() {
   await renderAll();
   // Kalenteritilaus (ICS) on usein hidas — haetaan taustalla, ei viivytetä etusivua
   loadCalEvents().then(ev => { calEvents = ev; renderCalendar(); renderDayPanel(); });
+  // Päivittäinen palkinto: näytä luukut käynnistyksessä jos ei vielä lunastettu tänään
+  dailyStatus = await loadDailyStatus();
+  if (dailyStatus && !dailyStatus.claimed_today) showDailyModal();
 }
 
 function setAuthMode(m) {
