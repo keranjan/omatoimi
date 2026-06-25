@@ -3244,6 +3244,8 @@ let coachBoosts = [];                          // joukkueiden tehostejaksot
 let coachTeamGoalXpRows = [];                   // pelaajien yhteistavoite-bonus-XP
 let coachSeasons = [];                          // menneet kaudet (valmentajan joukkueet)
 let coachFootballRows = [];                     // pelaajien jalkapallotapahtumat päivineen
+let coachTeamsOpen = null;                       // Joukkueet-näkymän avoimet haitarit (joukkue-id:t)
+let coachChallengesOpen = null;                  // Haasteet-näkymän avoimet haitarit
 let coachTab = 'players';
 let challengeSetupCat = {};
 let challengeKind = {};   // per-team: 'time' | 'once'
@@ -3733,8 +3735,28 @@ function boostBlockHtml(t) {
       <div class="coach-msg boost-msg" data-team="${t.id}"></div>
     </div>`;
 }
+function teamAccHead(teamId, title, hint, open) {
+  return `<button class="team-acc-head" type="button" data-acc-team="${teamId}" aria-expanded="${open}">
+    <span class="team-acc-title">${escapeHtml(title)}</span>
+    <span class="team-acc-side"><span class="hint">${hint}</span><span class="team-acc-chev">▾</span></span>
+  </button>`;
+}
+function wireTeamAccordions(viewId, openSet) {
+  document.querySelectorAll(`#${viewId} .team-acc-head`).forEach(btn => {
+    btn.onclick = () => {
+      const id = btn.getAttribute('data-acc-team');
+      const body = btn.nextElementSibling;
+      const willOpen = body.hidden;
+      body.hidden = !willOpen;
+      btn.setAttribute('aria-expanded', String(willOpen));
+      btn.closest('.team-acc').classList.toggle('open', willOpen);
+      if (willOpen) openSet.add(id); else openSet.delete(id);
+    };
+  });
+}
 function renderCoachTeams() {  const view = document.getElementById('coachTeamsView');
   const isAdmin = !!currentUser.is_admin;
+  if (coachTeamsOpen === null) coachTeamsOpen = new Set(coachTeams.length === 1 ? coachTeams.map(t => t.id) : []);
   let html = `
     <div class="card">
       <div class="sec-head"><h2>Joukkueet</h2>${isAdmin ? '<span class="hint">admin</span>' : ''}</div>
@@ -3766,9 +3788,11 @@ function renderCoachTeams() {  const view = document.getElementById('coachTeamsV
           <div class="coach-msg coach-link-msg" data-team="${t.id}"></div>
         </div>`;
     })() : '';
+    const teamOpen = coachTeamsOpen.has(t.id);
     html += `
-      <div class="card">
-        <div class="sec-head"><h2>${escapeHtml(t.name)}</h2><span class="hint">${players.length} ${players.length === 1 ? 'pelaaja' : 'pelaajaa'}</span></div>
+      <div class="card team-acc${teamOpen ? ' open' : ''}">
+        ${teamAccHead(t.id, t.name, `${players.length} ${players.length === 1 ? 'pelaaja' : 'pelaajaa'}`, teamOpen)}
+        <div class="team-acc-body"${teamOpen ? '' : ' hidden'}>
         ${coachRows}
         <div class="coach-add-row">
           <input type="text" class="add-player-input" data-team="${t.id}" placeholder="Pelaajan käyttäjänimi" autocapitalize="none" spellcheck="false">
@@ -3829,12 +3853,13 @@ function renderCoachTeams() {  const view = document.getElementById('coachTeamsV
           <div class="coach-add-row"><button class="btn ics-save-btn" data-team="${t.id}" type="button">Tallenna</button></div>
           <div class="coach-msg ics-msg" data-team="${t.id}"></div>
         </div>
-      </div>`;
+      </div></div>`;
   });
   view.innerHTML = html;
   wireCoachTeams();
 }
 function wireCoachTeams() {
+  wireTeamAccordions('coachTeamsView', coachTeamsOpen);
   const createBtn = document.getElementById('createTeamBtn');
   if (createBtn) createBtn.onclick = async () => {
     const input = document.getElementById('newTeamName');
@@ -4035,6 +4060,7 @@ function renderCoachChallenges() {
     return;
   }
   let html = '';
+  if (coachChallengesOpen === null) coachChallengesOpen = new Set(coachTeams.length === 1 ? coachTeams.map(t => t.id) : []);
   coachTeams.forEach(t => {
     const chs = coachChallenges.filter(ch => ch.team_id === t.id);
     const players = coachPlayers.filter(p => p.team_id === t.id);
@@ -4071,9 +4097,11 @@ function renderCoachChallenges() {
     }).join('');
     const targetChips = `<button class="chip ch-target-chip" data-team="${t.id}" data-target="team" type="button" aria-pressed="true">Koko joukkue</button>`
       + players.map(p => `<button class="chip ch-target-chip" data-team="${t.id}" data-target="${p.id}" data-name="${escapeHtml(p.username.toLowerCase())}" type="button" aria-pressed="false">${escapeHtml(p.username)}</button>`).join('');
+    const chOpen = coachChallengesOpen.has(t.id);
     html += `
-      <div class="card">
-        <div class="sec-head"><h2>${escapeHtml(t.name)}</h2><span class="hint">${chs.length} ${chs.length === 1 ? 'haaste' : 'haastetta'}</span></div>
+      <div class="card team-acc${chOpen ? ' open' : ''}">
+        ${teamAccHead(t.id, t.name, `${chs.length} ${chs.length === 1 ? 'haaste' : 'haastetta'}`, chOpen)}
+        <div class="team-acc-body"${chOpen ? '' : ' hidden'}>
         ${cur ? `<div class="ch-list">${cur}</div>` : '<div class="coach-empty">Ei haasteita. Aseta ensimmäinen alla.</div>'}
         <div class="ch-form" data-team="${t.id}">
           <div class="ch-form-label">Uusi haaste</div>
@@ -4096,12 +4124,13 @@ function renderCoachChallenges() {
           <input type="number" class="ch-reward" data-team="${t.id}" min="0" step="10" placeholder="250">
           <div class="coach-add-row"><button class="btn ch-add-btn" data-team="${t.id}" type="button">Aseta haaste</button></div>
         </div>
-      </div>`;
+      </div></div>`;
   });
   view.innerHTML = html;
   wireCoachChallenges();
 }
 function wireCoachChallenges() {
+  wireTeamAccordions('coachChallengesView', coachChallengesOpen);
   document.querySelectorAll('#coachChallengesView .ch-cats').forEach(box => {
     const teamId = box.dataset.team;
     const cats = CATEGORIES.filter(c => c.id !== 'muu');

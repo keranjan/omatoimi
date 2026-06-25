@@ -764,6 +764,20 @@
   .sr-name .sr-meta { color: var(--ink-soft); }
   .season-report .cs-name { font-weight: 600; color: var(--ink); white-space: nowrap; }
   .season-coach-card .sec-head h2 .sr-live { vertical-align: middle; }
+
+  /* Joukkue-/haaste-haitarit (valmentaja & admin) */
+  .team-acc { padding-top: 0; padding-bottom: 0; overflow: hidden; }
+  .team-acc-head {
+    width: 100%; background: none; border: none; cursor: pointer; font-family: inherit;
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    padding: 16px 2px; text-align: left;
+  }
+  .team-acc-title { font-family: 'Barlow Condensed', sans-serif; font-size: 20px; font-weight: 700; color: var(--ink); }
+  .team-acc-side { display: inline-flex; align-items: center; gap: 10px; }
+  .team-acc-chev { font-size: 13px; color: var(--ink-faint); transition: transform 0.18s ease; }
+  .team-acc.open .team-acc-chev { transform: rotate(180deg); }
+  .team-acc-body { padding-bottom: 16px; }
+  .team-acc-body[hidden] { display: none; }
   .sr-live { display: inline-block; margin-top: 3px; font-size: 10px; font-weight: 700; color: var(--brand); background: rgba(197, 242, 62, 0.28); border-radius: 999px; padding: 1px 8px; }
 
   /* Huijausvaroitukset (valmentaja) */
