@@ -532,10 +532,10 @@
     background: linear-gradient(180deg, #FFF3C4 0%, #E9C84A 45%, #C9A227 100%);
     -webkit-background-clip: text; background-clip: text; color: transparent;
   }
-  .plate.md .plate-name { height: 40px; padding: 0 15px; }
-  .plate.md .plate-name b { font-size: 23px; }
-  .plate.md .plate-num { min-width: 44px; margin-left: -12px; padding: 0 12px 0 22px; }
-  .plate.md .plate-num b { font-size: 25px; }
+  .plate.md .plate-name { height: 32px; padding: 0 12px; }
+  .plate.md .plate-name b { font-size: 18px; }
+  .plate.md .plate-num { min-width: 38px; margin-left: -10px; padding: 0 10px 0 18px; }
+  .plate.md .plate-num b { font-size: 20px; }
   .plate.sm { padding: 2px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.20); }
   .plate.sm .plate-inner { border-radius: 6px; }
   .plate.sm .plate-name { height: 26px; padding: 0 9px; }
