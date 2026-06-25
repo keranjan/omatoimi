@@ -146,6 +146,9 @@
   </button>
   <div id="histBody" hidden>
 
+  <!-- Kausiraportit: taso/XP/jalkapallot per kausi -->
+  <div class="card" id="seasonReportCard"></div>
+
   <!-- Hero: valitun jakson yhteenveto -->
   <div class="card">
     <div class="period-bar">
@@ -281,10 +284,12 @@
     <button class="vtab active" id="ctabPlayers" type="button">Pelaajat</button>
     <button class="vtab" id="ctabTeams" type="button">Joukkueet</button>
     <button class="vtab" id="ctabChallenges" type="button">Haasteet</button>
+    <button class="vtab" id="ctabSeasons" type="button">Kaudet</button>
   </div>
   <div id="coachPlayers" class="view"></div>
   <div id="coachTeamsView" class="view" hidden></div>
   <div id="coachChallengesView" class="view" hidden></div>
+  <div id="coachSeasonsView" class="view" hidden></div>
 </div>
 
 <div id="toast" class="toast" hidden></div>

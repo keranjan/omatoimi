@@ -751,6 +751,21 @@
   .hist-toggle.open .hist-chevron { transform: rotate(180deg); }
   #histBody { margin-top: 12px; }
 
+  /* Kausiraportit */
+  .season-report-wrap { overflow-x: auto; }
+  .season-report { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .season-report th { text-align: left; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-faint); font-weight: 700; padding: 6px 8px; border-bottom: 1px solid var(--line); }
+  .season-report td { padding: 9px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  .season-report tbody tr:last-child td { border-bottom: none; }
+  .season-report .sr-num { text-align: right; white-space: nowrap; }
+  .season-report td.sr-num { font-weight: 700; color: var(--ink); }
+  .sr-name b { display: block; font-size: 13.5px; color: var(--ink); }
+  .sr-name span { display: block; font-size: 11px; color: var(--ink-faint); }
+  .sr-name .sr-meta { color: var(--ink-soft); }
+  .season-report .cs-name { font-weight: 600; color: var(--ink); white-space: nowrap; }
+  .season-coach-card .sec-head h2 .sr-live { vertical-align: middle; }
+  .sr-live { display: inline-block; margin-top: 3px; font-size: 10px; font-weight: 700; color: var(--brand); background: rgba(197, 242, 62, 0.28); border-radius: 999px; padding: 1px 8px; }
+
   /* Huijausvaroitukset (valmentaja) */
   .cheat-card { border-color: rgba(192, 53, 106, 0.4); }
   .cheat-note { font-size: 13px; color: var(--ink-soft); line-height: 1.45; margin-bottom: 10px; }

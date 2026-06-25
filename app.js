@@ -680,6 +680,7 @@ let myFootballs = { total: 0, session: 0, challenge: 0 };  // pysyvä jalkapallo
 let footballCfg = { threshold: 30, cap: 400 };             // joukkueen kynnys + päiväkatto
 let boostPeriods = [];               // joukkueen tehostejaksot (tupla XP & pallot)
 let teamGoalXpRows = [];             // pelaajan yhteistavoite-bonus-XP (rivit)
+let seasonsHist = [];                // menneet kaudet (kausiraportteja varten)
 
 /* ---- Lomakkeen päivämäärä (oma suomenkielinen valitsin) ---- */
 let formDate = todayISO();
@@ -741,7 +742,7 @@ function renderPeriodSelect(all) {
 }
 
 async function renderAll() {
-  const [all, goals, tw, reactions, footballs, fcfg, boosts, tgxp, quests, evt, chDone, qClaims] = await Promise.all([
+  const [all, goals, tw, reactions, footballs, fcfg, boosts, tgxp, quests, evt, chDone, qClaims, seasons] = await Promise.all([
     store.getEntries(),
     goalStore.get(),
     loadTeamWeek(),
@@ -754,6 +755,7 @@ async function renderAll() {
     loadActiveEvent(),
     loadChallengeDoneCount(),
     loadQuestClaimCount(),
+    loadSeasons(),
     refreshShopState(),
   ]);
   lastAll = all;
@@ -764,6 +766,7 @@ async function renderAll() {
   footballCfg = fcfg;
   boostPeriods = boosts;
   teamGoalXpRows = tgxp;
+  seasonsHist = seasons;
   questDefs = quests;
   activeEvent = evt;
   challengeDoneCount = chDone;
@@ -825,6 +828,7 @@ async function renderAll() {
   renderStatusStrip();
   renderQuests();
   renderDrill();
+  renderSeasonReport();
   renderSettings();
   renderTeamGoal();
   updateZoneHeaders();
@@ -1766,8 +1770,8 @@ function renderFootballs() {
 /* ---- Jalkapallot (pysyvä valuutta) ---- */
 const fmtBalls = n => (n || 0).toLocaleString('fi-FI');
 async function loadFootballEvents() {
-  const { data, error } = await sb.from('football_events').select('amount, source');
-  if (error) { console.error(error); return { total: 0, session: 0, challenge: 0, quest: 0, daily: 0 }; }
+  const { data, error } = await sb.from('football_events').select('amount, source, event_date');
+  if (error) { console.error(error); return { total: 0, session: 0, challenge: 0, quest: 0, daily: 0, rows: [] }; }
   let session = 0, challenge = 0, quest = 0, daily = 0;
   data.forEach(r => {
     if (r.source === 'challenge') challenge += r.amount;
@@ -1775,7 +1779,12 @@ async function loadFootballEvents() {
     else if (r.source === 'daily') daily += r.amount;
     else session += r.amount;
   });
-  return { total: session + challenge + quest + daily, session, challenge, quest, daily };
+  return { total: session + challenge + quest + daily, session, challenge, quest, daily, rows: data };
+}
+async function loadSeasons() {
+  const { data, error } = await sb.from('seasons').select('name, starts_on, ends_on').order('starts_on', { ascending: false });
+  if (error) { console.error(error); return []; }
+  return data || [];
 }
 async function loadFootballCfg() {
   if (!currentUser || !currentUser.team_id) return { threshold: 30, cap: 400 };
@@ -2218,6 +2227,50 @@ async function showDailyModal() {
 function closeDailyModal() {
   const ov = document.getElementById('dailyOverlay');
   if (ov) ov.hidden = true;
+}
+function seasonStats(start, end) {
+  const inWin = (d) => !!d && d >= start && (!end || d <= end);
+  const logs = lastAll.filter(e => inWin(e.date));
+  const xpRaw = logs.reduce((s, e) => s + sessionXp(e.duration) * boostMult(e.date), 0)
+    + (teamGoalXpRows || []).filter(r => inWin(r.week_start)).reduce((s, r) => s + (Number(r.xp) || 0), 0);
+  const xp = Math.round(xpRaw);
+  const rows = (myFootballs && myFootballs.rows) || [];
+  const balls = rows.filter(r => inWin(r.event_date)).reduce((s, r) => s + (r.amount || 0), 0);
+  const mins = logs.reduce((s, e) => s + e.duration, 0);
+  return { xp, level: levelInfo(xp).cur.lvl, balls, sessions: logs.length, mins };
+}
+function renderSeasonReport() {
+  const card = document.getElementById('seasonReportCard');
+  if (!card) return;
+  const list = [];
+  const curStart = teamWeek && teamWeek.seasonStart ? teamWeek.seasonStart : null;
+  if (curStart) list.push({ name: teamWeek.seasonName, starts_on: curStart, ends_on: null, ongoing: true });
+  (seasonsHist || []).forEach(s => list.push({ name: s.name, starts_on: s.starts_on, ends_on: s.ends_on, ongoing: false }));
+  if (!list.length) {
+    card.innerHTML = `<div class="sec-head"><h2>Kausiraportit</h2></div>`
+      + `<div class="coach-empty">Ei vielä kausia. Kun valmentaja asettaa kauden, näet täältä kausikohtaiset tilastosi — ja jokaisesta päättyneestä kaudesta jää oma raporttinsa.</div>`;
+    return;
+  }
+  const body = list.map(s => {
+    const st = seasonStats(s.starts_on, s.ends_on);
+    const range = `${fmtDateShort(s.starts_on)} – ${s.ends_on ? fmtDateShort(s.ends_on) : 'käynnissä'}`;
+    const name = s.name ? escapeHtml(s.name) : 'Nimetön kausi';
+    const meta = `${st.sessions} ${st.sessions === 1 ? 'treeni' : 'treeniä'} · ${fmtHours(st.mins)}`;
+    return `<tr>
+      <td class="sr-name"><b>${name}</b><span>${range}</span><span class="sr-meta">${meta}</span>${s.ongoing ? '<span class="sr-live">käynnissä</span>' : ''}</td>
+      <td class="sr-num">${st.level}</td>
+      <td class="sr-num">${st.xp}</td>
+      <td class="sr-num">${fmtBalls(st.balls)}</td>
+    </tr>`;
+  }).join('');
+  card.innerHTML = `
+    <div class="sec-head"><h2>Kausiraportit</h2><span class="hint">${list.length} ${list.length === 1 ? 'kausi' : 'kautta'}</span></div>
+    <div class="season-report-wrap">
+      <table class="season-report">
+        <thead><tr><th>Kausi</th><th class="sr-num">Taso</th><th class="sr-num">XP</th><th class="sr-num">⚽</th></tr></thead>
+        <tbody>${body}</tbody>
+      </table>
+    </div>`;
 }
 function renderStatusStrip() {
   const el = document.getElementById('statusStrip');
@@ -3099,11 +3152,17 @@ const coachStore = {
     return data;
   },
   async getFootballs() {
-    const { data, error } = await sb.from('football_events').select('user_id, amount');
-    if (error) { console.error(error); return {}; }
+    const { data, error } = await sb.from('football_events').select('user_id, amount, event_date');
+    if (error) { console.error(error); coachFootballRows = []; return {}; }
+    coachFootballRows = data;
     const map = {};
     data.forEach(r => { map[r.user_id] = (map[r.user_id] || 0) + r.amount; });
     return map;
+  },
+  async getSeasons() {
+    const { data, error } = await sb.from('seasons').select('team_id, name, starts_on, ends_on').order('starts_on', { ascending: false });
+    if (error) { console.error(error); return []; }
+    return data || [];
   },
   async getReactions() {
     const { data, error } = await sb.from('log_reactions').select('log_id, emoji, coach_id');
@@ -3183,6 +3242,8 @@ let coachTeams = [], coachPlayers = [], coachLogs = [], coachGoals = [], coachCh
 let coachTeamLinks = [], coachAccounts = [];   // admin: valmentaja↔joukkue-liitokset ja valmentajatilit
 let coachBoosts = [];                          // joukkueiden tehostejaksot
 let coachTeamGoalXpRows = [];                   // pelaajien yhteistavoite-bonus-XP
+let coachSeasons = [];                          // menneet kaudet (valmentajan joukkueet)
+let coachFootballRows = [];                     // pelaajien jalkapallotapahtumat päivineen
 let coachTab = 'players';
 let challengeSetupCat = {};
 let challengeKind = {};   // per-team: 'time' | 'once'
@@ -3196,17 +3257,76 @@ async function startCoach() {
   document.getElementById('ctabPlayers').onclick = () => coachSwitch('players');
   document.getElementById('ctabTeams').onclick = () => coachSwitch('teams');
   document.getElementById('ctabChallenges').onclick = () => coachSwitch('challenges');
+  document.getElementById('ctabSeasons').onclick = () => coachSwitch('seasons');
   await coachRefresh();
 }
 
+function coachSeasonStats(userId, start, end) {
+  const inWin = (d) => !!d && d >= start && (!end || d <= end);
+  const logs = coachLogs.filter(l => l.user_id === userId && inWin(l.date));
+  const xpRaw = logs.reduce((s, l) => s + sessionXp(l.duration) * boostMult(l.date), 0)
+    + coachTeamGoalXpRows.filter(r => r.user_id === userId && inWin(r.week_start)).reduce((s, r) => s + (Number(r.xp) || 0), 0);
+  const xp = Math.round(xpRaw);
+  const balls = coachFootballRows.filter(r => r.user_id === userId && inWin(r.event_date)).reduce((s, r) => s + (r.amount || 0), 0);
+  const mins = logs.reduce((s, l) => s + l.duration, 0);
+  return { xp, level: levelInfo(xp).cur.lvl, balls, sessions: logs.length, mins };
+}
+function renderCoachSeasons() {
+  const view = document.getElementById('coachSeasonsView');
+  if (!view) return;
+  const multiTeam = coachTeams.length > 1;
+  const blocks = [];
+  coachTeams.forEach(t => {
+    if (t.season_start) blocks.push({ name: t.season_name, starts_on: t.season_start, ends_on: null, ongoing: true, team: t });
+    coachSeasons.filter(s => s.team_id === t.id).forEach(s =>
+      blocks.push({ name: s.name, starts_on: s.starts_on, ends_on: s.ends_on, ongoing: false, team: t }));
+  });
+  blocks.sort((a, b) => (b.ongoing ? 1 : 0) - (a.ongoing ? 1 : 0) || String(b.starts_on).localeCompare(String(a.starts_on)));
+  if (!blocks.length) {
+    view.innerHTML = `<div class="card"><div class="sec-head"><h2>Kausihistoria</h2></div>`
+      + `<div class="coach-empty">Ei vielä kausia. Aseta kausi Joukkueet-välilehdellä, niin pelaajien kausikohtaiset suoritukset alkavat kertyä tänne.</div></div>`;
+    return;
+  }
+  let html = '';
+  blocks.forEach(s => {
+    const players = coachPlayers.filter(p => p.team_id === s.team.id);
+    const range = `${fmtDateShort(s.starts_on)} – ${s.ends_on ? fmtDateShort(s.ends_on) : 'käynnissä'}`;
+    const name = s.name ? escapeHtml(s.name) : 'Nimetön kausi';
+    const rows = players.map(p => ({ p, st: coachSeasonStats(p.id, s.starts_on, s.ends_on) }))
+      .sort((a, b) => b.st.xp - a.st.xp);
+    const body = rows.length
+      ? rows.map(({ p, st }) => `<tr>
+          <td class="cs-name">${escapeHtml(p.username)}</td>
+          <td class="sr-num">${st.level}</td>
+          <td class="sr-num">${st.xp}</td>
+          <td class="sr-num">${fmtBalls(st.balls)}</td>
+          <td class="sr-num">${st.sessions}</td>
+          <td class="sr-num">${fmtHours(st.mins)}</td>
+        </tr>`).join('')
+      : `<tr><td colspan="6" class="coach-empty">Ei pelaajia joukkueessa.</td></tr>`;
+    html += `<div class="card season-coach-card">
+      <div class="sec-head"><h2>${name}${s.ongoing ? ' <span class="sr-live">käynnissä</span>' : ''}</h2><span class="hint">${multiTeam ? escapeHtml(s.team.name) + ' · ' : ''}${range}</span></div>
+      <div class="season-report-wrap">
+        <table class="season-report">
+          <thead><tr><th>Pelaaja</th><th class="sr-num">Taso</th><th class="sr-num">XP</th><th class="sr-num">⚽</th><th class="sr-num">Treenit</th><th class="sr-num">Aika</th></tr></thead>
+          <tbody>${body}</tbody>
+        </table>
+      </div>
+    </div>`;
+  });
+  view.innerHTML = html;
+}
 function coachSwitch(t) {
   coachTab = t;
   document.getElementById('coachPlayers').hidden = (t !== 'players');
   document.getElementById('coachTeamsView').hidden = (t !== 'teams');
   document.getElementById('coachChallengesView').hidden = (t !== 'challenges');
+  document.getElementById('coachSeasonsView').hidden = (t !== 'seasons');
   document.getElementById('ctabPlayers').classList.toggle('active', t === 'players');
   document.getElementById('ctabTeams').classList.toggle('active', t === 'teams');
   document.getElementById('ctabChallenges').classList.toggle('active', t === 'challenges');
+  document.getElementById('ctabSeasons').classList.toggle('active', t === 'seasons');
+  if (t === 'seasons') renderCoachSeasons();
 }
 
 async function coachRefresh() {
@@ -3220,6 +3340,7 @@ async function coachRefresh() {
   coachReactions = await coachStore.getReactions();
   coachBoosts = await coachStore.getBoosts();
   coachTeamGoalXpRows = await coachStore.getTeamGoalXp();
+  coachSeasons = await coachStore.getSeasons();
   if (currentUser.is_admin) {
     coachTeamLinks = await coachStore.getTeamCoaches();
     coachAccounts = await coachStore.getCoachAccounts();
@@ -3227,6 +3348,7 @@ async function coachRefresh() {
   renderCoachPlayers();
   renderCoachTeams();
   renderCoachChallenges();
+  renderCoachSeasons();
 }
 
 const shortDateFmt = new Intl.DateTimeFormat('fi-FI', { day: 'numeric', month: 'numeric', year: 'numeric' });
