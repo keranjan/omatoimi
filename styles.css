@@ -788,8 +788,8 @@
   .admin-setting-info { display: flex; flex-direction: column; gap: 2px; }
   .admin-setting-info b { font-size: 15px; color: var(--ink); }
   .admin-setting-info span { font-size: 12.5px; color: var(--ink-soft); }
-  .admin-toggle-btn { flex: none; width: auto; margin-top: 0; padding: 9px 16px; white-space: nowrap; }
-  .admin-toggle-btn.btn-danger-soft { background: rgba(192, 53, 106, 0.10); color: #8A2540; border: 1px solid rgba(192, 53, 106, 0.30); }
+  .admin-setting .admin-toggle-btn { flex: none; width: auto; margin-top: 0; padding: 8px 16px; font-size: 13.5px; white-space: nowrap; }
+  .admin-setting .admin-toggle-btn.btn-danger-soft { background: rgba(192, 53, 106, 0.10); color: #8A2540; border: 1px solid rgba(192, 53, 106, 0.30); }
   .sr-live { display: inline-block; margin-top: 3px; font-size: 10px; font-weight: 700; color: var(--brand); background: rgba(197, 242, 62, 0.28); border-radius: 999px; padding: 1px 8px; }
 
   /* Huijausvaroitukset (valmentaja) */
