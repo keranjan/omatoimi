@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="fi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Tekstifutis</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="tekstifutis.css">
+</head>
+<body>
+<div class="app">
+  <div class="topbar">
+    <div class="topbar-row">
+      <div class="brand">Teksti<span>futis</span></div>
+      <div class="pill gold"><span>⚽</span><span id="w-balls">0</span><span class="lbl">jalkapalloa</span></div>
+    </div>
+  </div>
+
+  <nav class="tabs">
+    <button class="tab active" data-tab="veto"><span class="ico">🎁</span>Veto</button>
+    <button class="tab" data-tab="joukkue"><span class="ico">👥</span>Joukkue</button>
+    <button class="tab" data-tab="ottelu"><span class="ico">🏟️</span>Ottelu</button>
+    <button class="tab" data-tab="historia"><span class="ico">📋</span>Historia</button>
+  </nav>
+
+  <main>
+    <section class="view active" id="view-veto">
+      <h2>Pelaajaveto</h2>
+      <p class="sub">Käytä omatoimitreeneistä ansaitsemiasi jalkapalloja. Avaa satunnainen paketti edullisesti, tai maksa enemmän ja takaa haluamasi rooli.</p>
+      <div class="card">
+        <div class="pack-stage" id="pack-stage">
+          <div class="empty"><div class="ee">🎁</div><b>Avaa paketti</b><div style="font-size:13px;">Et tiedä etukäteen kenet saat.</div></div>
+        </div>
+        <div class="section-label">Satunnainen pelaaja</div>
+        <div class="buy-list" id="buy-random"></div>
+        <div class="section-label">Takaa tietty rooli</div>
+        <div class="buy-list" id="buy-roles"></div>
+        <p class="pity" id="pity-note"></p>
+        <p class="pity" id="cap-note"></p>
+      </div>
+    </section>
+
+    <section class="view" id="view-joukkue">
+      <h2>Kokoonpano</h2>
+      <p class="sub">8v8. Napauta paikkaa asettaaksesi pelaajan, tai vedä pelaajia paikalta toiselle, vaihtopenkille ja takaisin. Napauta pelaajaa nähdäksesi kaikki attribuutit.</p>
+      <div class="teamname-row"><label for="teamname">Joukkue</label><input id="teamname" maxlength="22" placeholder="Oma joukkue"></div>
+      <div class="formrow" id="formrow"></div>
+      <div class="forces" id="forces"></div>
+      <div class="pitch-wrap"><div class="pitch" id="pitch"></div></div>
+      <div class="hint"><span class="warn-i">!</span> = pelaaja väärällä paikalla · vedä kahvasta <b>⠿</b> siirtääksesi pelaajan</div>
+      <button class="btn btn-ghost" id="btn-autofill" style="margin-bottom:6px;">Täytä kenttä automaattisesti</button>
+      <div class="section-label" id="sub-label">Vaihtopenkki</div>
+      <div class="subrow" id="subrow"></div>
+      <div id="bench-area"></div>
+    </section>
+
+    <section class="view" id="view-ottelu">
+      <h2>Ottelu</h2>
+      <p class="sub">Haasta vastustaja. Vahvuudet, väsyminen ja tuuri ratkaisevat — vaihtopelaajat auttavat loppukiriä.</p>
+      <div id="match-area"></div>
+    </section>
+
+    <section class="view" id="view-historia">
+      <h2>Historia</h2>
+      <p class="sub">Aiemmat ottelusi ja niiden tulokset.</p>
+      <div id="hist-area"></div>
+    </section>
+  </main>
+</div>
+
+<div class="overlay" id="overlay"><div class="sheet" id="sheet"></div></div>
+<div class="toast" id="toast"></div>
+<script src="tekstifutis.js"></script>
+</body>
+</html>

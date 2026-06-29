@@ -920,14 +920,56 @@ function switchView(v) {
   document.getElementById('viewBank').hidden = (v !== 'bank');
   document.getElementById('viewProfile').hidden = (v !== 'profile');
   document.getElementById('viewShop').hidden = (v !== 'shop');
+  document.getElementById('viewFutis').hidden = (v !== 'futis');
   document.getElementById('tabDash').classList.toggle('active', v === 'dash');
   document.getElementById('tabCal').classList.toggle('active', v === 'cal');
   document.getElementById('tabBank').classList.toggle('active', v === 'bank');
+  document.getElementById('tabFutis').classList.toggle('active', v === 'futis');
   document.getElementById('playerWrap').classList.toggle('wide', v === 'cal');
   if (v === 'cal') { renderCalendar(); renderDayPanel(); }
   if (v === 'bank') renderBank();
   if (v === 'shop') { renderShop(); window.scrollTo(0, 0); }
+  if (v === 'futis') openFutis();
   if (v === 'profile') window.scrollTo(0, 0);
+}
+// Tekstifutis: avaa iframe ja välitä pelaajan todellinen jalkapallosaldo
+function openFutis() {
+  const frame = document.getElementById('futisFrame');
+  if (!frame) return;
+  wireFutisBridge();
+  const uid = currentUser ? currentUser.id : 'anon';
+  const bal = footballBalance();
+  const theme = currentTheme();
+  if (!frame.getAttribute('src')) {
+    frame.src = `tekstifutis.html?uid=${encodeURIComponent(uid)}&bal=${bal}&theme=${theme}`;
+  } else {
+    try {
+      frame.contentWindow.postMessage({ type: 'futis-balance', uid, bal }, '*');
+      frame.contentWindow.postMessage({ type: 'futis-theme', theme }, '*');
+    } catch (e) {}
+  }
+}
+// Silta: peli (iframe) pyytää tallennuksen/latauksen; emo hoitaa Supabasen
+function wireFutisBridge() {
+  if (window._futisBridgeWired) return;
+  window._futisBridgeWired = true;
+  window.addEventListener('message', async (e) => {
+    const frame = document.getElementById('futisFrame');
+    if (!frame || e.source !== frame.contentWindow) return;   // vain omasta iframesta
+    const d = e.data || {};
+    if (d.type === 'futis-load') {
+      let state = null;
+      try {
+        const { data } = await sb.from('futis_state').select('state').eq('user_id', currentUser.id).maybeSingle();
+        state = data ? data.state : null;
+      } catch (err) { console.error(err); }
+      try { frame.contentWindow.postMessage({ type: 'futis-state', state, bal: footballBalance() }, '*'); } catch (err) {}
+    } else if (d.type === 'futis-save' && d.state) {
+      try {
+        await sb.from('futis_state').upsert({ user_id: currentUser.id, state: d.state, updated_at: new Date().toISOString() });
+      } catch (err) { console.error(err); }
+    }
+  });
 }
 
 /* ---- Harjoitepankki ---- */
@@ -2972,6 +3014,7 @@ function wirePlayerApp() {
   document.getElementById('tabDash').onclick = () => switchView('dash');
   document.getElementById('tabCal').onclick = () => switchView('cal');
   document.getElementById('tabBank').onclick = () => switchView('bank');
+  document.getElementById('tabFutis').onclick = () => switchView('futis');
   document.getElementById('profileHeader').onclick = () => switchView('profile');
   document.getElementById('profileBack').onclick = () => switchView('dash');
   document.getElementById('calPrev').onclick = () => calStep(-1);
@@ -4282,6 +4325,8 @@ function applyTheme(t) {
   document.querySelectorAll('[data-theme-toggle]').forEach(b => { b.textContent = (t === 'dark' ? '☀️' : '🌙'); });
   const m = document.querySelector('meta[name="theme-color"]');
   if (m) m.setAttribute('content', t === 'dark' ? '#0F1512' : '#F1F3EF');
+  const f = document.getElementById('futisFrame');
+  if (f && f.getAttribute('src')) { try { f.contentWindow.postMessage({ type: 'futis-theme', theme: t }, '*'); } catch (e) {} }
 }
 function currentTheme() { return document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light'; }
 document.querySelectorAll('[data-theme-toggle]').forEach(b => {
