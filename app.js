@@ -3308,6 +3308,28 @@ let coachFootballRows = [];                     // pelaajien jalkapallotapahtuma
 let coachAnomalyAcks = new Set();               // kuitatut poikkeamat: "userId|date"
 let coachTeamsOpen = null;                       // Joukkueet-näkymän avoimet haitarit (joukkue-id:t)
 let coachChallengesOpen = null;                  // Haasteet-näkymän avoimet haitarit
+let coachSubOpen = new Set();                     // joukkueasetusten ali-haitarit (oletuksena kiinni)
+function subAcc(teamId, key, title, inner) {
+  const id = teamId + ':' + key;
+  const open = coachSubOpen.has(id);
+  return `<div class="sub-acc${open ? ' open' : ''}">
+    <button class="sub-acc-head" type="button" data-sub-acc="${id}" aria-expanded="${open}"><span class="sub-acc-title">${title}</span><span class="sub-acc-chev">▾</span></button>
+    <div class="sub-acc-body"${open ? '' : ' hidden'}>${inner}</div>
+  </div>`;
+}
+function wireSubAccordions(viewId) {
+  document.querySelectorAll(`#${viewId} .sub-acc-head`).forEach(btn => {
+    btn.onclick = () => {
+      const id = btn.getAttribute('data-sub-acc');
+      const body = btn.nextElementSibling;
+      const willOpen = body.hidden;
+      body.hidden = !willOpen;
+      btn.setAttribute('aria-expanded', String(willOpen));
+      btn.closest('.sub-acc').classList.toggle('open', willOpen);
+      if (willOpen) coachSubOpen.add(id); else coachSubOpen.delete(id);
+    };
+  });
+}
 let coachTab = 'players';
 let challengeSetupCat = {};
 let challengeKind = {};   // per-team: 'time' | 'once'
@@ -3875,7 +3897,6 @@ function renderCoachTeams() {  const view = document.getElementById('coachTeamsV
       }).join('');
       return `
         <div class="team-coaches-block">
-          <div class="ch-form-label">Valmentajat</div>
           <div class="coach-link-list">${items || '<div class="coach-empty">Ei valmentajia. Liitä alla.</div>'}</div>
           <div class="coach-add-row">
             <input type="text" class="add-coach-input" data-team="${t.id}" placeholder="Valmentajan käyttäjänimi" autocapitalize="none" spellcheck="false">
@@ -3889,8 +3910,9 @@ function renderCoachTeams() {  const view = document.getElementById('coachTeamsV
       <div class="card team-acc${teamOpen ? ' open' : ''}">
         ${teamAccHead(t.id, t.name, `${players.length} ${players.length === 1 ? 'pelaaja' : 'pelaajaa'}`, teamOpen)}
         <div class="team-acc-body"${teamOpen ? '' : ' hidden'}>
-        ${coachRows}
-        <div class="coach-add-row">
+        ${isAdmin && coachRows ? subAcc(t.id, 'coaches', 'Valmentajat', coachRows) : ''}
+        ${subAcc(t.id, 'players', `Pelaajat (${players.length})`, `
+<div class="coach-add-row">
           <input type="text" class="add-player-input" data-team="${t.id}" placeholder="Pelaajan käyttäjänimi" autocapitalize="none" spellcheck="false">
           <button class="btn add-player-btn" data-team="${t.id}" type="button">Lisää pelaaja</button>
         </div>
@@ -3902,8 +3924,9 @@ function renderCoachTeams() {  const view = document.getElementById('coachTeamsV
               <span class="player-del-area" data-user="${p.id}"></span>
             </div></div>`).join('') : '<div class="coach-empty">Ei vielä pelaajia tässä joukkueessa.</div>'}
         </div>
-        <div class="team-goal-block">
-          <div class="ch-form-label">Joukkueen viikkotavoite</div>
+        `)}
+        ${subAcc(t.id, 'goal', 'Viikkotavoite & palkinto', `
+<div class="team-goal-block">
           <div class="team-goal-status">Tällä viikolla yhteensä ${fmtHours(coachTeamWeekMin(t.id))}${t.weekly_goal_hours != null ? ` / ${fmtHours(Math.round(t.weekly_goal_hours * 60))}` : ' (ei tavoitetta)'}</div>
           <div class="coach-add-row">
             <input type="number" class="team-goal-input" data-team="${t.id}" min="0" step="0.5" placeholder="tuntia / viikko (tyhjä = poista)" value="${t.weekly_goal_hours != null ? t.weekly_goal_hours : ''}">
@@ -3916,8 +3939,9 @@ function renderCoachTeams() {  const view = document.getElementById('coachTeamsV
           </div>
           <div class="coach-msg team-goal-msg" data-team="${t.id}"></div>
         </div>
-        <div class="season-block">
-          <div class="ch-form-label">Kausi (tasot/XP)</div>
+        `)}
+        ${subAcc(t.id, 'season', 'Kausi (tasot/XP)', `
+<div class="season-block">
           <div class="season-status">${t.season_start ? `Nykyinen kausi: ${t.season_name ? escapeHtml(t.season_name) + ' · ' : ''}alkanut ${fmtDateShort(t.season_start)}` : 'Ei kautta — XP lasketaan kaikkien aikojen treeneistä.'}</div>
           <input type="text" class="season-name-input" data-team="${t.id}" maxlength="40" placeholder="Kauden nimi, esim. Kevät 2026" value="${t.season_name ? escapeHtml(t.season_name) : ''}">
           <div class="ch-sub-label">Kauden alkupäivä (XP lasketaan tästä eteenpäin):</div>
@@ -3929,8 +3953,9 @@ function renderCoachTeams() {  const view = document.getElementById('coachTeamsV
           </div>
           <div class="coach-msg season-msg" data-team="${t.id}"></div>
         </div>
-        <div class="football-block">
-          <div class="ch-form-label">Jalkapallot (palkinnot)</div>
+        `)}
+        ${subAcc(t.id, 'football', 'Jalkapallot (palkinnot)', `
+<div class="football-block">
           <div class="football-status">Kynnys ${t.football_threshold_min != null ? t.football_threshold_min : 30} min · porras 50 / 120 / 200 ⚽ · päiväkatto ${t.football_daily_cap != null ? t.football_daily_cap : 400} ⚽</div>
           <div class="ch-sub-label">Kynnys (min) — yli kynnyksen 50, yli 2× 120, yli 3× 200 ⚽:</div>
           <div class="coach-add-row">
@@ -3940,15 +3965,18 @@ function renderCoachTeams() {  const view = document.getElementById('coachTeamsV
           </div>
           <div class="coach-msg fb-msg" data-team="${t.id}"></div>
         </div>
-        ${boostBlockHtml(t)}
-        <div class="ics-row">
-          <div class="ch-form-label">Kalenteritilaus</div>
+        `)}
+        ${subAcc(t.id, 'boost', 'Tehostejaksot', `
+${boostBlockHtml(t)}
+        `)}
+        ${subAcc(t.id, 'ics', 'Kalenteritilaus', `
+<div class="ics-row">
           <input type="text" class="ics-input" data-team="${t.id}" placeholder="iCal-osoite: https://… tai webcal://…" value="${t.ics_url ? escapeHtml(t.ics_url) : ''}" autocapitalize="none" spellcheck="false">
           <div class="ics-sub-label">Näytä vain tapahtumat, joiden otsikko sisältää (yksi per rivi — tyhjä tuo kaikki):</div>
           <textarea class="ch-desc ics-filter" data-team="${t.id}" rows="3" placeholder="P12 Ykkönen&#10;P12 Kakkonen&#10;Harjoitus">${t.ics_filter ? escapeHtml(t.ics_filter) : ''}</textarea>
           <div class="coach-add-row"><button class="btn ics-save-btn" data-team="${t.id}" type="button">Tallenna</button></div>
           <div class="coach-msg ics-msg" data-team="${t.id}"></div>
-        </div>
+        `)}
       </div></div>`;
   });
   view.innerHTML = html;
@@ -3956,6 +3984,7 @@ function renderCoachTeams() {  const view = document.getElementById('coachTeamsV
 }
 function wireCoachTeams() {
   wireTeamAccordions('coachTeamsView', coachTeamsOpen);
+  wireSubAccordions('coachTeamsView');
   const ftBtn = document.getElementById('futisToggleBtn');
   if (ftBtn) ftBtn.onclick = async () => {
     ftBtn.disabled = true;

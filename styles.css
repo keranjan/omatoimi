@@ -779,6 +779,20 @@
   .team-acc-body { padding-bottom: 16px; }
   .team-acc-body[hidden] { display: none; }
 
+  /* Joukkueasetusten ali-haitarit */
+  .sub-acc { border: 1px solid var(--line); border-radius: 10px; overflow: hidden; margin-bottom: 8px; background: var(--bg); }
+  .sub-acc:last-child { margin-bottom: 0; }
+  .sub-acc-head {
+    width: 100%; background: none; border: 0; cursor: pointer; font-family: inherit;
+    display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 11px 12px; text-align: left;
+  }
+  .sub-acc-title { font-family: 'Barlow Condensed', sans-serif; font-size: 15px; font-weight: 700; color: var(--ink); text-transform: uppercase; letter-spacing: 0.02em; }
+  .sub-acc-chev { font-size: 12px; color: var(--ink-faint); transition: transform 0.18s ease; }
+  .sub-acc.open .sub-acc-chev { transform: rotate(180deg); }
+  .sub-acc.open .sub-acc-head { border-bottom: 1px solid var(--line); }
+  .sub-acc-body { padding: 12px; background: var(--surface); }
+  .sub-acc-body[hidden] { display: none; }
+
   /* Tekstifutis (upotettu peli) */
   .futis-wrap { border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; background: var(--bg); margin-bottom: 18px; }
   .futis-frame { width: 100%; height: 80vh; min-height: 560px; border: 0; display: block; background: var(--bg); color-scheme: normal; border-radius: var(--radius); }
