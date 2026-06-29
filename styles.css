@@ -796,6 +796,12 @@
   .cheat-card { border-color: rgba(192, 53, 106, 0.4); }
   .cheat-note { font-size: 13px; color: var(--ink-soft); line-height: 1.45; margin-bottom: 10px; }
   .cheat-players { display: flex; flex-wrap: wrap; gap: 8px; }
+  .cheat-row { display: inline-flex; align-items: center; gap: 8px; }
+  .cheat-card .cheat-ack-btn, .rep-flag-actions .cheat-ack-btn {
+    flex: none; width: auto; margin-top: 0; padding: 6px 12px; font-size: 12.5px; white-space: nowrap;
+    background: var(--surface); color: var(--brand); border: 1px solid var(--brand);
+  }
+  .rep-flag-actions { margin-top: 8px; }
   .cheat-chip { display: inline-flex; align-items: center; gap: 4px; font-size: 12.5px; font-weight: 600; color: #8A2540; background: rgba(192, 53, 106, 0.12); border: 1px solid rgba(192, 53, 106, 0.35); border-radius: 999px; padding: 5px 11px; }
   .player-flag { font-size: 14px; }
   .rep-flag-label { color: #8A2540 !important; }

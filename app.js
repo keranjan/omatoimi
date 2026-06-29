@@ -3305,6 +3305,7 @@ let coachBoosts = [];                          // joukkueiden tehostejaksot
 let coachTeamGoalXpRows = [];                   // pelaajien yhteistavoite-bonus-XP
 let coachSeasons = [];                          // menneet kaudet (valmentajan joukkueet)
 let coachFootballRows = [];                     // pelaajien jalkapallotapahtumat päivineen
+let coachAnomalyAcks = new Set();               // kuitatut poikkeamat: "userId|date"
 let coachTeamsOpen = null;                       // Joukkueet-näkymän avoimet haitarit (joukkue-id:t)
 let coachChallengesOpen = null;                  // Haasteet-näkymän avoimet haitarit
 let coachTab = 'players';
@@ -3405,6 +3406,7 @@ async function coachRefresh() {
   coachTeamGoalXpRows = await coachStore.getTeamGoalXp();
   coachSeasons = await coachStore.getSeasons();
   await loadAppSettings();
+  await loadAnomalyAcks();
   if (currentUser.is_admin) {
     coachTeamLinks = await coachStore.getTeamCoaches();
     coachAccounts = await coachStore.getCoachAccounts();
@@ -3523,6 +3525,7 @@ function playerAnomalies(userId) {
   });
   const flags = [];
   Object.keys(byDate).forEach(date => {
+    if (coachAnomalyAcks.has(userId + '|' + date)) return;   // kuitattu — ei näytetä
     const logs = byDate[date];
     const total = logs.reduce((s, l) => s + l.duration, 0);
     const maxCount = logs.filter(l => l.duration >= CHEAT.maxDur).length;
@@ -3535,16 +3538,34 @@ function playerAnomalies(userId) {
   flags.sort((a, b) => b.date.localeCompare(a.date));
   return flags;
 }
+async function loadAnomalyAcks() {
+  try {
+    const { data, error } = await sb.from('anomaly_acks').select('user_id, log_date');
+    if (error) { console.error(error); return; }
+    coachAnomalyAcks = new Set((data || []).map(r => r.user_id + '|' + r.log_date));
+  } catch (e) { console.error(e); }
+}
+async function ackPlayerAnomalies(userId) {
+  const dates = playerAnomalies(userId).map(a => a.date);
+  if (!dates.length) return;
+  const { error } = await sb.rpc('ack_anomaly', { p_user_id: userId, p_dates: dates });
+  if (error) { console.error(error); alert('Kuittaus ei onnistunut'); return; }
+  dates.forEach(d => coachAnomalyAcks.add(userId + '|' + d));
+  renderCoachPlayers();
+}
 function flaggedPlayers() {
   return coachPlayers.filter(p => coachTeams.some(t => t.id === p.team_id) && playerAnomalies(p.id).length);
 }
 function cheatSummaryCard() {
   const flagged = flaggedPlayers();
   if (!flagged.length) return '';
-  const chips = flagged.map(p => `<span class="cheat-chip">⚠️ ${escapeHtml(p.username)}</span>`).join('');
+  const chips = flagged.map(p => `<div class="cheat-row">
+    <span class="cheat-chip">⚠️ ${escapeHtml(p.username)}</span>
+    <button class="btn cheat-ack-btn" data-ack-player="${p.id}" type="button">Kuittaa OK</button>
+  </div>`).join('');
   return `<div class="card cheat-card">
     <div class="sec-head"><h2>⚠️ Tarkista kirjaukset</h2><span class="hint">${flagged.length} ${flagged.length === 1 ? 'pelaaja' : 'pelaajaa'}</span></div>
-    <div class="cheat-note">Näillä pelaajilla on epätavallisen suuria tai toistuvia kirjauksia (esim. useita maksimikestoisia treenejä samana päivänä). Kyse voi olla virheestä tai liioittelusta — avaa pelaajan tiedot nähdäksesi päivät ja jutelkaa tarvittaessa.</div>
+    <div class="cheat-note">Näillä pelaajilla on epätavallisen suuria tai toistuvia kirjauksia (esim. useita maksimikestoisia treenejä samana päivänä). Kyse voi olla virheestä tai liioittelusta — avaa pelaajan tiedot nähdäksesi päivät. Kun olet tarkistanut, voit kuitata ne pois näkyvistä.</div>
     <div class="cheat-players">${chips}</div>
   </div>`;
 }
@@ -3576,7 +3597,8 @@ function richPlayerReport(p) {
   const levelLine = `<div class="rep-level"><span class="rep-level-badge">${levelBadgeImg(lvl.cur.lvl)}</span><span class="rep-level-text">Taso ${lvl.cur.lvl} · ${lvl.cur.name} · ${seasonXp} XP${seasonStart ? '' : ' (kaikkien aikojen)'}</span><span class="rep-balls">⚽ ${fmtBalls(balls)}</span></div>`;
   const anomalies = playerAnomalies(p.id);
   const cheatSection = anomalies.length ? `<div class="rep-section-label rep-flag-label">⚠️ Tarkista nämä kirjaukset</div>`
-    + `<div class="rep-flags">${anomalies.slice(0, 8).map(a => `<div class="rep-flag"><b>${fmtDateShort(a.date)}</b> — ${a.reasons.map(escapeHtml).join('; ')}</div>`).join('')}</div>` : '';
+    + `<div class="rep-flags">${anomalies.slice(0, 8).map(a => `<div class="rep-flag"><b>${fmtDateShort(a.date)}</b> — ${a.reasons.map(escapeHtml).join('; ')}</div>`).join('')}</div>`
+    + `<div class="rep-flag-actions"><button class="btn cheat-ack-btn" data-ack-player="${p.id}" type="button">Kuittaa kaikki OK</button></div>` : '';
   const detail = levelLine
     + cheatSection
     + (catBars ? `<div class="rep-section-label">Kuukauden jakauma</div>${catBars}` : '')
@@ -3686,6 +3708,9 @@ function renderCoachPlayers() {
   wireCoachReports();
 }
 function wireCoachReports() {
+  document.querySelectorAll('#coachPlayers [data-ack-player]').forEach(btn => {
+    btn.onclick = (e) => { e.stopPropagation(); ackPlayerAnomalies(btn.getAttribute('data-ack-player')); };
+  });
   document.querySelectorAll('#coachPlayers .player-head').forEach(head => {
     head.onclick = () => {
       const expanded = head.getAttribute('aria-expanded') === 'true';
