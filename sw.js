@@ -3,11 +3,14 @@
    offline-varalla välimuisti. Supabase-kutsut, fontit ja CDN-skripti menevät
    aina suoraan verkkoon (ei välimuistia). */
 
-const CACHE = 'omatoimi-v1.5.2';
+const CACHE = 'omatoimi-v1.5.3';
 const CORE = [
   './index.html',
   './app.js',
   './styles.css',
+  './tekstifutis.html',
+  './tekstifutis.js',
+  './testifutis.css',
   './manifest.json',
   './icons/icon-192.png',
   './icons/icon-512.png'
