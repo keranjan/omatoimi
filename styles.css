@@ -782,6 +782,14 @@
   /* Tekstifutis (upotettu peli) */
   .futis-wrap { border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; background: var(--bg); margin-bottom: 18px; }
   .futis-frame { width: 100%; height: 80vh; min-height: 560px; border: 0; display: block; background: var(--bg); color-scheme: normal; border-radius: var(--radius); }
+
+  /* Admin: sovelluksen asetukset */
+  .admin-setting { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+  .admin-setting-info { display: flex; flex-direction: column; gap: 2px; }
+  .admin-setting-info b { font-size: 15px; color: var(--ink); }
+  .admin-setting-info span { font-size: 12.5px; color: var(--ink-soft); }
+  .admin-toggle-btn { flex: none; width: auto; margin-top: 0; padding: 9px 16px; white-space: nowrap; }
+  .admin-toggle-btn.btn-danger-soft { background: rgba(192, 53, 106, 0.10); color: #8A2540; border: 1px solid rgba(192, 53, 106, 0.30); }
   .sr-live { display: inline-block; margin-top: 3px; font-size: 10px; font-weight: 700; color: var(--brand); background: rgba(197, 242, 62, 0.28); border-radius: 999px; padding: 1px 8px; }
 
   /* Huijausvaroitukset (valmentaja) */

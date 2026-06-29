@@ -660,6 +660,22 @@ let challengeDoneCount = 0;          // suoritetut haasteet yhteensä (saavutuks
 let questClaimCount = 0;             // lunastetut viikkotehtävät yhteensä (saavutukset)
 let activeEvent = null;              // käynnissä oleva kausitapahtuma
 let dailyStatus = null;              // päivittäisen palkinnon tila
+let tekstifutisEnabled = true;       // admin-asetus: näytetäänkö Tekstifutis pelaajille
+async function loadAppSettings() {
+  try {
+    const { data, error } = await sb.from('app_settings').select('key, enabled');
+    if (error) { console.error(error); return; }
+    const row = (data || []).find(r => r.key === 'tekstifutis');
+    if (row && typeof row.enabled === 'boolean') tekstifutisEnabled = row.enabled;
+  } catch (e) { console.error(e); }
+}
+function applyFutisVisibility() {
+  const tab = document.getElementById('tabFutis');
+  if (tab) tab.hidden = !tekstifutisEnabled;
+  if (!tekstifutisEnabled && document.getElementById('tabFutis') && document.getElementById('tabFutis').classList.contains('active')) {
+    switchView('dash');
+  }
+}
 let myCompletions = new Set();       // tällä viikolla suoritetut kertasuoritus-haasteet
 let myEncouragements = [];           // valmentajan kannustukset
 let goalSetupCat = null;             // lisäyslomakkeessa valittu kategoria
@@ -3050,6 +3066,8 @@ async function startPlayer() {
   document.getElementById('coachWrap').hidden = true;
   document.getElementById('playerWrap').hidden = false;
   if (!playerWired) { wirePlayerApp(); playerWired = true; }
+  await loadAppSettings();
+  applyFutisVisibility();
   const [mc, cp, en] = await Promise.all([
     loadMyChallenges(),
     loadMyCompletions(),
@@ -3386,6 +3404,7 @@ async function coachRefresh() {
   coachBoosts = await coachStore.getBoosts();
   coachTeamGoalXpRows = await coachStore.getTeamGoalXp();
   coachSeasons = await coachStore.getSeasons();
+  await loadAppSettings();
   if (currentUser.is_admin) {
     coachTeamLinks = await coachStore.getTeamCoaches();
     coachAccounts = await coachStore.getCoachAccounts();
@@ -3801,6 +3820,15 @@ function renderCoachTeams() {  const view = document.getElementById('coachTeamsV
   const isAdmin = !!currentUser.is_admin;
   if (coachTeamsOpen === null) coachTeamsOpen = new Set(coachTeams.length === 1 ? coachTeams.map(t => t.id) : []);
   let html = `
+    ${isAdmin ? `
+    <div class="card">
+      <div class="sec-head"><h2>Sovelluksen asetukset</h2><span class="hint">admin</span></div>
+      <div class="admin-setting">
+        <div class="admin-setting-info"><b>Tekstifutis</b><span>${tekstifutisEnabled ? 'Näkyvissä kaikille pelaajille' : 'Piilotettu kaikilta pelaajilta'}</span></div>
+        <button class="btn admin-toggle-btn ${tekstifutisEnabled ? 'btn-danger-soft' : ''}" id="futisToggleBtn" type="button">${tekstifutisEnabled ? 'Piilota' : 'Näytä kaikille'}</button>
+      </div>
+      <div class="coach-msg" id="futisToggleMsg"></div>
+    </div>` : ''}
     <div class="card">
       <div class="sec-head"><h2>Joukkueet</h2>${isAdmin ? '<span class="hint">admin</span>' : ''}</div>
       ${isAdmin ? `
@@ -3903,6 +3931,16 @@ function renderCoachTeams() {  const view = document.getElementById('coachTeamsV
 }
 function wireCoachTeams() {
   wireTeamAccordions('coachTeamsView', coachTeamsOpen);
+  const ftBtn = document.getElementById('futisToggleBtn');
+  if (ftBtn) ftBtn.onclick = async () => {
+    ftBtn.disabled = true;
+    const msg = document.getElementById('futisToggleMsg');
+    const newVal = !tekstifutisEnabled;
+    const { error } = await sb.rpc('set_feature', { p_key: 'tekstifutis', p_enabled: newVal });
+    if (error) { if (msg) msg.textContent = 'Muutos ei onnistunut.'; ftBtn.disabled = false; return; }
+    tekstifutisEnabled = newVal;
+    renderCoachTeams();
+  };
   const createBtn = document.getElementById('createTeamBtn');
   if (createBtn) createBtn.onclick = async () => {
     const input = document.getElementById('newTeamName');
