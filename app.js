@@ -3976,6 +3976,7 @@ ${boostBlockHtml(t)}
           <textarea class="ch-desc ics-filter" data-team="${t.id}" rows="3" placeholder="P12 Ykkönen&#10;P12 Kakkonen&#10;Harjoitus">${t.ics_filter ? escapeHtml(t.ics_filter) : ''}</textarea>
           <div class="coach-add-row"><button class="btn ics-save-btn" data-team="${t.id}" type="button">Tallenna</button></div>
           <div class="coach-msg ics-msg" data-team="${t.id}"></div>
+        </div>
         `)}
       </div></div>`;
   });
