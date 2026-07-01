@@ -697,6 +697,7 @@ let footballCfg = { threshold: 30, cap: 400 };             // joukkueen kynnys +
 let boostPeriods = [];               // joukkueen tehostejaksot (tupla XP & pallot)
 let teamGoalXpRows = [];             // pelaajan yhteistavoite-bonus-XP (rivit)
 let seasonsHist = [];                // menneet kaudet (kausiraportteja varten)
+let myMythics = [];                  // oman joukkueen myyttiset (Tekstifutis-keräilykortit)
 
 /* ---- Lomakkeen päivämäärä (oma suomenkielinen valitsin) ---- */
 let formDate = todayISO();
@@ -773,6 +774,7 @@ async function renderAll() {
     loadQuestClaimCount(),
     loadSeasons(),
     refreshShopState(),
+    loadMyMythics(),
   ]);
   lastAll = all;
   currentGoals = goals;
@@ -979,7 +981,7 @@ function wireFutisBridge() {
         const { data } = await sb.from('futis_state').select('state').eq('user_id', currentUser.id).maybeSingle();
         state = data ? data.state : null;
       } catch (err) { console.error(err); }
-      try { frame.contentWindow.postMessage({ type: 'futis-state', state, bal: footballBalance() }, '*'); } catch (err) {}
+      try { frame.contentWindow.postMessage({ type: 'futis-state', state, bal: footballBalance(), mythics: myMythics }, '*'); } catch (err) {}
     } else if (d.type === 'futis-save' && d.state) {
       try {
         await sb.from('futis_state').upsert({ user_id: currentUser.id, state: d.state, updated_at: new Date().toISOString() });
@@ -1972,6 +1974,15 @@ function cosAvailable(it) {
   return true;
 }
 function footballBalance() { return Math.max(0, (myFootballs.total || 0) - cosSpent); }
+async function loadMyMythics() {
+  try {
+    if (!currentUser || !currentUser.team_id) { myMythics = []; return; }
+    const { data, error } = await sb.from('mythic_players')
+      .select('id, name, paikka').eq('team_id', currentUser.team_id).order('created_at');
+    if (error) { console.error(error); return; }
+    myMythics = data || [];
+  } catch (e) { console.error(e); }
+}
 async function refreshShopState() {
   if (!shopCatalog.length) shopCatalog = await loadShopCatalog();
   const oc = await loadOwnedCosmetics();
@@ -3306,6 +3317,7 @@ let coachTeamGoalXpRows = [];                   // pelaajien yhteistavoite-bonus
 let coachSeasons = [];                          // menneet kaudet (valmentajan joukkueet)
 let coachFootballRows = [];                     // pelaajien jalkapallotapahtumat päivineen
 let coachAnomalyAcks = new Set();               // kuitatut poikkeamat: "userId|date"
+let coachMythics = {};                          // team_id -> [{id,name,paikka}] myyttiset
 let coachTeamsOpen = null;                       // Joukkueet-näkymän avoimet haitarit (joukkue-id:t)
 let coachChallengesOpen = null;                  // Haasteet-näkymän avoimet haitarit
 let coachSubOpen = new Set();                     // joukkueasetusten ali-haitarit (oletuksena kiinni)
@@ -3429,6 +3441,7 @@ async function coachRefresh() {
   coachSeasons = await coachStore.getSeasons();
   await loadAppSettings();
   await loadAnomalyAcks();
+  await loadCoachMythics();
   if (currentUser.is_admin) {
     coachTeamLinks = await coachStore.getTeamCoaches();
     coachAccounts = await coachStore.getCoachAccounts();
@@ -3559,6 +3572,17 @@ function playerAnomalies(userId) {
   });
   flags.sort((a, b) => b.date.localeCompare(a.date));
   return flags;
+}
+async function loadCoachMythics() {
+  try {
+    const ids = coachTeams.map(t => t.id);
+    coachMythics = {};
+    if (!ids.length) return;
+    const { data, error } = await sb.from('mythic_players')
+      .select('id, name, paikka, team_id').in('team_id', ids).order('created_at');
+    if (error) { console.error(error); return; }
+    (data || []).forEach(m => { (coachMythics[m.team_id] = coachMythics[m.team_id] || []).push(m); });
+  } catch (e) { console.error(e); }
 }
 async function loadAnomalyAcks() {
   try {
@@ -3863,6 +3887,43 @@ function wireTeamAccordions(viewId, openSet) {
     };
   });
 }
+const MYTHIC_POS = { MV: 'MV', P: 'PUOL', K: 'KESK', H: 'HYÖK' };
+function mythicBlockHtml(t) {
+  const list = coachMythics[t.id] || [];
+  const rows = list.length
+    ? list.map(m => `<div class="mythic-row"><span class="mythic-name">🌈 ${escapeHtml(m.name)} <span class="mythic-pos">${MYTHIC_POS[m.paikka] || 'HYÖK'}</span></span><button class="mythic-del-btn" data-del-mythic="${m.id}" type="button" aria-label="Poista">✕</button></div>`).join('')
+    : '<div class="mythic-empty">Ei myyttisiä pelaajia vielä.</div>';
+  return `<div class="mythic-block">
+      <div class="mythic-help">Myyttiset ovat erittäin harvinaisia keräilykortteja Tekstifutiksessa: kaikki attribuutit 100, mutta niitä ei voi peluuttaa — ne näkyvät pelaajan omalla Myyttiset-sivulla. Lisää esim. oman joukkueesi pelaajien nimiä.</div>
+      <div class="mythic-list">${rows}</div>
+      <div class="coach-add-row">
+        <input type="text" class="mythic-name-input" data-team="${t.id}" maxlength="40" placeholder="Pelaajan nimi" autocapitalize="words">
+        <select class="mythic-pos-input" data-team="${t.id}">
+          <option value="H">Hyökkääjä</option><option value="K">Keskikenttä</option><option value="P">Puolustaja</option><option value="MV">Maalivahti</option>
+        </select>
+        <button class="btn mythic-add-btn" data-team="${t.id}" type="button">Lisää</button>
+      </div>
+      <div class="coach-msg mythic-msg" data-team="${t.id}"></div>
+    </div>`;
+}
+async function addMythic(teamId) {
+  const inp = document.querySelector(`#coachTeamsView .mythic-name-input[data-team="${teamId}"]`);
+  const sel = document.querySelector(`#coachTeamsView .mythic-pos-input[data-team="${teamId}"]`);
+  const msg = document.querySelector(`#coachTeamsView .mythic-msg[data-team="${teamId}"]`);
+  const name = ((inp && inp.value) || '').trim();
+  if (!name) { if (msg) { msg.textContent = 'Anna pelaajan nimi.'; msg.className = 'coach-msg mythic-msg error'; } return; }
+  const { error } = await sb.rpc('add_mythic', { p_team_id: teamId, p_name: name, p_paikka: sel ? sel.value : 'H' });
+  if (error) { if (msg) { msg.textContent = 'Lisäys epäonnistui: ' + error.message; msg.className = 'coach-msg mythic-msg error'; } return; }
+  if (inp) inp.value = '';
+  await loadCoachMythics();
+  renderCoachTeams();
+}
+async function delMythic(id) {
+  const { error } = await sb.rpc('delete_mythic', { p_id: id });
+  if (error) { console.error(error); return; }
+  await loadCoachMythics();
+  renderCoachTeams();
+}
 function renderCoachTeams() {  const view = document.getElementById('coachTeamsView');
   const isAdmin = !!currentUser.is_admin;
   if (coachTeamsOpen === null) coachTeamsOpen = new Set(coachTeams.length === 1 ? coachTeams.map(t => t.id) : []);
@@ -3978,6 +4039,7 @@ ${boostBlockHtml(t)}
           <div class="coach-msg ics-msg" data-team="${t.id}"></div>
         </div>
         `)}
+        ${subAcc(t.id, 'mythic', 'Myyttiset (Tekstifutis)', mythicBlockHtml(t))}
       </div></div>`;
   });
   view.innerHTML = html;
@@ -3986,6 +4048,15 @@ ${boostBlockHtml(t)}
 function wireCoachTeams() {
   wireTeamAccordions('coachTeamsView', coachTeamsOpen);
   wireSubAccordions('coachTeamsView');
+  document.querySelectorAll('#coachTeamsView .mythic-add-btn').forEach(btn => {
+    btn.onclick = () => addMythic(btn.getAttribute('data-team'));
+  });
+  document.querySelectorAll('#coachTeamsView .mythic-name-input').forEach(inp => {
+    inp.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); addMythic(inp.getAttribute('data-team')); } };
+  });
+  document.querySelectorAll('#coachTeamsView [data-del-mythic]').forEach(btn => {
+    btn.onclick = () => delMythic(btn.getAttribute('data-del-mythic'));
+  });
   const ftBtn = document.getElementById('futisToggleBtn');
   if (ftBtn) ftBtn.onclick = async () => {
     ftBtn.disabled = true;

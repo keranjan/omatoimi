@@ -22,6 +22,7 @@
     <button class="tab active" data-tab="veto"><span class="ico">🎁</span>Veto</button>
     <button class="tab" data-tab="joukkue"><span class="ico">👥</span>Joukkue</button>
     <button class="tab" data-tab="ottelu"><span class="ico">🏟️</span>Ottelu</button>
+    <button class="tab" data-tab="myyttiset"><span class="ico">🌈</span>Myyttiset</button>
     <button class="tab" data-tab="historia"><span class="ico">📋</span>Historia</button>
   </nav>
 
@@ -39,6 +40,11 @@
         <div class="buy-list" id="buy-roles"></div>
         <p class="pity" id="pity-note"></p>
         <p class="pity" id="cap-note"></p>
+        <div class="prob-panel">
+          <div class="prob-title">Vetotodennäköisyydet</div>
+          <div id="prob-list"></div>
+          <div class="prob-foot">Prosentit koskevat yhtä satunnaista vetoa. Myyttinen on erittäin harvinainen ja näkyy vain, jos joukkueellesi on lisätty myyttisiä pelaajia.</div>
+        </div>
       </div>
     </section>
 
@@ -60,6 +66,12 @@
       <h2>Ottelu</h2>
       <p class="sub">Haasta vastustaja. Vahvuudet, väsyminen ja tuuri ratkaisevat — vaihtopelaajat auttavat loppukiriä.</p>
       <div id="match-area"></div>
+    </section>
+
+    <section class="view" id="view-myyttiset">
+      <h2>Myyttiset</h2>
+      <p class="sub">Erittäin harvinaisia keräilykortteja — valmentajan lisäämiä pelaajia, joiden kaikki attribuutit ovat 100. Näitä ei voi asettaa kentälle; ne ovat pelkkiä keräilykortteja. Onnistut saamaan myyttisen vain harvinaisella tuurilla pakettia avatessa.</p>
+      <div id="myth-area"></div>
     </section>
 
     <section class="view" id="view-historia">

@@ -17,6 +17,7 @@ const RAR={
   harvinainen:{paino:16,vali:[55,72],vari:'#3b82f6',tahdet:3,hinta:30,lyhyt:'HAR'},
   eeppinen:{paino:7,vali:[68,84],vari:'#a855f7',tahdet:4,hinta:65,lyhyt:'EEP'},
   legenda:{paino:2,vali:[80,95],vari:'#fbbf24',tahdet:5,hinta:130,lyhyt:'LEG'},
+  myyttinen:{paino:0,vali:[100,100],vari:'#ff3cac',tahdet:5,hinta:0,lyhyt:'MYY'},
 };
 const RAR_ORDER=['tavallinen','merkillinen','harvinainen','eeppinen','legenda'];
 const ATTRS=['nopeus','laukaus','syotto','kuljetus','puolustus','fyysisyys'];
@@ -33,7 +34,9 @@ const FORMATIONS={
 
 /* ═══ TILA ═══ */
 const PAKETTI_HINTA=50, ROOLI_HINTA=75, SUB_SLOTS=3, MAX_COLLECTION=30;
-const state={ footballs:0, lastReal:null, pity:0, collection:[], formation:'1-3-3-1', placements:new Array(8).fill(null), subs:new Array(SUB_SLOTS).fill(null), teamName:'Oma joukkue', history:[] };
+const MYYTTINEN_TN=0.005; // ultraharvinainen myyttinen veto (0.5%), kun joukkueella on myyttisiä
+let availableMythics=[];  // valmentajan lisäämät nimet: [{id,name,paikka}]
+const state={ footballs:0, lastReal:null, pity:0, collection:[], mythics:[], formation:'1-3-3-1', placements:new Array(8).fill(null), subs:new Array(SUB_SLOTS).fill(null), teamName:'Oma joukkue', history:[] };
 const getPlayer=id=>state.collection.find(p=>p.id===id)||null;
 const sur=p=>p.nimi.split(' ')[1]||p.nimi;
 
@@ -219,7 +222,7 @@ let STORE_KEY='tekstifutis:anon';
 let _saveTimer=null;
 function snapshot(){ return {
   footballs:state.footballs, lastReal:state.lastReal, pity:state.pity,
-  collection:state.collection, formation:state.formation, placements:state.placements,
+  collection:state.collection, mythics:state.mythics, formation:state.formation, placements:state.placements,
   subs:state.subs, teamName:state.teamName, history:state.history, _id:_id
 }; }
 function save(){
@@ -270,13 +273,39 @@ function ostoVahvistus(role,cost){
   sheet.querySelector('[data-cancel]').onclick=closeSheet;
   overlay.classList.add('show');
 }
+function uncollectedMythics(){
+  const owned=new Set((state.mythics||[]).map(m=>m.nimi));
+  return (availableMythics||[]).filter(m=>m&&m.name&&!owned.has(m.name));
+}
+function rarProsentit(){
+  const mythAvail=uncollectedMythics().length>0;
+  const pMyth=mythAvail?MYYTTINEN_TN:0;
+  const total=Object.values(RAR).reduce((s,t)=>s+(t.paino||0),0);
+  const scale=1-pMyth; const rows=[];
+  if(mythAvail) rows.push({nimi:'myyttinen',vari:RAR.myyttinen.vari,p:pMyth*100});
+  ['legenda','eeppinen','harvinainen','merkillinen','tavallinen'].forEach(k=>{
+    rows.push({nimi:k,vari:RAR[k].vari,p:scale*(RAR[k].paino/total)*100});
+  });
+  return rows;
+}
 function vedaPaketti(forcedRole,cost){
   cost=cost||PAKETTI_HINTA;
   if(state.collection.length>=MAX_COLLECTION){toast('Kokoelma täynnä — myy pelaajia.');return;}
   if(state.footballs<cost){toast(`Tarvitset ${cost-state.footballs} ⚽ lisää.`);return;}
-  state.footballs-=cost; const p=arvoPelaaja(Math.random,forcedRole);
+  state.footballs-=cost;
+  // Myyttinen ultraharvinainen osuma
+  const avail=uncollectedMythics();
+  if(avail.length && Math.random()<MYYTTINEN_TN){
+    const pick=avail[Math.floor(Math.random()*avail.length)];
+    const card={id:uid(),nimi:pick.name,paikka:pick.paikka||'H',harvinaisuus:'myyttinen',mythic:true};
+    ATTRS.forEach(a=>card[a]=100);
+    (state.mythics=state.mythics||[]).push(card);
+    state.pity=0; renderWallet(); renderPity(); renderCapNote(); renderProbs(); naytaMyyttinenReveal(card);
+    return;
+  }
+  const p=arvoPelaaja(Math.random,forcedRole);
   if(p.harvinaisuus==='tavallinen')state.pity++;else state.pity=0;
-  state.collection.push(p); renderWallet(); renderPity(); renderCapNote(); naytaReveal(p);
+  state.collection.push(p); renderWallet(); renderPity(); renderCapNote(); renderProbs(); naytaReveal(p);
   if(p.harvinaisuus==='legenda')toast('🌟 LEGENDA! Uskomaton veto!');
   else if(p.harvinaisuus==='eeppinen')toast('💜 Eeppinen pelaaja!');
 }
@@ -303,6 +332,48 @@ function naytaReveal(p){
     <div class="reveal-stats">${stats}</div></div></div>
     <div style="font-size:12px;color:var(--muted);position:relative;z-index:3">Lisätty kokoelmaasi. Aseta hänet kentälle Joukkue-välilehdellä.</div>`;
   const sparkCount=[0,5,9,18,30][tier]; if(sparkCount)spawnSparkles(stage.querySelector('.reveal-wrap'),r.vari,sparkCount);
+}
+function naytaMyyttinenReveal(card){
+  const stage=$('#pack-stage');
+  const stats=ATTRS.map(a=>`<div><span>${ATTR_LYHYT[a]}</span><b>100</b></div>`).join('');
+  stage.innerHTML=`<div class="fx-flash myth-flash"></div><div class="reveal-wrap"><div class="fx-rays myth-rays"></div>
+    <div class="reveal-card myth-card fx-shine fx-pulse">
+      <div class="myth-crown">🌈</div>
+      <div class="rar myth-rar">MYYTTINEN</div><div class="stars myth-stars">★★★★★</div>
+      <div class="pname">${card.nimi}</div><div class="ppos">${PAIKAT[card.paikka]||''} · OVR 100</div>
+      <div class="reveal-stats">${stats}</div></div></div>
+    <div style="font-size:12px;color:var(--muted);position:relative;z-index:3">🌈 Myyttinen keräilykortti lisätty! Katso se <b>Myyttiset</b>-välilehdeltä.</div>`;
+  const wrap=stage.querySelector('.reveal-wrap');
+  spawnSparkles(wrap,'#ff3cac',46); spawnSparkles(wrap,'#7c4dff',34); spawnSparkles(wrap,'#22d3ee',26);
+  const l=fxLayer();
+  const boom=document.createElement('div'); boom.className='myth-boom'; l.appendChild(boom); setTimeout(()=>boom.remove(),1300);
+  burstConfetti(80); rainConfetti(110);
+  const banner=document.createElement('div'); banner.className='myth-banner'; banner.textContent='🌈 MYYTTINEN! 🌈'; l.appendChild(banner); setTimeout(()=>banner.remove(),2800);
+  setTimeout(()=>burstConfetti(60),380); setTimeout(()=>rainConfetti(70),820); setTimeout(()=>burstConfetti(50),1250);
+  toast('🌈 MYYTTINEN PELAAJA! Uskomatonta tuuria!');
+}
+function renderProbs(){
+  const el=$('#prob-list'); if(!el)return;
+  el.innerHTML=rarProsentit().map(r=>{
+    const pct=r.p<1?r.p.toFixed(2):(r.p<10?r.p.toFixed(1):Math.round(r.p).toString());
+    const cls=r.nimi==='myyttinen'?' prob-myth':'';
+    return `<div class="prob-row${cls}"><span class="prob-dot" style="background:${r.vari}"></span><span class="prob-name">${r.nimi}</span><span class="prob-pct">${pct} %</span></div>`;
+  }).join('');
+}
+function renderMyyttiset(){
+  const el=$('#myth-area'); if(!el)return;
+  const list=state.mythics||[]; const total=(availableMythics||[]).length; const owned=list.length;
+  if(!total){ el.innerHTML=`<div class="myth-empty">Joukkueellesi ei ole vielä lisätty myyttisiä pelaajia.<br>Valmentaja voi lisätä niitä sovelluksen valmentaja-asetuksissa.</div>`; return; }
+  const cards=list.length?list.map(m=>`
+    <div class="myth-collect-card">
+      <div class="mcc-crown">🌈</div>
+      <div class="mcc-name">${m.nimi}</div>
+      <div class="mcc-pos">${PAIKAT[m.paikka]||''} · OVR 100</div>
+      <div class="mcc-attrs">${ATTRS.map(a=>`<span><b>${ATTR_LYHYT[a]}</b> 100</span>`).join('')}</div>
+      <div class="mcc-tag">MYYTTINEN</div>
+    </div>`).join('')
+    :`<div class="myth-empty">Et ole vielä saanut yhtään myyttistä. Ne ovat <b>erittäin</b> harvinaisia — jatka pakettien avaamista Veto-välilehdellä!</div>`;
+  el.innerHTML=`<div class="myth-progress">Kerätty <b>${owned}/${total}</b> myyttistä</div><div class="myth-grid">${cards}</div>`;
 }
 
 /* ═══ JOUKKUE ═══ */
@@ -536,7 +607,7 @@ document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{
   document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
   document.querySelectorAll('.view').forEach(x=>x.classList.remove('active'));
   t.classList.add('active'); $('#view-'+t.dataset.tab).classList.add('active');
-  if(t.dataset.tab==='joukkue')renderJoukkue(); if(t.dataset.tab==='ottelu')renderOttelu(); if(t.dataset.tab==='veto')renderPity(); if(t.dataset.tab==='historia')renderHistoria();
+  if(t.dataset.tab==='joukkue')renderJoukkue(); if(t.dataset.tab==='ottelu')renderOttelu(); if(t.dataset.tab==='veto'){renderPity();renderProbs();} if(t.dataset.tab==='historia')renderHistoria(); if(t.dataset.tab==='myyttiset')renderMyyttiset();
 });
 $('#btn-autofill').onclick=autofillAll;
 $('#teamname').addEventListener('input',e=>{state.teamName=e.target.value.trim()||'Oma joukkue';save();});
@@ -559,9 +630,9 @@ function annaAloitus(){
 let futisLoaded=false, initBal=null;
 function applyState(obj){ if(!obj||typeof obj!=='object')return false; Object.assign(state,obj); if(typeof obj._id==='number')_id=obj._id; return true; }
 function renderEverything(){
-  renderWallet(); renderPity(); renderBuyButtons(); renderCapNote();
+  renderWallet(); renderPity(); renderBuyButtons(); renderCapNote(); renderProbs();
   const active=document.querySelector('.tab.active'); const tabn=active?active.dataset.tab:'veto';
-  if(tabn==='joukkue')renderJoukkue(); else if(tabn==='ottelu')renderOttelu(); else if(tabn==='historia')renderHistoria();
+  if(tabn==='joukkue')renderJoukkue(); else if(tabn==='ottelu')renderOttelu(); else if(tabn==='historia')renderHistoria(); else if(tabn==='myyttiset')renderMyyttiset();
 }
 function finishInit(){
   if(futisLoaded)return; futisLoaded=true;
@@ -577,6 +648,7 @@ window.addEventListener('message', e=>{
   const d=e.data||{};
   if(d.type==='futis-state'){
     if(typeof d.bal==='number') initBal=d.bal;
+    if(Array.isArray(d.mythics)) availableMythics=d.mythics;
     if(d.state) applyState(d.state);          // palvelin on totuus
     finishInit();
   } else if(d.type==='futis-balance'){

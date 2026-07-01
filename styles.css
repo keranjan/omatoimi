@@ -793,6 +793,17 @@
   .sub-acc-body { padding: 12px; background: var(--surface); }
   .sub-acc-body[hidden] { display: none; }
 
+  /* Myyttiset (valmentajan asetukset) */
+  .mythic-help { font-size: 12.5px; color: var(--ink-soft); line-height: 1.5; margin-bottom: 10px; }
+  .mythic-empty { font-size: 13px; color: var(--ink-faint); padding: 4px 0 10px; }
+  .mythic-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
+  .mythic-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface); }
+  .mythic-name { font-weight: 600; font-size: 14px; display: flex; align-items: center; gap: 8px; }
+  .mythic-pos { font-size: 10.5px; font-weight: 700; color: var(--ink-faint); background: var(--bg); border: 1px solid var(--line); border-radius: 5px; padding: 1px 5px; letter-spacing: 0.03em; }
+  .mythic-del-btn { flex: none; width: 28px; height: 28px; border: 1px solid var(--line); background: var(--bg); border-radius: 7px; cursor: pointer; color: var(--ink-soft); font-size: 13px; line-height: 1; }
+  .mythic-del-btn:hover { border-color: #c0392b; color: #c0392b; }
+  .mythic-pos-input { flex: none; width: auto; padding: 9px 10px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface); color: var(--ink); font-family: inherit; font-size: 14px; }
+
   /* Tekstifutis (upotettu peli) */
   .futis-wrap { border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; background: var(--bg); margin-bottom: 18px; }
   .futis-frame { width: 100%; height: 80vh; min-height: 560px; border: 0; display: block; background: var(--bg); color-scheme: normal; border-radius: var(--radius); }
