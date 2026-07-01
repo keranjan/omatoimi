@@ -34,7 +34,7 @@ const FORMATIONS={
 
 /* ═══ TILA ═══ */
 const PAKETTI_HINTA=50, ROOLI_HINTA=75, SUB_SLOTS=3, MAX_COLLECTION=30;
-const MYYTTINEN_TN=0.005; // ultraharvinainen myyttinen veto (0.5%), kun joukkueella on myyttisiä
+const MYYTTINEN_TN=0.005; // ultraharvinainen myyttinen osuma (0.5%), kun joukkueella on myyttisiä
 let availableMythics=[];  // valmentajan lisäämät nimet: [{id,name,paikka}]
 const state={ footballs:0, lastReal:null, pity:0, collection:[], mythics:[], formation:'1-3-3-1', placements:new Array(8).fill(null), subs:new Array(SUB_SLOTS).fill(null), teamName:'Oma joukkue', history:[] };
 const getPlayer=id=>state.collection.find(p=>p.id===id)||null;
@@ -241,8 +241,8 @@ function applyBalance(bal){
 }
 
 
-/* ═══ VETO ═══ */
-function renderPity(){const j=10-state.pity;$('#pity-note').textContent=`Takuu: ${j} veto${j===1?'':'a'} seuraavaan vähintään harvinaiseen.`;}
+/* ═══ KORTIT (pakettien avaaminen) ═══ */
+function renderPity(){const j=10-state.pity;$('#pity-note').textContent=`Takuu: ${j} avaus${j===1?'':'ta'} seuraavaan vähintään harvinaiseen.`;}
 function renderCapNote(){const n=state.collection.length;const cn=$('#cap-note');if(cn)cn.innerHTML=`Kokoelma <b style="color:${n>=MAX_COLLECTION?'var(--warn)':'var(--text)'}">${n}/${MAX_COLLECTION}</b>${n>=MAX_COLLECTION?' — täynnä, myy pelaajia ostaaksesi lisää.':''}`;}
 function buyBtnHTML(role,label,cost,badgeClass,badgeText){return `<button class="buy-btn" data-role="${role||''}" data-cost="${cost}"><span class="bb-badge ${badgeClass}">${badgeText}</span><span class="bb-label">${label}</span><span class="bb-cost">${cost} ⚽</span></button>`;}
 function renderBuyButtons(){
@@ -306,7 +306,7 @@ function vedaPaketti(forcedRole,cost){
   const p=arvoPelaaja(Math.random,forcedRole);
   if(p.harvinaisuus==='tavallinen')state.pity++;else state.pity=0;
   state.collection.push(p); renderWallet(); renderPity(); renderCapNote(); renderProbs(); naytaReveal(p);
-  if(p.harvinaisuus==='legenda')toast('🌟 LEGENDA! Uskomaton veto!');
+  if(p.harvinaisuus==='legenda')toast('🌟 LEGENDA! Uskomaton kortti!');
   else if(p.harvinaisuus==='eeppinen')toast('💜 Eeppinen pelaaja!');
 }
 function spawnSparkles(stage,color,count){
@@ -372,7 +372,7 @@ function renderMyyttiset(){
       <div class="mcc-attrs">${ATTRS.map(a=>`<span><b>${ATTR_LYHYT[a]}</b> 100</span>`).join('')}</div>
       <div class="mcc-tag">MYYTTINEN</div>
     </div>`).join('')
-    :`<div class="myth-empty">Et ole vielä saanut yhtään myyttistä. Ne ovat <b>erittäin</b> harvinaisia — jatka pakettien avaamista Veto-välilehdellä!</div>`;
+    :`<div class="myth-empty">Et ole vielä saanut yhtään myyttistä. Ne ovat <b>erittäin</b> harvinaisia — jatka pakettien avaamista Kortit-välilehdellä!</div>`;
   el.innerHTML=`<div class="myth-progress">Kerätty <b>${owned}/${total}</b> myyttistä</div><div class="myth-grid">${cards}</div>`;
 }
 
@@ -429,7 +429,7 @@ function renderSubs(){
 function renderBench(){
   const area=$('#bench-area'); const onField=new Set(state.placements.filter(Boolean)); const onSub=new Set(state.subs.filter(Boolean));
   const bench=state.collection.filter(p=>!onField.has(p.id)&&!onSub.has(p.id));
-  if(state.collection.length===0){area.innerHTML=`<div class="empty"><div class="ee">👤</div><b>Ei pelaajia</b><div style="font-size:13px;">Avaa paketti Veto-välilehdeltä.</div></div>`;return;}
+  if(state.collection.length===0){area.innerHTML=`<div class="empty"><div class="ee">👤</div><b>Ei pelaajia</b><div style="font-size:13px;">Avaa paketti Kortit-välilehdeltä.</div></div>`;return;}
   let html=`<div class="section-label">Kokoelma · ${state.collection.length}/${MAX_COLLECTION}</div>`;
   html+= bench.length? `<div class="plist">${bench.map(prowBench).join('')}</div>` : `<div class="empty" style="padding:14px;"><div style="font-size:13px;">Kaikki pelaajasi ovat kentällä tai vaihtopenkillä.</div></div>`;
   area.innerHTML=html;
