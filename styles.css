@@ -885,9 +885,9 @@
   .taito-table .ttc-name { font-weight: 600; }
   .taito-table tr.done .ttc-name { color: var(--brand); }
   .ttc-check { color: var(--brand); font-weight: 700; margin-right: 5px; }
-  .ttc-input { width: 62px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--ink); font-family: inherit; font-size: 14px; text-align: center; }
+  .ttc-input { width: 76px; padding: 7px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--ink); font-family: 'Barlow Condensed', sans-serif; font-size: 20px; font-weight: 700; text-align: center; }
   .ttc-input:focus { outline: none; border-color: var(--brand); }
-  .taito-table tr.done .ttc-input { border-color: var(--brand); }
+  .taito-table tr.done .ttc-input { border-color: var(--brand); color: var(--brand); }
   .taito-table-foot { display: flex; align-items: center; gap: 12px; margin-top: 12px; }
   .taito-table-foot .taito-save-btn { flex: none; width: auto; margin: 0; padding: 8px 16px; font-size: 14px; }
   .taito-save-msg { font-size: 12.5px; color: var(--ink-soft); }
@@ -902,8 +902,8 @@
   .taito-aika-input:focus { outline: none; border-color: var(--brand); }
   .taito-aika-unit { font-size: 14px; color: var(--ink-soft); font-weight: 600; }
   .taito-aika .taito-aika-save { flex: none; width: auto; margin: 0 0 0 auto; padding: 9px 16px; font-size: 14px; }
-  .taito-aika-best { margin-top: 10px; font-size: 13px; color: var(--ink-soft); }
-  .taito-aika-best b { color: var(--brand); font-family: 'Barlow Condensed', sans-serif; font-size: 16px; }
+  .taito-aika-best { margin-top: 10px; font-size: 14px; color: var(--ink-soft); }
+  .taito-aika-best b { color: var(--brand); font-family: 'Barlow Condensed', sans-serif; font-size: 24px; }
   .taito-aika-msg { margin-top: 6px; font-size: 12px; color: var(--ink-soft); }
   .taito-aika-msg:empty { display: none; }
   .taito-aika-msg.ok { color: var(--brand); font-weight: 600; }

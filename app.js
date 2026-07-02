@@ -1079,7 +1079,7 @@ function renderTaito() {
         const url = `${TAITO_BASE}/${path}`;
         html += `<button class="taito-card taito-cat-img" type="button" data-taito-img="${escapeHtml(url)}" data-taito-name="${escapeHtml(cat.name)} — kuva ${i + 1}">
           <div class="taito-img-wrap">
-            <img class="taito-img" src="${escapeHtml(url)}" alt="${escapeHtml(cat.name)} kuva ${i + 1}" loading="lazy">
+            <img class="taito-img" src="${escapeHtml(url)}" alt="${escapeHtml(cat.name)} kuva ${i + 1}">
             <div class="taito-img-ph"><span>🖼️</span>Kuva ${i + 1}</div>
           </div>
         </button>`;
@@ -1129,7 +1129,7 @@ function renderTaito() {
               const url = taitoKuvaUrl(cat, sub, h);
               html += `<button class="taito-card" type="button" data-taito-img="${escapeHtml(url)}" data-taito-name="${escapeHtml(h.name)}">
                 <div class="taito-img-wrap">
-                  <img class="taito-img" src="${escapeHtml(url)}" alt="${escapeHtml(h.name)}" loading="lazy">
+                  <img class="taito-img" src="${escapeHtml(url)}" alt="${escapeHtml(h.name)}">
                   <div class="taito-img-ph"><span>🖼️</span>Ohjekuva tulossa</div>
                 </div>
                 <div class="taito-card-name">${escapeHtml(h.name)}</div>
