@@ -81,6 +81,7 @@
   <div class="viewtabs" role="tablist">
     <button class="vtab active" id="tabDash" type="button">Päiväkirja</button>
     <button class="vtab" id="tabCal" type="button">Kalenteri</button>
+    <button class="vtab" id="tabTaito" type="button">Taidot</button>
     <button class="vtab" id="tabBank" type="button">Harjoitepankki</button>
     <button class="vtab" id="tabFutis" type="button">Tekstifutis</button>
   </div>
@@ -266,8 +267,18 @@
   <!-- Kauppa: jalkapallojen käyttö koristeisiin -->
   <div id="viewShop" class="view" hidden></div>
 
+  <div id="viewTaito" class="view" hidden></div>
+
   <div id="viewFutis" class="view" hidden>
-    <iframe id="futisFrame" class="futis-frame" title="Tekstifutis"></iframe>
+    <div class="futis-wrap">
+      <iframe id="futisFrame" class="futis-frame" title="Tekstifutis"></iframe>
+    </div>
+  </div>
+
+  <div id="taitoLightbox" class="taito-lightbox" hidden>
+    <button class="taito-lb-close" id="taitoLbClose" type="button" aria-label="Sulje">✕</button>
+    <img id="taitoLbImg" class="taito-lb-img" alt="">
+    <div id="taitoLbCap" class="taito-lb-cap"></div>
   </div>
 
 </div>

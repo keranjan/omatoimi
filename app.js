@@ -698,6 +698,7 @@ let boostPeriods = [];               // joukkueen tehostejaksot (tupla XP & pall
 let teamGoalXpRows = [];             // pelaajan yhteistavoite-bonus-XP (rivit)
 let seasonsHist = [];                // menneet kaudet (kausiraportteja varten)
 let myMythics = [];                  // oman joukkueen myyttiset (Tekstifutis-keräilykortit)
+let taitoResults = {};               // taitokorttien tulokset: haaste_id -> {tulos, done}
 
 /* ---- Lomakkeen päivämäärä (oma suomenkielinen valitsin) ---- */
 let formDate = todayISO();
@@ -775,6 +776,7 @@ async function renderAll() {
     loadSeasons(),
     refreshShopState(),
     loadMyMythics(),
+    loadTaitoResults(),
   ]);
   lastAll = all;
   currentGoals = goals;
@@ -938,14 +940,17 @@ function switchView(v) {
   document.getElementById('viewBank').hidden = (v !== 'bank');
   document.getElementById('viewProfile').hidden = (v !== 'profile');
   document.getElementById('viewShop').hidden = (v !== 'shop');
+  document.getElementById('viewTaito').hidden = (v !== 'taito');
   document.getElementById('viewFutis').hidden = (v !== 'futis');
   document.getElementById('tabDash').classList.toggle('active', v === 'dash');
   document.getElementById('tabCal').classList.toggle('active', v === 'cal');
   document.getElementById('tabBank').classList.toggle('active', v === 'bank');
+  document.getElementById('tabTaito').classList.toggle('active', v === 'taito');
   document.getElementById('tabFutis').classList.toggle('active', v === 'futis');
   document.getElementById('playerWrap').classList.toggle('wide', v === 'cal');
   if (v === 'cal') { renderCalendar(); renderDayPanel(); }
   if (v === 'bank') renderBank();
+  if (v === 'taito') { renderTaito(); window.scrollTo(0, 0); }
   if (v === 'shop') { renderShop(); window.scrollTo(0, 0); }
   if (v === 'futis') openFutis();
   if (v === 'profile') window.scrollTo(0, 0);
@@ -995,6 +1000,295 @@ const LEVEL_CLASS = { 'Helppo': 'easy', 'Keskitaso': 'mid', 'Haastava': 'hard' }
 function bankVideoUrl(ex) {
   const q = (ex.video || ex.name) + ' football drill';
   return 'https://www.youtube.com/results?search_query=' + encodeURIComponent(q);
+}
+/* ═══ TAITOKORTIT (ohjekuvat Supabase Storagesta) ═══ */
+const TAITO_BASE = 'https://ozfjybzmuwbibolnpajq.supabase.co/storage/v1/object/public/taitokortit';
+const TAITOKORTIT = [
+  { id: 'ponnauttelu', name: 'Ponnauttelu', icon: '⚽', kuvat: ['ponnauttelu/kuva1.png', 'ponnauttelu/kuva2.png', 'ponnauttelu/kuva3.png'], subs: [
+    { id: 'staattinen', name: 'Staattinen ponnauttelu', haasteet: [
+      { id: 'vahva-jalkapoyta', name: 'Vahva jalka — jalkapöytä', tavoite: 50 },
+      { id: 'heikko-jalkapoyta', name: 'Heikko jalka — jalkapöytä', tavoite: 25 },
+      { id: 'vahva-reisi', name: 'Vahva jalka — reisi', tavoite: 25 },
+      { id: 'heikko-reisi', name: 'Heikko jalka — reisi', tavoite: 20 },
+      { id: 'vahva-olkapaa', name: 'Vahva olkapää', tavoite: 6 },
+      { id: 'heikko-olkapaa', name: 'Heikko olkapää', tavoite: 4 },
+      { id: 'paa', name: 'Pää', tavoite: 25 },
+    ] },
+    { id: 'syrjat', name: 'Sisä- ja ulkosyrjät', haasteet: [
+      { id: 'vahva-sisasyrja', name: 'Vahva sisäsyrjä', tavoite: 13 },
+      { id: 'heikko-sisasyrja', name: 'Heikko sisäsyrjä', tavoite: 6 },
+      { id: 'vahva-ulkosyrja', name: 'Vahva ulkosyrjä', tavoite: 13 },
+      { id: 'heikko-ulkosyrja', name: 'Heikko ulkosyrjä', tavoite: 6 },
+      { id: 'vahva-sisa-ulkosyrja', name: 'Vahva sisä-ulkosyrjä', tavoite: 13 },
+      { id: 'heikko-sisa-ulkosyrja', name: 'Heikko sisä-ulkosyrjä', tavoite: 6 },
+    ] },
+    { id: 'vuorojalat', name: 'Vuorojalat', haasteet: [
+      { id: 'jalkapoyta', name: 'Jalkapöytä', tavoite: 25 },
+      { id: 'reisi', name: 'Reisi', tavoite: 20 },
+      { id: 'jalkapoyta-olkapaa', name: 'Jalkapöytä-olkapää', tavoite: 4 },
+      { id: 'ulkosyrjat', name: 'Ulkosyrjät', tavoite: 8 },
+    ] },
+  ] },
+  { id: 'suunnanmuutos', name: 'Suunnanmuutos pallolla', icon: '↔️', kuvat: ['suunnanmuutos/kuva1.png', 'suunnanmuutos/kuva2.png'], kuvatTyyli: 'tasa', aikaHaaste: { id: 'suunnanmuutos:ennatys', label: 'radan kierto' }, subs: [] },
+  { id: 'kuljetus-vino', name: 'Kuljettaminen vinottain', icon: '↗️', kuvat: ['kuljetus-vino/kuva1.png', 'kuljetus-vino/kuva2.png'], kuvatTyyli: 'tasa', aikaHaaste: { id: 'kuljetus-vino:ennatys', label: 'radan kierto' }, subs: [] },
+];
+// Kuvan URL: haaste.kuva (koko polku bucketissa) tai oletus <kat>/<ala>/<haaste>.jpg
+function taitoKuvaUrl(cat, sub, h) {
+  const path = h.kuva || `${cat.id}/${sub.id}/${h.id}.jpg`;
+  return `${TAITO_BASE}/${path}`;
+}
+function fmtAika(v) { return (v == null || isNaN(v)) ? '' : String(v).replace('.', ','); }
+function taitoAikaWidget(cat) {
+  const a = cat.aikaHaaste;
+  const r = taitoResults[a.id] || {};
+  const best = (r.aika != null) ? r.aika : null;
+  const bestText = best != null ? `Paras aikasi: <b>${fmtAika(best)} s</b>` : 'Ei vielä tulosta — pienin aika on paras!';
+  return `<div class="taito-aika">
+      <div class="taito-aika-label">Oma ennätys — ${escapeHtml(a.label)} (sekunteina)</div>
+      <div class="taito-aika-row">
+        <input type="text" class="taito-aika-input" data-haaste="${a.id}" inputmode="decimal" placeholder="esim. 9,8">
+        <span class="taito-aika-unit">s</span>
+        <button class="btn taito-aika-save" data-haaste="${a.id}" type="button">Tallenna</button>
+      </div>
+      <div class="taito-aika-best" data-haaste="${a.id}">${bestText}</div>
+      <div class="taito-aika-msg" data-haaste="${a.id}"></div>
+    </div>`;
+}
+let taitoOpen = new Set(['ponnauttelu']);   // avoimet kategoriat (Ponnauttelu auki oletuksena)
+let taitoSubOpen = new Set();                // avoimet alakategoriat: "catId:subId"
+function renderTaito() {
+  const view = document.getElementById('viewTaito');
+  if (!view) return;
+  let html = `<div class="taito-intro"><h2 class="taito-title">Taitokortit</h2>
+    <p class="taito-lead">Harjoittele pallonhallintaa taito kerrallaan. Valitse kategoria ja haaste — ohjekuva näyttää suorituksen.</p></div>`;
+  TAITOKORTIT.forEach(cat => {
+    const catOpen = taitoOpen.has(cat.id);
+    const nHaaste = cat.subs.reduce((s, sub) => s + sub.haasteet.length, 0);
+    html += `<div class="taito-cat${catOpen ? ' open' : ''}">
+      <button class="taito-cat-head" type="button" data-taito-cat="${cat.id}" aria-expanded="${catOpen}">
+        <span class="taito-cat-ic">${cat.icon || '⚽'}</span>
+        <span class="taito-cat-name">${escapeHtml(cat.name)}</span>
+        <span class="taito-cat-meta">${nHaaste ? nHaaste + ' harjoitusta' : ((cat.kuvat || cat.aikaHaaste) ? '' : 'tulossa')}</span>
+        <span class="taito-chev">▾</span>
+      </button>
+      <div class="taito-cat-body"${catOpen ? '' : ' hidden'}>`;
+    if (cat.kuvat && cat.kuvat.length) {
+      const imgCls = cat.kuvatTyyli === 'tasa' ? ' taito-cat-images--tasa' : '';
+      html += `<div class="taito-cat-images${imgCls}">`;
+      cat.kuvat.forEach((path, i) => {
+        const url = `${TAITO_BASE}/${path}`;
+        html += `<button class="taito-card taito-cat-img" type="button" data-taito-img="${escapeHtml(url)}" data-taito-name="${escapeHtml(cat.name)} — kuva ${i + 1}">
+          <div class="taito-img-wrap">
+            <img class="taito-img" src="${escapeHtml(url)}" alt="${escapeHtml(cat.name)} kuva ${i + 1}" loading="lazy">
+            <div class="taito-img-ph"><span>🖼️</span>Kuva ${i + 1}</div>
+          </div>
+        </button>`;
+      });
+      html += `</div>`;
+    }
+    if (cat.aikaHaaste) {
+      html += taitoAikaWidget(cat);
+    }
+    if (!cat.subs.length && !cat.aikaHaaste) {
+      html += `<div class="taito-soon">Sisältö tulossa pian.</div>`;
+    } else if (cat.subs.length) {
+      cat.subs.forEach(sub => {
+        const subId = cat.id + ':' + sub.id;
+        const subOpen = taitoSubOpen.has(subId);
+        html += `<div class="taito-sub${subOpen ? ' open' : ''}">
+          <button class="taito-sub-head" type="button" data-taito-sub="${subId}" aria-expanded="${subOpen}">
+            <span class="taito-sub-name">${escapeHtml(sub.name)}</span>
+            <span class="taito-sub-meta">${sub.haasteet.length}</span>
+            <span class="taito-chev">▾</span>
+          </button>
+          <div class="taito-sub-body"${subOpen ? '' : ' hidden'}>`;
+        if (!sub.haasteet.length) {
+          html += `<div class="taito-soon">Haasteet tulossa pian.</div>`;
+        } else {
+          const subId = cat.id + ':' + sub.id;
+          const targetHs = sub.haasteet.filter(h => typeof h.tavoite === 'number');
+          const imageHs = sub.haasteet.filter(h => typeof h.tavoite !== 'number');
+          if (targetHs.length) {
+            html += `<table class="taito-table"><thead><tr><th>Suorite</th><th class="ttc-num">Tavoite</th><th class="ttc-num">Oma ennätys</th></tr></thead><tbody>`;
+            targetHs.forEach(h => {
+              const hid = cat.id + ':' + sub.id + ':' + h.id;
+              const r = taitoResults[hid] || { tulos: 0, done: false };
+              const done = r.done || (r.tulos >= h.tavoite);
+              html += `<tr class="${done ? 'done' : ''}">
+                <td class="ttc-name">${done ? '<span class="ttc-check">✓</span>' : ''}${escapeHtml(h.name)}</td>
+                <td class="ttc-num">${h.tavoite}</td>
+                <td class="ttc-num"><input type="number" class="ttc-input" data-haaste="${hid}" data-sub="${subId}" min="0" inputmode="numeric" placeholder="—" value="${r.tulos ? r.tulos : ''}"></td>
+              </tr>`;
+            });
+            html += `</tbody></table>
+              <div class="taito-table-foot"><button class="btn taito-save-btn" data-sub="${subId}" type="button">Tallenna tulokset</button><span class="taito-save-msg" data-sub="${subId}"></span></div>`;
+          }
+          if (imageHs.length) {
+            html += `<div class="taito-grid">`;
+            imageHs.forEach(h => {
+              const url = taitoKuvaUrl(cat, sub, h);
+              html += `<button class="taito-card" type="button" data-taito-img="${escapeHtml(url)}" data-taito-name="${escapeHtml(h.name)}">
+                <div class="taito-img-wrap">
+                  <img class="taito-img" src="${escapeHtml(url)}" alt="${escapeHtml(h.name)}" loading="lazy">
+                  <div class="taito-img-ph"><span>🖼️</span>Ohjekuva tulossa</div>
+                </div>
+                <div class="taito-card-name">${escapeHtml(h.name)}</div>
+              </button>`;
+            });
+            html += `</div>`;
+          }
+        }
+        html += `</div></div>`;
+      });
+    }
+    html += `</div></div>`;
+  });
+  view.innerHTML = html;
+  wireTaito();
+}
+function wireTaito() {
+  const view = document.getElementById('viewTaito');
+  if (!view) return;
+  view.querySelectorAll('[data-taito-cat]').forEach(btn => {
+    btn.onclick = () => {
+      const id = btn.getAttribute('data-taito-cat');
+      const body = btn.nextElementSibling;            // .taito-cat-body
+      const willOpen = body.hidden;
+      body.hidden = !willOpen;
+      btn.setAttribute('aria-expanded', String(willOpen));
+      btn.closest('.taito-cat').classList.toggle('open', willOpen);
+      if (willOpen) taitoOpen.add(id); else taitoOpen.delete(id);
+    };
+  });
+  view.querySelectorAll('[data-taito-sub]').forEach(btn => {
+    btn.onclick = () => {
+      const id = btn.getAttribute('data-taito-sub');
+      const body = btn.nextElementSibling;            // .taito-sub-body
+      const willOpen = body.hidden;
+      body.hidden = !willOpen;
+      btn.setAttribute('aria-expanded', String(willOpen));
+      btn.closest('.taito-sub').classList.toggle('open', willOpen);
+      if (willOpen) taitoSubOpen.add(id); else taitoSubOpen.delete(id);
+    };
+  });
+  view.querySelectorAll('.taito-img').forEach(img => {
+    const mark = () => { const w = img.closest('.taito-img-wrap'); if (w) w.classList.add('noimg'); };
+    img.addEventListener('error', mark);
+    if (img.complete && img.naturalWidth === 0) mark();
+  });
+  view.querySelectorAll('.taito-card').forEach(card => {
+    card.onclick = () => {
+      const w = card.querySelector('.taito-img-wrap');
+      if (w && w.classList.contains('noimg')) return;   // ei kuvaa → ei suurennosta
+      openTaitoLightbox(card.getAttribute('data-taito-img'), card.getAttribute('data-taito-name'));
+    };
+  });
+  view.querySelectorAll('.taito-save-btn').forEach(btn => {
+    btn.onclick = () => saveTaitoTable(btn.getAttribute('data-sub'));
+  });
+  view.querySelectorAll('.ttc-input').forEach(inp => {
+    inp.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); saveTaitoTable(inp.getAttribute('data-sub')); } };
+  });
+  view.querySelectorAll('.taito-aika-save').forEach(btn => {
+    btn.onclick = () => saveTaitoTime(btn.getAttribute('data-haaste'));
+  });
+  view.querySelectorAll('.taito-aika-input').forEach(inp => {
+    inp.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); saveTaitoTime(inp.getAttribute('data-haaste')); } };
+  });
+}
+function taitoTavoiteFor(hid) {
+  for (const cat of TAITOKORTIT) for (const sub of cat.subs) {
+    if (cat.id + ':' + sub.id !== hid.split(':').slice(0, 2).join(':')) continue;
+    for (const h of sub.haasteet) if (cat.id + ':' + sub.id + ':' + h.id === hid) return h.tavoite;
+  }
+  return null;
+}
+async function loadTaitoResults() {
+  try {
+    if (!currentUser) { taitoResults = {}; return; }
+    const { data, error } = await sb.from('taito_results').select('haaste_id, tulos, done, aika');
+    if (error) { console.error(error); return; }
+    taitoResults = {};
+    (data || []).forEach(r => { taitoResults[r.haaste_id] = { tulos: r.tulos, done: r.done, aika: (r.aika != null ? parseFloat(r.aika) : null) }; });
+  } catch (e) { console.error(e); }
+}
+async function saveTaitoTable(subId) {
+  const inputs = [...document.querySelectorAll(`#viewTaito .ttc-input[data-sub="${subId}"]`)];
+  const setMsg = (txt, cls) => {
+    const m = document.querySelector(`#viewTaito .taito-save-msg[data-sub="${subId}"]`);
+    if (m) { m.textContent = txt; m.className = 'taito-save-msg' + (cls ? ' ' + cls : ''); }
+  };
+  const jobs = []; let anyInvalid = false;
+  inputs.forEach(inp => {
+    const raw = (inp.value || '').trim();
+    if (raw === '') return;                       // tyhjä → säilytä ennätys
+    const val = parseInt(raw, 10);
+    if (isNaN(val) || val < 0) { anyInvalid = true; return; }
+    const hid = inp.getAttribute('data-haaste');
+    const cur = taitoResults[hid] ? taitoResults[hid].tulos : 0;
+    if (val === cur) return;                       // ei muutosta
+    const tavoite = taitoTavoiteFor(hid) || 0;
+    jobs.push({ hid, val, done: val >= tavoite, wasDone: !!(taitoResults[hid] && taitoResults[hid].done) });
+  });
+  if (!jobs.length) { setMsg(anyInvalid ? 'Tarkista numerot.' : 'Ei uusia tuloksia.', anyInvalid ? 'error' : ''); return; }
+  let newlyDone = false;
+  await Promise.all(jobs.map(async j => {
+    const { data, error } = await sb.rpc('save_taito_result', { p_haaste_id: j.hid, p_tulos: j.val, p_done: j.done });
+    if (error) { console.error(error); j.error = true; return; }
+    const row = Array.isArray(data) ? data[0] : data;
+    taitoResults[j.hid] = { tulos: row ? row.tulos : j.val, done: row ? row.done : j.done };
+    if (taitoResults[j.hid].done && !j.wasDone) newlyDone = true;
+  }));
+  // Päivitä rivit paikan päällä — ei koko näkymän uudelleenrenderöintiä (kuvat eivät lataudu uudelleen)
+  let anyError = false;
+  jobs.forEach(j => {
+    if (j.error) { anyError = true; return; }
+    const r = taitoResults[j.hid]; if (!r) return;
+    const inp = document.querySelector(`#viewTaito .ttc-input[data-haaste="${j.hid}"]`);
+    if (!inp) return;
+    inp.value = r.tulos;
+    const tr = inp.closest('tr');
+    if (tr) {
+      tr.classList.toggle('done', r.done);
+      const nameCell = tr.querySelector('.ttc-name');
+      if (nameCell) {
+        const check = nameCell.querySelector('.ttc-check');
+        if (r.done && !check) nameCell.insertAdjacentHTML('afterbegin', '<span class="ttc-check">✓</span>');
+        if (!r.done && check) check.remove();
+      }
+    }
+  });
+  setMsg(anyError ? 'Osaa ei voitu tallentaa.' : 'Tallennettu ✓', anyError ? 'error' : 'ok');
+  if (newlyDone && typeof celebrate === 'function') celebrate();
+}
+async function saveTaitoTime(hid) {
+  const inp = document.querySelector(`#viewTaito .taito-aika-input[data-haaste="${hid}"]`);
+  const best = document.querySelector(`#viewTaito .taito-aika-best[data-haaste="${hid}"]`);
+  const setMsg = (txt, cls) => {
+    const m = document.querySelector(`#viewTaito .taito-aika-msg[data-haaste="${hid}"]`);
+    if (m) { m.textContent = txt; m.className = 'taito-aika-msg' + (cls ? ' ' + cls : ''); }
+  };
+  if (!inp) return;
+  const val = parseFloat((inp.value || '').replace(',', '.'));
+  if (isNaN(val) || val <= 0) { setMsg('Syötä aika sekunteina (esim. 9,8).', 'error'); return; }
+  const { data, error } = await sb.rpc('save_taito_time', { p_haaste_id: hid, p_aika: val });
+  if (error) { console.error(error); setMsg('Tallennus epäonnistui.', 'error'); return; }
+  const row = Array.isArray(data) ? data[0] : data;
+  const aika = row && row.aika != null ? parseFloat(row.aika) : val;
+  taitoResults[hid] = Object.assign({}, taitoResults[hid], { aika });
+  if (best) best.innerHTML = `Paras aikasi: <b>${fmtAika(aika)} s</b>`;
+  inp.value = '';
+  setMsg(val <= aika ? 'Uusi ennätys ✓' : 'Tallennettu ✓', 'ok');
+  if (val <= aika && typeof celebrate === 'function') celebrate();
+}
+function openTaitoLightbox(url, name) {
+  const lb = document.getElementById('taitoLightbox');
+  const img = document.getElementById('taitoLbImg');
+  const cap = document.getElementById('taitoLbCap');
+  if (!lb || !img) return;
+  img.src = url; img.alt = name || '';
+  if (cap) cap.textContent = name || '';
+  lb.hidden = false;
 }
 function renderBank() {
   const box = document.getElementById('bankList');
@@ -3041,6 +3335,11 @@ function wirePlayerApp() {
   document.getElementById('tabDash').onclick = () => switchView('dash');
   document.getElementById('tabCal').onclick = () => switchView('cal');
   document.getElementById('tabBank').onclick = () => switchView('bank');
+  document.getElementById('tabTaito').onclick = () => switchView('taito');
+  const taitoLb = document.getElementById('taitoLightbox');
+  const taitoLbClose = document.getElementById('taitoLbClose');
+  if (taitoLbClose) taitoLbClose.onclick = () => { taitoLb.hidden = true; };
+  if (taitoLb) taitoLb.onclick = (e) => { if (e.target === taitoLb) taitoLb.hidden = true; };
   document.getElementById('tabFutis').onclick = () => switchView('futis');
   document.getElementById('profileHeader').onclick = () => switchView('profile');
   document.getElementById('profileBack').onclick = () => switchView('dash');
@@ -3318,6 +3617,7 @@ let coachSeasons = [];                          // menneet kaudet (valmentajan j
 let coachFootballRows = [];                     // pelaajien jalkapallotapahtumat päivineen
 let coachAnomalyAcks = new Set();               // kuitatut poikkeamat: "userId|date"
 let coachMythics = {};                          // team_id -> [{id,name,paikka}] myyttiset
+let coachTaitoResults = {};                     // user_id -> { haaste_id: {tulos,done,aika} }
 let coachTeamsOpen = null;                       // Joukkueet-näkymän avoimet haitarit (joukkue-id:t)
 let coachChallengesOpen = null;                  // Haasteet-näkymän avoimet haitarit
 let coachSubOpen = new Set();                     // joukkueasetusten ali-haitarit (oletuksena kiinni)
@@ -3442,6 +3742,7 @@ async function coachRefresh() {
   await loadAppSettings();
   await loadAnomalyAcks();
   await loadCoachMythics();
+  await loadCoachTaitoResults();
   if (currentUser.is_admin) {
     coachTeamLinks = await coachStore.getTeamCoaches();
     coachAccounts = await coachStore.getCoachAccounts();
@@ -3573,6 +3874,50 @@ function playerAnomalies(userId) {
   flags.sort((a, b) => b.date.localeCompare(a.date));
   return flags;
 }
+async function loadCoachTaitoResults() {
+  try {
+    coachTaitoResults = {};
+    const ids = coachPlayers.map(p => p.id);
+    if (!ids.length) return;
+    const { data, error } = await sb.from('taito_results').select('user_id, haaste_id, tulos, done, aika').in('user_id', ids);
+    if (error) { console.error(error); return; }
+    (data || []).forEach(r => {
+      (coachTaitoResults[r.user_id] = coachTaitoResults[r.user_id] || {})[r.haaste_id] =
+        { tulos: r.tulos, done: r.done, aika: (r.aika != null ? parseFloat(r.aika) : null) };
+    });
+  } catch (e) { console.error(e); }
+}
+function coachTaitoSection(userId) {
+  const res = coachTaitoResults[userId] || {};
+  let inner = '';
+  TAITOKORTIT.forEach(cat => {
+    let catHtml = '';
+    cat.subs.forEach(sub => {
+      const rows = sub.haasteet.filter(h => typeof h.tavoite === 'number').map(h => {
+        const hid = cat.id + ':' + sub.id + ':' + h.id;
+        const r = res[hid] || {};
+        const best = r.tulos || 0;
+        const done = r.done || (best >= h.tavoite);
+        return `<tr class="${done ? 'done' : ''}"><td>${escapeHtml(h.name)}</td><td class="ctaito-num">${h.tavoite}</td><td class="ctaito-num">${best ? best : '—'}${done ? ' ✓' : ''}</td></tr>`;
+      });
+      if (rows.length) catHtml += `<div class="ctaito-sub">${escapeHtml(sub.name)}</div>
+        <table class="ctaito-table"><thead><tr><th>Suorite</th><th class="ctaito-num">Tav.</th><th class="ctaito-num">Ennätys</th></tr></thead><tbody>${rows.join('')}</tbody></table>`;
+    });
+    if (cat.aikaHaaste) {
+      const r = res[cat.aikaHaaste.id] || {};
+      const aika = (r.aika != null) ? fmtAika(r.aika) + ' s' : '—';
+      catHtml += `<div class="ctaito-time">Aikaennätys (${escapeHtml(cat.aikaHaaste.label)}): <b>${aika}</b></div>`;
+    }
+    if (catHtml) inner += `<div class="ctaito-cat"><div class="ctaito-cat-name">${cat.icon || ''} ${escapeHtml(cat.name)}</div>${catHtml}</div>`;
+  });
+  if (!inner) inner = '<div class="ctaito-empty">Ei vielä taitokorttien tuloksia.</div>';
+  return `<div class="rep-taito-acc">
+      <button class="rep-taito-head" type="button" data-taito-report="${userId}" aria-expanded="false">
+        <span class="rep-taito-title">🎯 Taitokortit — ennätykset</span><span class="rep-taito-chev">▾</span>
+      </button>
+      <div class="rep-taito-body" hidden>${inner}</div>
+    </div>`;
+}
 async function loadCoachMythics() {
   try {
     const ids = coachTeams.map(t => t.id);
@@ -3650,6 +3995,7 @@ function richPlayerReport(p) {
     + (catBars ? `<div class="rep-section-label">Kuukauden jakauma</div>${catBars}` : '')
     + (goalLines ? `<div class="rep-section-label">Tavoitteet (tällä viikolla)</div>${goalLines}` : '')
     + (chLines ? `<div class="rep-section-label">Haasteet</div>${chLines}` : '')
+    + coachTaitoSection(p.id)
     + recentSessionsSection(p)
     + kudosSection(p);
   return `
@@ -3754,6 +4100,16 @@ function renderCoachPlayers() {
   wireCoachReports();
 }
 function wireCoachReports() {
+  document.querySelectorAll('#coachPlayers [data-taito-report]').forEach(btn => {
+    btn.onclick = (e) => {
+      if (e) e.stopPropagation();
+      const body = btn.nextElementSibling;
+      const willOpen = body.hidden;
+      body.hidden = !willOpen;
+      btn.setAttribute('aria-expanded', String(willOpen));
+      btn.closest('.rep-taito-acc').classList.toggle('open', willOpen);
+    };
+  });
   document.querySelectorAll('#coachPlayers [data-ack-player]').forEach(btn => {
     btn.onclick = (e) => { e.stopPropagation(); ackPlayerAnomalies(btn.getAttribute('data-ack-player')); };
   });

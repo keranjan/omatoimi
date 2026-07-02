@@ -804,6 +804,118 @@
   .mythic-del-btn:hover { border-color: #c0392b; color: #c0392b; }
   .mythic-pos-input { flex: none; width: auto; padding: 9px 10px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface); color: var(--ink); font-family: inherit; font-size: 14px; }
 
+  /* Valmentajan pelaajaraportti — taitokorttien ennätykset (haitari) */
+  .rep-taito-acc { border: 1px solid var(--line); border-radius: 10px; overflow: hidden; margin: 12px 0; background: var(--bg); }
+  .rep-taito-head { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 11px 12px; background: none; border: 0; cursor: pointer; font-family: inherit; text-align: left; }
+  .rep-taito-title { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 14px; text-transform: uppercase; letter-spacing: 0.02em; color: var(--ink); }
+  .rep-taito-chev { font-size: 12px; color: var(--ink-faint); transition: transform 0.18s ease; }
+  .rep-taito-acc.open .rep-taito-chev { transform: rotate(180deg); }
+  .rep-taito-acc.open .rep-taito-head { border-bottom: 1px solid var(--line); }
+  .rep-taito-body { padding: 12px; background: var(--surface); }
+  .rep-taito-body[hidden] { display: none; }
+  .ctaito-cat { margin-bottom: 14px; }
+  .ctaito-cat:last-child { margin-bottom: 0; }
+  .ctaito-cat-name { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 15px; color: var(--brand); margin-bottom: 6px; }
+  .ctaito-sub { font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; color: var(--ink-faint); margin: 8px 0 3px; }
+  .ctaito-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .ctaito-table th { text-align: left; font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--ink-faint); padding: 3px 6px; border-bottom: 1px solid var(--line); }
+  .ctaito-table td { padding: 5px 6px; border-bottom: 1px solid var(--line); color: var(--ink); }
+  .ctaito-table tr:last-child td { border-bottom: none; }
+  .ctaito-table .ctaito-num { text-align: center; }
+  .ctaito-table th.ctaito-num { text-align: center; }
+  .ctaito-table tr.done td { color: var(--brand); font-weight: 600; }
+  .ctaito-time { font-size: 13px; color: var(--ink-soft); margin-top: 8px; }
+  .ctaito-time b { color: var(--brand); font-family: 'Barlow Condensed', sans-serif; font-size: 15px; }
+  .ctaito-empty { font-size: 13px; color: var(--ink-faint); }
+
+  /* ═══ TAITOKORTIT ═══ */
+  .taito-intro { margin-bottom: 16px; }
+  .taito-title { font-family: 'Barlow Condensed', sans-serif; font-size: 26px; font-weight: 700; margin: 0 0 4px; color: var(--ink); }
+  .taito-lead { font-size: 13.5px; color: var(--ink-soft); line-height: 1.5; margin: 0; }
+  .taito-cat { border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); margin-bottom: 12px; overflow: hidden; }
+  .taito-cat-head { width: 100%; display: flex; align-items: center; gap: 11px; padding: 14px 14px; background: none; border: 0; cursor: pointer; font-family: inherit; text-align: left; }
+  .taito-cat-ic { font-size: 22px; line-height: 1; flex: none; }
+  .taito-cat-name { flex: 1; font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 18px; text-transform: uppercase; letter-spacing: 0.02em; color: var(--ink); }
+  .taito-cat-meta { font-size: 11.5px; color: var(--ink-faint); font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; flex: none; }
+  .taito-chev { font-size: 12px; color: var(--ink-faint); transition: transform 0.18s ease; flex: none; }
+  .taito-cat.open > .taito-cat-head .taito-chev, .taito-sub.open > .taito-sub-head .taito-chev { transform: rotate(180deg); }
+  .taito-cat.open > .taito-cat-head { border-bottom: 1px solid var(--line); }
+  .taito-cat-body { padding: 12px; }
+  .taito-cat-body[hidden], .taito-sub-body[hidden] { display: none; }
+  .taito-soon { font-size: 13px; color: var(--ink-faint); padding: 12px 4px; text-align: center; }
+  .taito-cat-images { display: flex; gap: 8px; margin-bottom: 14px; align-items: flex-start; }
+  .taito-cat-images .taito-card { flex: 1; min-width: 0; border: none; background: transparent; overflow: visible; }
+  .taito-cat-img .taito-img-wrap { aspect-ratio: auto; background: transparent; }
+  .taito-cat-img .taito-img { position: static; width: 100%; height: auto; object-fit: contain; display: block; }
+  .taito-cat-img .taito-img-wrap.noimg { aspect-ratio: 3 / 4; border: 1px dashed var(--line); border-radius: 8px; }
+
+  /* Tasakorkuinen kuvarivi (esim. Suunnanmuutos): kaikki samaan korkeuteen, leveys kuvasuhteen mukaan */
+  .taito-cat-images--tasa { align-items: flex-start; flex-wrap: wrap; }
+  .taito-cat-images--tasa .taito-card { flex: 0 0 auto; min-width: 0; }
+  .taito-cat-images--tasa .taito-cat-img .taito-img-wrap { height: clamp(182px, 52vw, 286px); aspect-ratio: auto; }
+  .taito-cat-images--tasa .taito-cat-img .taito-img { position: static; height: 100%; width: auto; max-width: 100%; object-fit: contain; display: block; }
+  .taito-cat-images--tasa .taito-cat-img .taito-img-wrap.noimg { width: 130px; aspect-ratio: auto; }
+
+  .taito-sub { border: 1px solid var(--line); border-radius: 10px; background: var(--bg); margin-bottom: 8px; overflow: hidden; }
+  .taito-sub:last-child { margin-bottom: 0; }
+  .taito-sub-head { width: 100%; display: flex; align-items: center; gap: 10px; padding: 11px 12px; background: none; border: 0; cursor: pointer; font-family: inherit; text-align: left; }
+  .taito-sub-name { flex: 1; font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 15px; text-transform: uppercase; letter-spacing: 0.02em; color: var(--ink); }
+  .taito-sub-meta { font-size: 11px; font-weight: 700; color: var(--ink-faint); background: var(--surface); border: 1px solid var(--line); border-radius: 20px; min-width: 20px; text-align: center; padding: 1px 7px; flex: none; }
+  .taito-sub.open > .taito-sub-head { border-bottom: 1px solid var(--line); }
+  .taito-sub-body { padding: 12px; background: var(--surface); }
+
+  .taito-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
+  .taito-card { display: flex; flex-direction: column; gap: 0; padding: 0; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); cursor: pointer; overflow: hidden; text-align: left; font-family: inherit; transition: border-color 0.15s, transform 0.1s; }
+  .taito-card:hover { border-color: var(--brand); }
+  .taito-card:active { transform: scale(0.98); }
+  .taito-img-wrap { position: relative; width: 100%; aspect-ratio: 4 / 3; background: var(--bg); overflow: hidden; }
+  .taito-img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .taito-img-ph { display: none; position: absolute; inset: 0; flex-direction: column; align-items: center; justify-content: center; gap: 4px; color: var(--ink-faint); font-size: 11px; }
+  .taito-img-ph span { font-size: 22px; opacity: 0.5; }
+  .taito-img-wrap.noimg .taito-img { display: none; }
+  .taito-img-wrap.noimg .taito-img-ph { display: flex; }
+  .taito-card-name { padding: 8px 10px; font-size: 13px; font-weight: 600; color: var(--ink); line-height: 1.3; }
+
+  /* Tavoitepohjaiset haasteet — taulukko (Suorite | Tavoite | Oma ennätys) */
+  .taito-table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  .taito-table th { text-align: left; font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: 0.03em; color: var(--ink-faint); padding: 4px 8px 8px; border-bottom: 1px solid var(--line); }
+  .taito-table th.ttc-num, .taito-table td.ttc-num { text-align: center; }
+  .taito-table td { padding: 7px 8px; border-bottom: 1px solid var(--line); color: var(--ink); vertical-align: middle; }
+  .taito-table tr:last-child td { border-bottom: none; }
+  .taito-table .ttc-name { font-weight: 600; }
+  .taito-table tr.done .ttc-name { color: var(--brand); }
+  .ttc-check { color: var(--brand); font-weight: 700; margin-right: 5px; }
+  .ttc-input { width: 62px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--ink); font-family: inherit; font-size: 14px; text-align: center; }
+  .ttc-input:focus { outline: none; border-color: var(--brand); }
+  .taito-table tr.done .ttc-input { border-color: var(--brand); }
+  .taito-table-foot { display: flex; align-items: center; gap: 12px; margin-top: 12px; }
+  .taito-table-foot .taito-save-btn { flex: none; width: auto; margin: 0; padding: 8px 16px; font-size: 14px; }
+  .taito-save-msg { font-size: 12.5px; color: var(--ink-soft); }
+  .taito-save-msg.ok { color: var(--brand); font-weight: 600; }
+  .taito-save-msg.error { color: #c0392b; }
+
+  /* Aikaennätys (sekunteina, pienin paras) */
+  .taito-aika { border: 1px solid var(--line); border-radius: 12px; background: var(--surface); padding: 14px; margin-bottom: 12px; }
+  .taito-aika-label { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 15px; text-transform: uppercase; letter-spacing: 0.02em; color: var(--ink); margin-bottom: 10px; }
+  .taito-aika-row { display: flex; align-items: center; gap: 8px; }
+  .taito-aika-input { width: 110px; padding: 9px 11px; border: 1px solid var(--line); border-radius: 9px; background: var(--bg); color: var(--ink); font-family: inherit; font-size: 15px; }
+  .taito-aika-input:focus { outline: none; border-color: var(--brand); }
+  .taito-aika-unit { font-size: 14px; color: var(--ink-soft); font-weight: 600; }
+  .taito-aika .taito-aika-save { flex: none; width: auto; margin: 0 0 0 auto; padding: 9px 16px; font-size: 14px; }
+  .taito-aika-best { margin-top: 10px; font-size: 13px; color: var(--ink-soft); }
+  .taito-aika-best b { color: var(--brand); font-family: 'Barlow Condensed', sans-serif; font-size: 16px; }
+  .taito-aika-msg { margin-top: 6px; font-size: 12px; color: var(--ink-soft); }
+  .taito-aika-msg:empty { display: none; }
+  .taito-aika-msg.ok { color: var(--brand); font-weight: 600; }
+  .taito-aika-msg.error { color: #c0392b; }
+
+  .taito-lightbox { position: fixed; inset: 0; z-index: 1000; background: rgba(0,0,0,0.88); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 24px; }
+  .taito-lightbox[hidden] { display: none; }
+  .taito-lb-img { max-width: 94vw; max-height: 78vh; border-radius: 12px; box-shadow: 0 20px 60px rgba(0,0,0,0.5); object-fit: contain; }
+  .taito-lb-cap { color: #fff; font-family: 'Barlow Condensed', sans-serif; font-weight: 600; font-size: 18px; text-align: center; }
+  .taito-lb-close { position: absolute; top: 16px; right: 16px; width: 42px; height: 42px; border-radius: 50%; border: 0; background: rgba(255,255,255,0.15); color: #fff; font-size: 18px; cursor: pointer; }
+  .taito-lb-close:hover { background: rgba(255,255,255,0.28); }
+
   /* Tekstifutis (upotettu peli) */
   .futis-wrap { border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; background: var(--bg); margin-bottom: 18px; }
   .futis-frame { width: 100%; height: 80vh; min-height: 560px; border: 0; display: block; background: var(--bg); color-scheme: normal; border-radius: var(--radius); }
