@@ -1004,7 +1004,7 @@ function bankVideoUrl(ex) {
 /* ═══ TAITOKORTIT (ohjekuvat Supabase Storagesta) ═══ */
 const TAITO_BASE = 'https://ozfjybzmuwbibolnpajq.supabase.co/storage/v1/object/public/taitokortit';
 const TAITOKORTIT = [
-  { id: 'ponnauttelu', name: 'Ponnauttelu', icon: '⚽', kuvat: ['ponnauttelu/kuva1.png', 'ponnauttelu/kuva2.png', 'ponnauttelu/kuva3.png'], subs: [
+  { id: 'ponnauttelu', name: 'Ponnauttelu', icon: '⚽', kuvat: ['ponnauttelu/kuva1.png'], kuvatTyyli: 'yksi', subs: [
     { id: 'staattinen', name: 'Staattinen ponnauttelu', haasteet: [
       { id: 'vahva-jalkapoyta', name: 'Vahva jalka — jalkapöytä', tavoite: 50 },
       { id: 'heikko-jalkapoyta', name: 'Heikko jalka — jalkapöytä', tavoite: 25 },
@@ -1029,8 +1029,8 @@ const TAITOKORTIT = [
       { id: 'ulkosyrjat', name: 'Ulkosyrjät', tavoite: 8 },
     ] },
   ] },
-  { id: 'suunnanmuutos', name: 'Suunnanmuutos pallolla', icon: '↔️', kuvat: ['suunnanmuutos/kuva1.png', 'suunnanmuutos/kuva2.png'], kuvatTyyli: 'tasa', aikaHaaste: { id: 'suunnanmuutos:ennatys', label: 'radan kierto' }, subs: [] },
-  { id: 'kuljetus-vino', name: 'Kuljettaminen vinottain', icon: '↗️', kuvat: ['kuljetus-vino/kuva1.png', 'kuljetus-vino/kuva2.png'], kuvatTyyli: 'tasa', aikaHaaste: { id: 'kuljetus-vino:ennatys', label: 'radan kierto' }, subs: [] },
+  { id: 'suunnanmuutos', name: 'Suunnanmuutos pallolla', icon: '↔️', kuvat: ['suunnanmuutos/kuva1.png'], kuvatTyyli: 'yksi', aikaHaaste: { id: 'suunnanmuutos:ennatys', label: 'radan kierto' }, subs: [] },
+  { id: 'kuljetus-vino', name: 'Kuljettaminen vinottain', icon: '↗️', kuvat: ['kuljetus-vino/kuva1.png'], kuvatTyyli: 'yksi', aikaHaaste: { id: 'kuljetus-vino:ennatys', label: 'radan kierto' }, subs: [] },
 ];
 // Kuvan URL: haaste.kuva (koko polku bucketissa) tai oletus <kat>/<ala>/<haaste>.jpg
 function taitoKuvaUrl(cat, sub, h) {
@@ -1073,7 +1073,7 @@ function renderTaito() {
       </button>
       <div class="taito-cat-body"${catOpen ? '' : ' hidden'}>`;
     if (cat.kuvat && cat.kuvat.length) {
-      const imgCls = cat.kuvatTyyli === 'tasa' ? ' taito-cat-images--tasa' : '';
+      const imgCls = cat.kuvatTyyli ? ' taito-cat-images--' + cat.kuvatTyyli : '';
       html += `<div class="taito-cat-images${imgCls}">`;
       cat.kuvat.forEach((path, i) => {
         const url = `${TAITO_BASE}/${path}`;
@@ -3286,6 +3286,27 @@ function showToast(msg) {
   }, 2200);
 }
 
+let successCheckTimer;
+function showSuccessCheck() {
+  let ov = document.getElementById('successCheck');
+  if (!ov) {
+    ov = document.createElement('div');
+    ov.id = 'successCheck';
+    ov.className = 'success-check';
+    ov.innerHTML = '<div class="success-check-box"><span class="success-check-mark">✓</span><span class="success-check-text">Tallennettu!</span></div>';
+    document.body.appendChild(ov);
+  }
+  ov.classList.remove('show');
+  void ov.offsetWidth;            // pakota uudelleenpiirto animaation toistoa varten
+  ov.hidden = false;
+  requestAnimationFrame(() => ov.classList.add('show'));
+  clearTimeout(successCheckTimer);
+  successCheckTimer = setTimeout(() => {
+    ov.classList.remove('show');
+    setTimeout(() => { ov.hidden = true; }, 260);
+  }, 1300);
+}
+
 async function save() {
   const date = formDate;
   const duration = parseInt(document.getElementById('inDuration').value, 10);
@@ -3298,7 +3319,7 @@ async function save() {
   document.getElementById('inDuration').value = '';
   document.getElementById('inNote').value = '';
   renderAll();
-  showToast('Harjoitus tallennettu');
+  showSuccessCheck();
 }
 
 /* ---- Pelaajasovelluksen kytkennät ---- */
