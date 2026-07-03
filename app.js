@@ -699,6 +699,7 @@ let teamGoalXpRows = [];             // pelaajan yhteistavoite-bonus-XP (rivit)
 let seasonsHist = [];                // menneet kaudet (kausiraportteja varten)
 let myMythics = [];                  // oman joukkueen myyttiset (Tekstifutis-keräilykortit)
 let taitoResults = {};               // taitokorttien tulokset: haaste_id -> {tulos, done}
+let teamTaitoGoals = {};             // oman joukkueen ponnauttelutavoitteet: haaste_id -> tavoite
 
 /* ---- Lomakkeen päivämäärä (oma suomenkielinen valitsin) ---- */
 let formDate = todayISO();
@@ -777,6 +778,7 @@ async function renderAll() {
     refreshShopState(),
     loadMyMythics(),
     loadTaitoResults(),
+    loadTeamTaitoGoals(),
   ]);
   lastAll = all;
   currentGoals = goals;
@@ -1068,7 +1070,7 @@ function renderTaito() {
       <button class="taito-cat-head" type="button" data-taito-cat="${cat.id}" aria-expanded="${catOpen}">
         <span class="taito-cat-ic">${cat.icon || '⚽'}</span>
         <span class="taito-cat-name">${escapeHtml(cat.name)}</span>
-        <span class="taito-cat-meta">${nHaaste ? nHaaste + ' harjoitusta' : ((cat.kuvat || cat.aikaHaaste) ? '' : 'tulossa')}</span>
+        <span class="taito-cat-meta">${taitoCatMetaHtml(cat)}</span>
         <span class="taito-chev">▾</span>
       </button>
       <div class="taito-cat-body"${catOpen ? '' : ' hidden'}>`;
@@ -1112,11 +1114,12 @@ function renderTaito() {
             html += `<table class="taito-table"><thead><tr><th>Suorite</th><th class="ttc-num">Tavoite</th><th class="ttc-num">Oma ennätys</th></tr></thead><tbody>`;
             targetHs.forEach(h => {
               const hid = cat.id + ':' + sub.id + ':' + h.id;
+              const tav = effTavoite(hid, h.tavoite);
               const r = taitoResults[hid] || { tulos: 0, done: false };
-              const done = r.done || (r.tulos >= h.tavoite);
+              const done = r.done || (r.tulos >= tav);
               html += `<tr class="${done ? 'done' : ''}">
                 <td class="ttc-name">${done ? '<span class="ttc-check">✓</span>' : ''}${escapeHtml(h.name)}</td>
-                <td class="ttc-num">${h.tavoite}</td>
+                <td class="ttc-num">${tav}</td>
                 <td class="ttc-num"><input type="number" class="ttc-input" data-haaste="${hid}" data-sub="${subId}" min="0" inputmode="numeric" placeholder="—" value="${r.tulos ? r.tulos : ''}"></td>
               </tr>`;
             });
@@ -1199,9 +1202,63 @@ function wireTaito() {
 function taitoTavoiteFor(hid) {
   for (const cat of TAITOKORTIT) for (const sub of cat.subs) {
     if (cat.id + ':' + sub.id !== hid.split(':').slice(0, 2).join(':')) continue;
-    for (const h of sub.haasteet) if (cat.id + ':' + sub.id + ':' + h.id === hid) return h.tavoite;
+    for (const h of sub.haasteet) if (cat.id + ':' + sub.id + ':' + h.id === hid) return effTavoite(hid, h.tavoite);
   }
   return null;
+}
+// Onko alakategorian kaikki tavoitteet suoritettu annetulla tulostilalla?
+function subComplete(subId, results) {
+  const parts = subId.split(':');
+  const cat = TAITOKORTIT.find(c => c.id === parts[0]);
+  const sub = cat && cat.subs.find(s => s.id === parts[1]);
+  if (!sub || !sub.haasteet.length) return false;
+  return sub.haasteet.every(h => {
+    if (typeof h.tavoite !== 'number') return true;
+    const hid = subId + ':' + h.id;
+    const r = results[hid];
+    return !!(r && (r.done || r.tulos >= effTavoite(hid, h.tavoite)));
+  });
+}
+async function loadTeamTaitoGoals() {
+  try {
+    teamTaitoGoals = {};
+    if (!currentUser || !currentUser.team_id) return;
+    const { data, error } = await sb.from('taito_goals').select('haaste_id, tavoite').eq('team_id', currentUser.team_id);
+    if (error) { console.error(error); return; }
+    (data || []).forEach(r => { teamTaitoGoals[r.haaste_id] = r.tavoite; });
+  } catch (e) { console.error(e); }
+}
+// Effektiivinen tavoite: joukkueen oma arvo tai oletus (goalsMap valinnainen; oletuksena oman joukkueen)
+function effTavoite(hid, def, goalsMap) {
+  const m = goalsMap || teamTaitoGoals;
+  return (m && m[hid] != null) ? m[hid] : def;
+}
+// Kategorian suoritetut/kaikki lasketut haasteet
+function taitoCatDone(cat) {
+  let done = 0, total = 0;
+  cat.subs.forEach(sub => sub.haasteet.forEach(h => {
+    if (typeof h.tavoite !== 'number') return;
+    total++;
+    const hid = cat.id + ':' + sub.id + ':' + h.id;
+    const r = taitoResults[hid];
+    if (r && (r.done || r.tulos >= effTavoite(hid, h.tavoite))) done++;
+  }));
+  return { done, total };
+}
+// Kategoriasta taitohaasteista ansaitut jalkapallot (football_events, viite taito:/taito_bonus:)
+function taitoFootballsFor(catId) {
+  const rows = (myFootballs && myFootballs.rows) || [];
+  return rows.filter(r => r.ref && (r.ref.indexOf('taito:' + catId + ':') === 0 || r.ref.indexOf('taito_bonus:' + catId + ':') === 0))
+    .reduce((s, r) => s + (r.amount || 0), 0);
+}
+function taitoCatMetaHtml(cat) {
+  const { done, total } = taitoCatDone(cat);
+  if (total > 0) return `${done}/${total} suoritettu · ${fmtBalls(taitoFootballsFor(cat.id))} ⚽`;
+  if (cat.aikaHaaste) {
+    const r = taitoResults[cat.aikaHaaste.id];
+    return (r && r.aika != null) ? `Ennätys ${fmtAika(r.aika)} s` : '';
+  }
+  return cat.kuvat ? '' : 'tulossa';
 }
 async function loadTaitoResults() {
   try {
@@ -1221,7 +1278,7 @@ async function saveTaitoTable(subId) {
   const jobs = []; let anyInvalid = false;
   inputs.forEach(inp => {
     const raw = (inp.value || '').trim();
-    if (raw === '') return;                       // tyhjä → säilytä ennätys
+    if (raw === '') return;                       // tyhja -> sailyta ennatys
     const val = parseInt(raw, 10);
     if (isNaN(val) || val < 0) { anyInvalid = true; return; }
     const hid = inp.getAttribute('data-haaste');
@@ -1231,15 +1288,35 @@ async function saveTaitoTable(subId) {
     jobs.push({ hid, val, done: val >= tavoite, wasDone: !!(taitoResults[hid] && taitoResults[hid].done) });
   });
   if (!jobs.length) { setMsg(anyInvalid ? 'Tarkista numerot.' : 'Ei uusia tuloksia.', anyInvalid ? 'error' : ''); return; }
-  let newlyDone = false;
+  // Ennakoi lopputila (parhaat tulokset) alakategorian valmistumisen laskemiseksi
+  const projected = {};
+  Object.keys(taitoResults).forEach(k => { projected[k] = { tulos: taitoResults[k].tulos, done: taitoResults[k].done }; });
+  jobs.forEach(j => {
+    const prev = projected[j.hid] ? projected[j.hid].tulos : 0;
+    const best = Math.max(prev, j.val);
+    projected[j.hid] = { tulos: best, done: (projected[j.hid] && projected[j.hid].done) || j.done };
+  });
+  const subWasComplete = subComplete(subId, taitoResults);
+  const subNowComplete = subComplete(subId, projected);
+  const subCount = (() => {
+    const parts = subId.split(':');
+    const cat = TAITOKORTIT.find(c => c.id === parts[0]);
+    const sub = cat && cat.subs.find(s => s.id === parts[1]);
+    return sub ? sub.haasteet.filter(h => typeof h.tavoite === 'number').length : 0;
+  })();
+  let totalReward = 0, totalBonus = 0, newlyDone = false;
   await Promise.all(jobs.map(async j => {
-    const { data, error } = await sb.rpc('save_taito_result', { p_haaste_id: j.hid, p_tulos: j.val, p_done: j.done });
+    const { data, error } = await sb.rpc('save_taito_result', {
+      p_haaste_id: j.hid, p_tulos: j.val, p_done: j.done,
+      p_sub_id: subId, p_sub_complete: subNowComplete && !subWasComplete, p_sub_count: subCount
+    });
     if (error) { console.error(error); j.error = true; return; }
     const row = Array.isArray(data) ? data[0] : data;
-    taitoResults[j.hid] = { tulos: row ? row.tulos : j.val, done: row ? row.done : j.done };
+    taitoResults[j.hid] = { tulos: row ? row.tulos : j.val, done: row ? row.done : j.done, aika: taitoResults[j.hid] ? taitoResults[j.hid].aika : null };
+    if (row) { totalReward += (row.reward || 0); totalBonus += (row.bonus || 0); }
     if (taitoResults[j.hid].done && !j.wasDone) newlyDone = true;
   }));
-  // Päivitä rivit paikan päällä — ei koko näkymän uudelleenrenderöintiä (kuvat eivät lataudu uudelleen)
+  // Paivita rivit paikan paalla (ei koko nakyman uudelleenrenderointia -> kuvat eivat lataudu uudelleen)
   let anyError = false;
   jobs.forEach(j => {
     if (j.error) { anyError = true; return; }
@@ -1253,13 +1330,24 @@ async function saveTaitoTable(subId) {
       const nameCell = tr.querySelector('.ttc-name');
       if (nameCell) {
         const check = nameCell.querySelector('.ttc-check');
-        if (r.done && !check) nameCell.insertAdjacentHTML('afterbegin', '<span class="ttc-check">✓</span>');
+        if (r.done && !check) nameCell.insertAdjacentHTML('afterbegin', '<span class="ttc-check">\u2713</span>');
         if (!r.done && check) check.remove();
       }
     }
   });
-  setMsg(anyError ? 'Osaa ei voitu tallentaa.' : 'Tallennettu ✓', anyError ? 'error' : 'ok');
-  if (newlyDone && typeof celebrate === 'function') celebrate();
+  // Palaute + palkinnot
+  let msg = 'Tallennettu \u2713';
+  if (totalBonus > 0) msg = `Koko kategoria suoritettu! +${totalReward + totalBonus} \u26bd`;
+  else if (totalReward > 0) msg = `Tavoite saavutettu! +${totalReward} \u26bd`;
+  setMsg(anyError ? 'Osaa ei voitu tallentaa.' : msg, anyError ? 'error' : 'ok');
+  if ((totalReward > 0 || totalBonus > 0) && typeof celebrate === 'function') celebrate({ big: totalBonus > 0 });
+  else if (newlyDone && typeof celebrate === 'function') celebrate();
+  if (totalReward > 0 || totalBonus > 0) { try { myFootballs = await loadFootballEvents(); } catch (e) {} }
+  // Päivitä kategorian otsikko (suoritetut + ansaitut ⚽) ilman koko näkymän renderöintiä
+  const catId = subId.split(':')[0];
+  const catObj = TAITOKORTIT.find(c => c.id === catId);
+  const metaEl = document.querySelector(`#viewTaito [data-taito-cat="${catId}"] .taito-cat-meta`);
+  if (metaEl && catObj) metaEl.textContent = taitoCatMetaHtml(catObj);
 }
 async function saveTaitoTime(hid) {
   const inp = document.querySelector(`#viewTaito .taito-aika-input[data-haaste="${hid}"]`);
@@ -1278,6 +1366,10 @@ async function saveTaitoTime(hid) {
   taitoResults[hid] = Object.assign({}, taitoResults[hid], { aika });
   if (best) best.innerHTML = `Paras aikasi: <b>${fmtAika(aika)} s</b>`;
   inp.value = '';
+  const catId = hid.split(':')[0];
+  const catObj = TAITOKORTIT.find(c => c.id === catId);
+  const metaEl = document.querySelector(`#viewTaito [data-taito-cat="${catId}"] .taito-cat-meta`);
+  if (metaEl && catObj) metaEl.textContent = taitoCatMetaHtml(catObj);
   setMsg(val <= aika ? 'Uusi ennätys ✓' : 'Tallennettu ✓', 'ok');
   if (val <= aika && typeof celebrate === 'function') celebrate();
 }
@@ -2102,7 +2194,8 @@ function renderFootballs() {
     </div>
     <div class="ball-breakdown">
       <div class="ball-chip"><span>Harjoituksista</span><b>${fmtBalls(myFootballs.session)}</b></div>
-      <div class="ball-chip"><span>Haasteista</span><b>${fmtBalls(myFootballs.challenge)}</b></div>
+      <div class="ball-chip"><span>Haasteista</span><b>${fmtBalls(Math.max(0, (myFootballs.challenge || 0) - (myFootballs.taito || 0)))}</b></div>
+      ${myFootballs.taito > 0 ? `<div class="ball-chip"><span>Taitohaasteista</span><b>${fmtBalls(myFootballs.taito)}</b></div>` : ''}
       ${myFootballs.quest > 0 ? `<div class="ball-chip"><span>Viikkotehtävistä</span><b>${fmtBalls(myFootballs.quest)}</b></div>` : ''}
       ${myFootballs.daily > 0 ? `<div class="ball-chip"><span>Päivittäisistä</span><b>${fmtBalls(myFootballs.daily)}</b></div>` : ''}
       ${spentLine}
@@ -2124,16 +2217,17 @@ function renderFootballs() {
 /* ---- Jalkapallot (pysyvä valuutta) ---- */
 const fmtBalls = n => (n || 0).toLocaleString('fi-FI');
 async function loadFootballEvents() {
-  const { data, error } = await sb.from('football_events').select('amount, source, event_date');
-  if (error) { console.error(error); return { total: 0, session: 0, challenge: 0, quest: 0, daily: 0, rows: [] }; }
-  let session = 0, challenge = 0, quest = 0, daily = 0;
+  const { data, error } = await sb.from('football_events').select('amount, source, ref, event_date');
+  if (error) { console.error(error); return { total: 0, session: 0, challenge: 0, quest: 0, daily: 0, taito: 0, rows: [] }; }
+  let session = 0, challenge = 0, quest = 0, daily = 0, taito = 0;
   data.forEach(r => {
     if (r.source === 'challenge') challenge += r.amount;
     else if (r.source === 'quest') quest += r.amount;
     else if (r.source === 'daily') daily += r.amount;
     else session += r.amount;
+    if (r.ref && (r.ref.indexOf('taito:') === 0 || r.ref.indexOf('taito_bonus:') === 0)) taito += r.amount;
   });
-  return { total: session + challenge + quest + daily, session, challenge, quest, daily, rows: data };
+  return { total: session + challenge + quest + daily, session, challenge, quest, daily, taito, rows: data };
 }
 async function loadSeasons() {
   const { data, error } = await sb.from('seasons').select('name, starts_on, ends_on').order('starts_on', { ascending: false });
@@ -3639,6 +3733,7 @@ let coachFootballRows = [];                     // pelaajien jalkapallotapahtuma
 let coachAnomalyAcks = new Set();               // kuitatut poikkeamat: "userId|date"
 let coachMythics = {};                          // team_id -> [{id,name,paikka}] myyttiset
 let coachTaitoResults = {};                     // user_id -> { haaste_id: {tulos,done,aika} }
+let coachTaitoGoals = {};                       // team_id -> { haaste_id: tavoite }
 let coachTeamsOpen = null;                       // Joukkueet-näkymän avoimet haitarit (joukkue-id:t)
 let coachChallengesOpen = null;                  // Haasteet-näkymän avoimet haitarit
 let coachSubOpen = new Set();                     // joukkueasetusten ali-haitarit (oletuksena kiinni)
@@ -3764,6 +3859,7 @@ async function coachRefresh() {
   await loadAnomalyAcks();
   await loadCoachMythics();
   await loadCoachTaitoResults();
+  await loadCoachTaitoGoals();
   if (currentUser.is_admin) {
     coachTeamLinks = await coachStore.getTeamCoaches();
     coachAccounts = await coachStore.getCoachAccounts();
@@ -3895,6 +3991,16 @@ function playerAnomalies(userId) {
   flags.sort((a, b) => b.date.localeCompare(a.date));
   return flags;
 }
+async function loadCoachTaitoGoals() {
+  try {
+    coachTaitoGoals = {};
+    const ids = coachTeams.map(t => t.id);
+    if (!ids.length) return;
+    const { data, error } = await sb.from('taito_goals').select('team_id, haaste_id, tavoite').in('team_id', ids);
+    if (error) { console.error(error); return; }
+    (data || []).forEach(r => { (coachTaitoGoals[r.team_id] = coachTaitoGoals[r.team_id] || {})[r.haaste_id] = r.tavoite; });
+  } catch (e) { console.error(e); }
+}
 async function loadCoachTaitoResults() {
   try {
     coachTaitoResults = {};
@@ -3910,16 +4016,19 @@ async function loadCoachTaitoResults() {
 }
 function coachTaitoSection(userId) {
   const res = coachTaitoResults[userId] || {};
+  const pl = coachPlayers.find(p => p.id === userId);
+  const goals = (pl && coachTaitoGoals[pl.team_id]) || {};
   let inner = '';
   TAITOKORTIT.forEach(cat => {
     let catHtml = '';
     cat.subs.forEach(sub => {
       const rows = sub.haasteet.filter(h => typeof h.tavoite === 'number').map(h => {
         const hid = cat.id + ':' + sub.id + ':' + h.id;
+        const tav = effTavoite(hid, h.tavoite, goals);
         const r = res[hid] || {};
         const best = r.tulos || 0;
-        const done = r.done || (best >= h.tavoite);
-        return `<tr class="${done ? 'done' : ''}"><td>${escapeHtml(h.name)}</td><td class="ctaito-num">${h.tavoite}</td><td class="ctaito-num">${best ? best : '—'}${done ? ' ✓' : ''}</td></tr>`;
+        const done = r.done || (best >= tav);
+        return `<tr class="${done ? 'done' : ''}"><td>${escapeHtml(h.name)}</td><td class="ctaito-num">${tav}</td><td class="ctaito-num">${best ? best : '—'}${done ? ' ✓' : ''}</td></tr>`;
       });
       if (rows.length) catHtml += `<div class="ctaito-sub">${escapeHtml(sub.name)}</div>
         <table class="ctaito-table"><thead><tr><th>Suorite</th><th class="ctaito-num">Tav.</th><th class="ctaito-num">Ennätys</th></tr></thead><tbody>${rows.join('')}</tbody></table>`;
@@ -4301,6 +4410,63 @@ async function delMythic(id) {
   await loadCoachMythics();
   renderCoachTeams();
 }
+function taitoDefaultFor(hid) {
+  const parts = hid.split(':');
+  const cat = TAITOKORTIT.find(c => c.id === parts[0]);
+  const sub = cat && cat.subs.find(s => s.id === parts[1]);
+  const h = sub && sub.haasteet.find(x => x.id === parts.slice(2).join(':'));
+  return h ? h.tavoite : null;
+}
+function taitoGoalsBlockHtml(t) {
+  const goals = coachTaitoGoals[t.id] || {};
+  const ponn = TAITOKORTIT.find(c => c.id === 'ponnauttelu');
+  let html = '<div class="mythic-help">Säädä oman joukkueesi ponnauttelutavoitteet. Tyhjä = oletusarvo (näkyy harmaana). Pelaaja saa pienen palkinnon jokaisesta saavutetusta tavoitteesta ja ison palkinnon koko alakategorian suorittamisesta.</div>';
+  ponn.subs.forEach(sub => {
+    html += `<div class="ctaito-sub">${escapeHtml(sub.name)}</div><table class="tgoal-table"><tbody>`;
+    sub.haasteet.forEach(h => {
+      const hid = 'ponnauttelu:' + sub.id + ':' + h.id;
+      const cur = goals[hid];
+      html += `<tr><td class="tgoal-name">${escapeHtml(h.name)}</td><td class="tgoal-cell"><input type="number" class="tgoal-input" data-team="${t.id}" data-haaste="${hid}" min="1" inputmode="numeric" placeholder="${h.tavoite}" value="${cur != null ? cur : ''}"></td></tr>`;
+    });
+    html += '</tbody></table>';
+  });
+  html += `<div class="coach-add-row"><button class="btn tgoal-save-btn" data-team="${t.id}" type="button">Tallenna tavoitteet</button><button class="btn tgoal-reset-btn" data-team="${t.id}" type="button">Palauta oletukset</button></div><div class="coach-msg tgoal-msg" data-team="${t.id}"></div>`;
+  return html;
+}
+async function saveTaitoGoals(teamId) {
+  const inputs = [...document.querySelectorAll(`#coachTeamsView .tgoal-input[data-team="${teamId}"]`)];
+  const setMsg = (txt, cls) => {
+    const m = document.querySelector(`#coachTeamsView .tgoal-msg[data-team="${teamId}"]`);
+    if (m) { m.textContent = txt; m.className = 'coach-msg tgoal-msg' + (cls ? ' ' + cls : ''); }
+  };
+  const goals = coachTaitoGoals[teamId] || {};
+  const jobs = []; let invalid = false;
+  inputs.forEach(inp => {
+    const hid = inp.getAttribute('data-haaste');
+    const raw = (inp.value || '').trim();
+    if (raw === '') return;                       // tyhjä → oletus (ei muutosta)
+    const val = parseInt(raw, 10);
+    if (isNaN(val) || val < 1) { invalid = true; return; }
+    const eff = goals[hid] != null ? goals[hid] : taitoDefaultFor(hid);
+    if (val !== eff) jobs.push({ hid, val });
+  });
+  if (invalid) { setMsg('Tavoitteen oltava vähintään 1.', 'error'); return; }
+  if (!jobs.length) { setMsg('Ei muutoksia.', ''); return; }
+  const errs = [];
+  await Promise.all(jobs.map(async j => {
+    const { error } = await sb.rpc('set_taito_goal', { p_team_id: teamId, p_haaste_id: j.hid, p_tavoite: j.val });
+    if (error) { console.error(error); errs.push(error); return; }
+    (coachTaitoGoals[teamId] = coachTaitoGoals[teamId] || {})[j.hid] = j.val;
+  }));
+  setMsg(errs.length ? 'Osaa ei voitu tallentaa.' : 'Tavoitteet tallennettu ✓', errs.length ? 'error' : 'ok');
+}
+async function resetTaitoGoals(teamId) {
+  if (!confirm('Palautetaanko kaikki ponnauttelutavoitteet oletusarvoihin?')) return;
+  const { error } = await sb.rpc('reset_taito_goals', { p_team_id: teamId });
+  if (error) { console.error(error); return; }
+  coachTaitoGoals[teamId] = {};
+  renderCoachTeams();
+}
 function renderCoachTeams() {  const view = document.getElementById('coachTeamsView');
   const isAdmin = !!currentUser.is_admin;
   if (coachTeamsOpen === null) coachTeamsOpen = new Set(coachTeams.length === 1 ? coachTeams.map(t => t.id) : []);
@@ -4417,6 +4583,7 @@ ${boostBlockHtml(t)}
         </div>
         `)}
         ${subAcc(t.id, 'mythic', 'Myyttiset (Tekstifutis)', mythicBlockHtml(t))}
+        ${subAcc(t.id, 'taitogoals', 'Taitokortit — tavoitteet', taitoGoalsBlockHtml(t))}
       </div></div>`;
   });
   view.innerHTML = html;
@@ -4433,6 +4600,12 @@ function wireCoachTeams() {
   });
   document.querySelectorAll('#coachTeamsView [data-del-mythic]').forEach(btn => {
     btn.onclick = () => delMythic(btn.getAttribute('data-del-mythic'));
+  });
+  document.querySelectorAll('#coachTeamsView .tgoal-save-btn').forEach(btn => {
+    btn.onclick = () => saveTaitoGoals(btn.getAttribute('data-team'));
+  });
+  document.querySelectorAll('#coachTeamsView .tgoal-reset-btn').forEach(btn => {
+    btn.onclick = () => resetTaitoGoals(btn.getAttribute('data-team'));
   });
   const ftBtn = document.getElementById('futisToggleBtn');
   if (ftBtn) ftBtn.onclick = async () => {
