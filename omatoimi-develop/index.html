@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="fi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Omatoimitreenit</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#F1F3EF">
+<script>
+  (function () {
+    try {
+      var t = localStorage.getItem('theme');
+      if (t !== 'dark' && t !== 'light') {
+        t = (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+      }
+      document.documentElement.setAttribute('data-theme', t);
+      var m = document.querySelector('meta[name="theme-color"]');
+      if (m) m.setAttribute('content', t === 'dark' ? '#0F1512' : '#F1F3EF');
+    } catch (e) {}
+  })();
+</script>
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Omatoimi">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+
+<!-- Kirjautumisnäkymä -->
+<div id="authScreen" hidden>
+  <div class="auth-card">
+    <div class="auth-eyebrow">Omatoimitreenit</div>
+    <h1 id="authTitle">Kirjaudu sisään</h1>
+    <label class="fld"><span>Käyttäjänimi</span>
+      <input type="text" id="authUser" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="käyttäjänimi">
+    </label>
+    <label class="fld"><span>Salasana</span>
+      <input type="password" id="authPass" autocomplete="current-password" placeholder="salasana">
+    </label>
+    <label class="fld" id="authConfirmFld" style="display:none"><span>Vahvista salasana</span>
+      <input type="password" id="authConfirm" autocomplete="new-password" placeholder="salasana uudelleen">
+    </label>
+    <div id="authError" class="auth-error"></div>
+    <button class="btn" id="authSubmit" type="button">Kirjaudu</button>
+    <button class="auth-toggle" id="authToggle" type="button">Ei tiliä? Rekisteröidy</button>
+  </div>
+</div>
+
+<div class="wrap" id="playerWrap" hidden>
+
+  <div class="topbar">
+    <div>
+      <h1>Omatoimitreenit</h1>
+    </div>
+    <div class="userbar">
+      <button class="gift-btn" id="dailyBtn" type="button" aria-label="Päivittäinen palkinto">🎁</button>
+      <button class="theme-btn" data-theme-toggle type="button" aria-label="Vaihda teema">🌙</button>
+      <button class="logout-btn" id="logoutBtn" type="button">Kirjaudu ulos</button>
+    </div>
+  </div>
+
+  <!-- Päivittäinen palkinto -->
+  <div class="daily-overlay" id="dailyOverlay" hidden>
+    <div class="daily-modal" role="dialog" aria-modal="true" aria-label="Päivittäinen palkinto">
+      <button class="daily-close" id="dailyClose" type="button" aria-label="Sulje">✕</button>
+      <div class="daily-title">🎁 Päivittäinen palkinto</div>
+      <div class="daily-sub" id="dailySub"></div>
+      <div class="daily-doors" id="dailyDoors"></div>
+      <div class="daily-foot" id="dailyFoot"></div>
+    </div>
+  </div>
+
+  <div class="viewtabs" role="tablist">
+    <button class="vtab active" id="tabDash" type="button">Päiväkirja</button>
+    <button class="vtab" id="tabCal" type="button">Kalenteri</button>
+    <button class="vtab" id="tabTaito" type="button">Taidot</button>
+    <button class="vtab" id="tabBank" type="button">Harjoitepankki</button>
+    <button class="vtab" id="tabFutis" type="button">Tekstifutis</button>
+  </div>
+
+  <div id="viewDash" class="view">
+
+  <!-- Profiili: nimi + taso (klikkaa nähdäksesi tarkemmat tiedot) -->
+  <button class="profile-header" id="profileHeader" type="button" aria-label="Avaa profiili">
+    <span class="ph-badge" id="phBadge">1</span>
+    <span class="ph-main">
+      <span class="ph-name" id="phName"></span>
+      <span class="ph-level" id="phLevel"></span>
+      <span class="ph-bar"><span class="ph-bar-fill" id="phBarFill"></span></span>
+    </span>
+    <span class="ph-balls" id="phBalls"></span>
+    <span class="ph-chevron">›</span>
+  </button>
+
+  <!-- Tilarivi: putki, buusti ja tapahtuma kompaktisti -->
+  <div id="statusStrip" class="status-strip" hidden></div>
+  <div id="statusDetail" class="status-detail" hidden></div>
+
+  <!-- Kirjauslomake -->
+  <div class="card">
+    <div class="sec-head"><h2>Kirjaa harjoitus</h2></div>
+    <div class="row2">
+      <div class="fld date-fld"><span>Päivämäärä</span>
+        <button type="button" class="date-btn" id="dateBtn"></button>
+        <div class="date-pop" id="datePop" hidden>
+          <div class="cal-head dp-head">
+            <button class="cal-nav" id="dpPrev" type="button" aria-label="Edellinen kuukausi">‹</button>
+            <div class="cal-title" id="dpTitle"></div>
+            <button class="cal-nav" id="dpNext" type="button" aria-label="Seuraava kuukausi">›</button>
+          </div>
+          <div class="cal-grid cal-dow dp-dow">
+            <div>Ma</div><div>Ti</div><div>Ke</div><div>To</div><div>Pe</div><div>La</div><div>Su</div>
+          </div>
+          <div class="cal-grid dp-grid" id="dpDays"></div>
+        </div>
+      </div>
+      <label class="fld"><span>Kesto (min)</span><input type="number" id="inDuration" min="1" max="240" placeholder="esim. 30"></label>
+    </div>
+    <label class="fld" style="margin-bottom:12px"><span>Kategoria</span></label>
+    <div class="chip-groups" id="chipGroups" style="margin-bottom:16px"></div>
+    <label class="fld"><span>Muistiinpano (valinnainen)</span><input type="text" id="inNote" maxlength="80" placeholder="esim. potkutarkkuus, 50 toistoa"></label>
+    <button class="btn" id="saveBtn">Tallenna kirjaus</button>
+  </div>
+
+  <!-- TÄMÄ VIIKKO -->
+  <div class="zone-head">Tämä viikko</div>
+  <div class="card" id="goalCard"></div>
+  <div class="card" id="questCard" hidden></div>
+  <div class="card" id="drillCard"></div>
+
+  <!-- JOUKKUE -->
+  <div class="zone-head" id="zoneTeam" hidden>Joukkue</div>
+  <div class="card" id="coachMsgCard" hidden></div>
+  <div class="card" id="challengeCard" hidden></div>
+  <div class="card" id="teamGoalCard" hidden></div>
+
+  <!-- HISTORIA (avattava, kiinni oletuksena) -->
+  <button class="hist-toggle" id="histToggle" type="button" aria-expanded="false" aria-controls="histBody">
+    <span>Historia ja tilastot</span><span class="hist-chevron">▾</span>
+  </button>
+  <div id="histBody" hidden>
+
+  <!-- Kausiraportit: taso/XP/jalkapallot per kausi -->
+  <div class="card" id="seasonReportCard"></div>
+
+  <!-- Hero: valitun jakson yhteenveto -->
+  <div class="card">
+    <div class="period-bar">
+      <select id="periodSelect" aria-label="Valitse jakso"></select>
+    </div>
+    <div class="hero">
+      <div class="hero-main">
+        <div class="hero-label" id="heroMonth">Harjoitusaikaa</div>
+        <div class="hero-number"><span id="heroHours">0</span><span class="unit">h</span></div>
+        <div class="hero-sub" id="heroSub">Ei kirjauksia tällä jaksolla</div>
+      </div>
+      <div class="hero-side">
+        <div>
+          <div class="stat-row"><span class="stat-big" id="statSessions">0</span><span class="stat-cap">harjoitusta</span></div>
+        </div>
+        <div>
+          <div class="stat-row"><span class="stat-big" id="statTop">–</span></div>
+          <div class="stat-cap">eniten harjoiteltu</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Kategoriajakauma -->
+  <div class="card">
+    <div class="sec-head">
+      <h2>Jakauma kategorioittain</h2>
+      <span class="hint" id="barsPeriod">tässä kuussa</span>
+    </div>
+    <div class="bars" id="bars"></div>
+  </div>
+
+  <!-- Kuukausittain (koko historia) -->
+  <div class="card" id="monthsCard" style="display:none">
+    <div class="sec-head">
+      <h2>Kuukausittain</h2>
+      <span class="hint">napauta valitaksesi</span>
+    </div>
+    <div class="bars" id="monthBars"></div>
+  </div>
+
+  <!-- Lista -->
+  <div class="card">
+    <div class="sec-head">
+      <h2>Viimeisimmät</h2>
+      <span class="hint" id="listCount"></span>
+    </div>
+    <div class="log" id="log"></div>
+  </div>
+
+  </div><!-- /histBody -->
+
+  </div><!-- /viewDash -->
+
+  <!-- Kalenterinäkymä -->
+  <div id="viewCalendar" class="view" hidden>
+    <div class="card cal-goals" id="calGoals" hidden>
+      <div class="sec-head">
+        <h2>Tämän viikon tavoitteet</h2>
+        <span class="hint" id="calGoalsHint">ma–su</span>
+      </div>
+      <div class="cal-goal-list" id="calGoalList"></div>
+    </div>
+    <div class="card" id="calChallengeCard" hidden></div>
+    <div class="card" id="calTeamGoalCard" hidden></div>
+    <div class="card cal-card">
+      <div class="cal-head">
+        <button class="cal-nav" id="calPrev" type="button" aria-label="Edellinen kuukausi">‹</button>
+        <div class="cal-title" id="calTitle"></div>
+        <button class="cal-nav" id="calNext" type="button" aria-label="Seuraava kuukausi">›</button>
+      </div>
+      <div class="cal-grid cal-dow">
+        <div>Ma</div><div>Ti</div><div>Ke</div><div>To</div><div>Pe</div><div>La</div><div>Su</div>
+      </div>
+      <div class="cal-grid" id="calDays"></div>
+    </div>
+    <div class="card day-panel">
+      <div class="day-panel-head">
+        <h2 id="dayTitle">Valitse päivä</h2>
+        <span class="hint" id="dayTotal"></span>
+      </div>
+      <div class="day-sessions" id="daySessions"></div>
+    </div>
+  </div>
+
+  <!-- Harjoitepankki -->
+  <div id="viewBank" class="view" hidden>
+    <div class="card">
+      <div class="sec-head">
+        <h2>Harjoitepankki</h2>
+        <span class="hint">valitse harjoite</span>
+      </div>
+      <div class="bank-list" id="bankList"></div>
+    </div>
+  </div>
+
+  <!-- Profiili: taso, kausi/XP, saavutukset ja kehitys -->
+  <div id="viewProfile" class="view" hidden>
+    <button class="back-btn" id="profileBack" type="button">‹ Takaisin päiväkirjaan</button>
+    <!-- Taso / XP (kausittain nollautuva) -->
+    <div class="card" id="levelCard" hidden></div>
+    <!-- Jalkapallot: pysyvä valuutta (ei nollaudu kauden vaihtuessa) -->
+    <div class="card" id="footballCard" hidden></div>
+    <!-- Joukkueen tulostaulu (vapaaehtoinen) -->
+    <div class="card" id="leaderboardCard" hidden></div>
+    <!-- Saavutukset: putki ja virstanpylväät -->
+    <div class="card" id="achieveCard"></div>
+    <!-- Kehitys: viikkotuntien käyrä ja ennätykset -->
+    <div class="card" id="progressCard" hidden></div>
+    <!-- Asetukset: ilmoitukset -->
+    <div class="card" id="settingsCard"></div>
+  </div>
+
+  <!-- Kauppa: jalkapallojen käyttö koristeisiin -->
+  <div id="viewShop" class="view" hidden></div>
+
+  <div id="viewTaito" class="view" hidden></div>
+
+  <div id="viewFutis" class="view" hidden>
+    <div class="futis-wrap">
+      <iframe id="futisFrame" class="futis-frame" title="Tekstifutis"></iframe>
+    </div>
+  </div>
+
+  <div id="taitoLightbox" class="taito-lightbox" hidden>
+    <button class="taito-lb-close" id="taitoLbClose" type="button" aria-label="Sulje">✕</button>
+    <img id="taitoLbImg" class="taito-lb-img" alt="">
+    <div id="taitoLbCap" class="taito-lb-cap"></div>
+  </div>
+
+</div>
+
+<!-- Valmentajanäkymä -->
+<div class="wrap" id="coachWrap" hidden>
+  <div class="topbar">
+    <div>
+      <h1>Omatoimitreenit</h1>
+      <div class="coach-tag">Valmentaja</div>
+    </div>
+    <div class="userbar">
+      <span class="user-chip" id="coachUserChip"></span>
+      <button class="theme-btn" data-theme-toggle type="button" aria-label="Vaihda teema">🌙</button>
+      <button class="logout-btn" id="coachLogoutBtn" type="button">Kirjaudu ulos</button>
+    </div>
+  </div>
+  <div class="viewtabs" role="tablist">
+    <button class="vtab active" id="ctabPlayers" type="button">Pelaajat</button>
+    <button class="vtab" id="ctabTeams" type="button">Joukkueet</button>
+    <button class="vtab" id="ctabChallenges" type="button">Haasteet</button>
+    <button class="vtab" id="ctabSeasons" type="button">Kaudet</button>
+  </div>
+  <div id="coachPlayers" class="view"></div>
+  <div id="coachTeamsView" class="view" hidden></div>
+  <div id="coachChallengesView" class="view" hidden></div>
+  <div id="coachSeasonsView" class="view" hidden></div>
+</div>
+
+<div id="toast" class="toast" hidden></div>
+
+<script src="app.js"></script>
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js').catch(() => {});
+    });
+  }
+</script>
+
+</body>
+</html>
