@@ -2626,14 +2626,14 @@ function renderDailyModal() {
   const doors = document.getElementById('dailyDoors');
   const foot = document.getElementById('dailyFoot');
   if (!st || !doors) return;
-  const schedule = st.schedule || [50, 60, 70, 80, 90, 100, 150, 175, 200, 225, 250, 275, 300, 350];
-  const steady = st.steady || 150;
+  const schedule = st.schedule || [20, 30, 40, 55, 70, 85, 100, 110, 120, 130, 145, 155, 165, 175];
+  const steady = st.steady || 100;
   const day = st.day;
   const claimed = st.claimed_today;
   const allDone = day > 14;
   const dispDay = Math.min(day, 14);
   sub.textContent = claimed
-    ? `Tulit jo tänään! Putki: ${st.streak} päivää. Palaa huomenna.`
+    ? 'Olet jo lunastanut tämän päivän palkinnon. Lunasta huomenna lisää.'
     : `Putki: ${st.streak} ${st.streak === 1 ? 'päivä' : 'päivää'} — avaa tämän päivän luukku!`;
   let html = '';
   for (let d = 1; d <= 14; d++) {
