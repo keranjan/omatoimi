@@ -1035,6 +1035,7 @@ const TAITOKORTIT = [
   ] },
   { id: 'suunnanmuutos', name: 'Suunnanmuutos pallolla', icon: '↔️', kuvat: ['suunnanmuutos/kuva1.png'], kuvatTyyli: 'yksi', aikaHaaste: { id: 'suunnanmuutos:ennatys', label: 'radan kierto' }, subs: [] },
   { id: 'kuljetus-vino', name: 'Kuljettaminen vinottain', icon: '↗️', kuvat: ['kuljetus-vino/kuva1.png'], kuvatTyyli: 'yksi', aikaHaaste: { id: 'kuljetus-vino:ennatys', label: 'radan kierto' }, subs: [] },
+  { id: 'syotteluseina', name: 'Syöttelyseinä', icon: '🧱', kuvat: ['syotteluseina/kuva1.png'], kuvatTyyli: 'yksi', aikaHaaste: { id: 'syotteluseina:ennatys', label: 'syöttösarja' }, subs: [] },
 ];
 // Kuvan URL: haaste.kuva (koko polku bucketissa) tai oletus <kat>/<ala>/<haaste>.jpg
 function taitoKuvaUrl(cat, sub, h) {
