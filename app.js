@@ -700,6 +700,7 @@ let seasonsHist = [];                // menneet kaudet (kausiraportteja varten)
 let myMythics = [];                  // oman joukkueen myyttiset (Tekstifutis-keräilykortit)
 let taitoResults = {};               // taitokorttien tulokset: haaste_id -> {tulos, done}
 let teamTaitoGoals = {};             // oman joukkueen ponnauttelutavoitteet: haaste_id -> tavoite
+let taitoHistory = {};               // ennätyshistoria: haaste_id -> [{date, tulos, aika}]
 
 /* ---- Lomakkeen päivämäärä (oma suomenkielinen valitsin) ---- */
 let formDate = todayISO();
@@ -779,6 +780,7 @@ async function renderAll() {
     loadMyMythics(),
     loadTaitoResults(),
     loadTeamTaitoGoals(),
+    loadTaitoHistory(),
   ]);
   lastAll = all;
   currentGoals = goals;
@@ -1053,6 +1055,7 @@ function taitoAikaWidget(cat) {
         <button class="btn taito-aika-save" data-haaste="${a.id}" type="button">Tallenna</button>
       </div>
       <div class="taito-aika-best" data-haaste="${a.id}">${bestText}</div>
+      <button type="button" class="taito-aika-chart" data-hist="${a.id}" data-histname="${escapeHtml(cat.name)}" data-histtime="1">📈 Kehitys</button>
       <div class="taito-aika-msg" data-haaste="${a.id}"></div>
     </div>`;
 }
@@ -1063,6 +1066,7 @@ function renderTaito() {
   if (!view) return;
   let html = `<div class="taito-intro"><h2 class="taito-title">Taitokortit</h2>
     <p class="taito-lead">Harjoittele pallonhallintaa taito kerrallaan. Valitse kategoria ja haaste — ohjekuva näyttää suorituksen.</p></div>`;
+  html += renderTaitoKehitysHtml();
   TAITOKORTIT.forEach(cat => {
     const catOpen = taitoOpen.has(cat.id);
     const nHaaste = cat.subs.reduce((s, sub) => s + sub.haasteet.length, 0);
@@ -1118,7 +1122,7 @@ function renderTaito() {
               const r = taitoResults[hid] || { tulos: 0, done: false };
               const done = r.done || (r.tulos >= tav);
               html += `<tr class="${done ? 'done' : ''}">
-                <td class="ttc-name">${done ? '<span class="ttc-check">✓</span>' : ''}${escapeHtml(h.name)}</td>
+                <td class="ttc-name">${done ? '<span class="ttc-check">✓</span>' : ''}${escapeHtml(h.name)}<button type="button" class="ttc-chart" data-hist="${hid}" data-histname="${escapeHtml(h.name)}" data-histtime="0" aria-label="Kehityskäyrä">📈</button></td>
                 <td class="ttc-num">${tav}</td>
                 <td class="ttc-num"><input type="number" class="ttc-input" data-haaste="${hid}" data-sub="${subId}" min="0" inputmode="numeric" placeholder="—" value="${r.tulos ? r.tulos : ''}"></td>
               </tr>`;
@@ -1152,6 +1156,12 @@ function renderTaito() {
 function wireTaito() {
   const view = document.getElementById('viewTaito');
   if (!view) return;
+  view.querySelectorAll('[data-hist]').forEach(btn => {
+    btn.onclick = (e) => {
+      if (e) { e.stopPropagation(); e.preventDefault(); }
+      openTaitoChart(btn.getAttribute('data-hist'), btn.getAttribute('data-histname'), btn.getAttribute('data-histtime') === '1');
+    };
+  });
   view.querySelectorAll('[data-taito-cat]').forEach(btn => {
     btn.onclick = () => {
       const id = btn.getAttribute('data-taito-cat');
@@ -1219,6 +1229,19 @@ function subComplete(subId, results) {
     return !!(r && (r.done || r.tulos >= effTavoite(hid, h.tavoite)));
   });
 }
+async function loadTaitoHistory() {
+  try {
+    taitoHistory = {};
+    const { data, error } = await sb.from('taito_history')
+      .select('haaste_id, tulos, aika, created_at').order('created_at', { ascending: true });
+    if (error) { console.error(error); return; }
+    (data || []).forEach(r => {
+      (taitoHistory[r.haaste_id] = taitoHistory[r.haaste_id] || []).push({
+        date: r.created_at, tulos: r.tulos, aika: (r.aika != null ? parseFloat(r.aika) : null)
+      });
+    });
+  } catch (e) { console.error(e); }
+}
 async function loadTeamTaitoGoals() {
   try {
     teamTaitoGoals = {};
@@ -1260,6 +1283,142 @@ function taitoCatMetaHtml(cat) {
   }
   return cat.kuvat ? '' : 'tulossa';
 }
+// Kaikkien laskettavien haasteiden kokonaismäärä
+function taitoTotalChallenges() {
+  let n = 0;
+  TAITOKORTIT.forEach(c => c.subs.forEach(s => s.haasteet.forEach(h => { if (typeof h.tavoite === 'number') n++; })));
+  return n;
+}
+// Kumulatiivinen kehitys taitopalkintojen lokista (football_events, taito:/taito_bonus:)
+function taitoProgressPoints() {
+  const rows = (myFootballs && myFootballs.rows || []).filter(r => r.ref &&
+    (r.ref.indexOf('taito:') === 0 || r.ref.indexOf('taito_bonus:') === 0) && r.event_date);
+  const byDate = {};
+  rows.forEach(r => {
+    const d = (byDate[r.event_date] = byDate[r.event_date] || { count: 0, balls: 0 });
+    if (r.ref.indexOf('taito:') === 0) d.count++;   // yksittäisen haasteen suoritus
+    d.balls += (r.amount || 0);
+  });
+  const dates = Object.keys(byDate).sort();
+  let cc = 0, cb = 0;
+  const points = dates.map(dt => { cc += byDate[dt].count; cb += byDate[dt].balls; return { date: dt, count: cc, balls: cb }; });
+  return { points, doneNow: cc, ballsNow: cb };
+}
+function fmtDayShort(iso) { const d = new Date(iso + 'T00:00:00'); return isNaN(d) ? iso : (d.getDate() + '.' + (d.getMonth() + 1) + '.'); }
+// Pieni SVG-viivakäyrä kumulatiiviselle sarjalle
+function svgProgressChart(points, key, opts) {
+  opts = opts || {};
+  const vals = points.map(p => p[key]);
+  if (!vals.length) return '';
+  const W = 320, H = 120, padL = 8, padR = 30, padT = 12, padB = 20;
+  const iw = W - padL - padR, ih = H - padT - padB;
+  const yMax = Math.max(opts.yMax || 0, ...vals, 1);
+  const n = vals.length;
+  const xAt = i => n <= 1 ? padL + iw : padL + (i / (n - 1)) * iw;
+  const yAt = v => padT + ih - (v / yMax) * ih;
+  const pts = vals.map((v, i) => `${xAt(i).toFixed(1)},${yAt(v).toFixed(1)}`).join(' ');
+  const areaPts = `${padL},${padT + ih} ${pts} ${xAt(n - 1).toFixed(1)},${padT + ih}`;
+  const baseY = (padT + ih).toFixed(1);
+  let target = '';
+  if (opts.target) {
+    const ty = yAt(opts.target).toFixed(1);
+    target = `<line x1="${padL}" y1="${ty}" x2="${padL + iw}" y2="${ty}" stroke="var(--ink-faint)" stroke-width="1" stroke-dasharray="5 4" opacity="0.7"/>
+      <text x="${padL + iw + 3}" y="${ty}" class="tk-axis" dominant-baseline="middle">${opts.target}</text>`;
+  }
+  const lastX = xAt(n - 1), lastY = yAt(vals[n - 1]);
+  const dot = `<circle cx="${lastX.toFixed(1)}" cy="${lastY.toFixed(1)}" r="4.5" fill="var(--brand)" stroke="var(--surface)" stroke-width="2"/>
+    <text x="${(lastX).toFixed(1)}" y="${(lastY - 9).toFixed(1)}" class="tk-val" text-anchor="end">${opts.fmt ? opts.fmt(vals[n - 1]) : vals[n - 1]}</text>`;
+  const d0 = fmtDayShort(points[0].date), d1 = fmtDayShort(points[n - 1].date);
+  return `<svg class="tk-chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Kehityskäyrä">
+    <line x1="${padL}" y1="${baseY}" x2="${padL + iw}" y2="${baseY}" stroke="var(--line)" stroke-width="1"/>
+    ${target}
+    <polygon points="${areaPts}" fill="var(--brand)" opacity="0.10"/>
+    <polyline points="${pts}" fill="none" stroke="var(--brand)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+    ${dot}
+    <text x="${padL}" y="${H - 5}" class="tk-axis">${d0}</text>
+    <text x="${padL + iw}" y="${H - 5}" class="tk-axis" text-anchor="end">${d1}</text>
+  </svg>`;
+}
+// Yksittäisen haasteen ennätyskäyrä (arvot ajan myötä). isTime: pienempi = parempi (käännetään ylös).
+function svgRecordChart(series, opts) {
+  opts = opts || {};
+  const isTime = !!opts.isTime;
+  const vals = series.map(s => s.v);
+  if (!vals.length) return '<div class="tk-empty">Ei vielä ennätyshistoriaa.</div>';
+  const W = 320, H = 150, padL = 10, padR = 12, padT = 18, padB = 24;
+  const iw = W - padL - padR, ih = H - padT - padB;
+  const n = vals.length;
+  const vmin = Math.min(...vals), vmax = Math.max(...vals);
+  let yAt;
+  if (isTime) { const lo = vmin, span = (vmax - vmin) || 1; yAt = v => padT + ((v - lo) / span) * ih; }
+  else { const hi = vmax || 1; yAt = v => padT + ih - (v / hi) * ih; }
+  const xAt = i => n <= 1 ? padL + iw / 2 : padL + (i / (n - 1)) * iw;
+  const baseY = (padT + ih).toFixed(1);
+  const pts = vals.map((v, i) => `${xAt(i).toFixed(1)},${yAt(v).toFixed(1)}`).join(' ');
+  const areaPts = `${xAt(0).toFixed(1)},${baseY} ${pts} ${xAt(n - 1).toFixed(1)},${baseY}`;
+  const fmt = v => isTime ? fmtAika(v) : v;
+  let dots = '';
+  vals.forEach((v, i) => {
+    const x = xAt(i).toFixed(1), y = yAt(v).toFixed(1);
+    dots += `<circle cx="${x}" cy="${y}" r="4" fill="var(--brand)" stroke="var(--surface)" stroke-width="2"/>`;
+    if (i === 0 || i === n - 1 || v === vmax || v === vmin) {
+      const anchor = i === 0 ? 'start' : (i === n - 1 ? 'end' : 'middle');
+      dots += `<text x="${x}" y="${(yAt(v) - 8).toFixed(1)}" class="tk-val" text-anchor="${anchor}">${fmt(v)}</text>`;
+    }
+  });
+  const d0 = fmtDayShort((series[0].date || '').slice(0, 10));
+  const d1 = fmtDayShort((series[n - 1].date || '').slice(0, 10));
+  return `<svg class="tk-chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Ennätyskäyrä">
+    <line x1="${padL}" y1="${baseY}" x2="${padL + iw}" y2="${baseY}" stroke="var(--line)" stroke-width="1"/>
+    <polygon points="${areaPts}" fill="var(--brand)" opacity="0.10"/>
+    <polyline points="${pts}" fill="none" stroke="var(--brand)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+    ${dots}
+    <text x="${padL}" y="${H - 6}" class="tk-axis">${d0}</text>
+    ${n > 1 ? `<text x="${padL + iw}" y="${H - 6}" class="tk-axis" text-anchor="end">${d1}</text>` : ''}
+  </svg>`;
+}
+function openTaitoChart(hid, name, isTime) {
+  const hist = (taitoHistory[hid] || [])
+    .map(h => ({ date: h.date, v: isTime ? h.aika : h.tulos }))
+    .filter(p => p.v != null);
+  const ov = document.getElementById('taitoChartOverlay');
+  if (!ov) return;
+  document.getElementById('taitoChartTitle').textContent = name || 'Kehitys';
+  const body = document.getElementById('taitoChartBody');
+  body.innerHTML = hist.length
+    ? (svgRecordChart(hist, { isTime }) + (isTime
+        ? '<div class="taito-chart-note">Aika sekunteina — pienempi on parempi (käyrä nousee kun kehityt).</div>'
+        : '<div class="taito-chart-note">Toistoja per ennätys — käyrä nousee kun kehityt.</div>'))
+    : '<div class="tk-empty">Ei vielä ennätyshistoriaa. Tallenna uusi ennätys, niin käyrä alkaa kertyä.</div>';
+  ov.hidden = false;
+}
+function renderTaitoKehitysHtml() {
+  const open = taitoOpen.has('__kehitys');
+  const { points, doneNow, ballsNow } = taitoProgressPoints();
+  const total = taitoTotalChallenges();
+  let inner;
+  if (!points.length) {
+    inner = '<div class="tk-empty">Suorita taitohaasteita, niin näet kehityksesi tästä.</div>';
+  } else {
+    inner = `<div class="tk-stats">
+        <div class="tk-stat"><span class="tk-num">${doneNow}/${total}</span><span class="tk-lbl">haastetta suoritettu</span></div>
+        <div class="tk-stat"><span class="tk-num">${fmtBalls(ballsNow)}</span><span class="tk-lbl">⚽ taidoista ansaittu</span></div>
+      </div>
+      <div class="tk-chart-title">Suoritetut haasteet ajan myötä</div>
+      ${svgProgressChart(points, 'count', { yMax: total, target: total })}
+      <div class="tk-chart-title">Ansaitut jalkapallot ajan myötä</div>
+      ${svgProgressChart(points, 'balls', { fmt: fmtBalls })}`;
+  }
+  return `<div class="taito-cat taito-keh${open ? ' open' : ''}">
+      <button class="taito-cat-head" type="button" data-taito-cat="__kehitys" aria-expanded="${open}">
+        <span class="taito-cat-ic">📈</span>
+        <span class="taito-cat-name">Oma kehitys</span>
+        <span class="taito-cat-meta">${points.length ? `${doneNow}/${total} · ${fmtBalls(ballsNow)} ⚽` : ''}</span>
+        <span class="taito-chev">▾</span>
+      </button>
+      <div class="taito-cat-body"${open ? '' : ' hidden'}>${inner}</div>
+    </div>`;
+}
 async function loadTaitoResults() {
   try {
     if (!currentUser) { taitoResults = {}; return; }
@@ -1285,7 +1444,7 @@ async function saveTaitoTable(subId) {
     const cur = taitoResults[hid] ? taitoResults[hid].tulos : 0;
     if (val === cur) return;                       // ei muutosta
     const tavoite = taitoTavoiteFor(hid) || 0;
-    jobs.push({ hid, val, done: val >= tavoite, wasDone: !!(taitoResults[hid] && taitoResults[hid].done) });
+    jobs.push({ hid, val, done: val >= tavoite, wasDone: !!(taitoResults[hid] && taitoResults[hid].done), oldBest: cur });
   });
   if (!jobs.length) { setMsg(anyInvalid ? 'Tarkista numerot.' : 'Ei uusia tuloksia.', anyInvalid ? 'error' : ''); return; }
   // Ennakoi lopputila (parhaat tulokset) alakategorian valmistumisen laskemiseksi
@@ -1314,6 +1473,10 @@ async function saveTaitoTable(subId) {
     const row = Array.isArray(data) ? data[0] : data;
     taitoResults[j.hid] = { tulos: row ? row.tulos : j.val, done: row ? row.done : j.done, aika: taitoResults[j.hid] ? taitoResults[j.hid].aika : null };
     if (row) { totalReward += (row.reward || 0); totalBonus += (row.bonus || 0); }
+    const newBest = taitoResults[j.hid].tulos;
+    if (newBest > (j.oldBest || 0)) {                 // uusi ennätys → historiaan (paikallisesti)
+      (taitoHistory[j.hid] = taitoHistory[j.hid] || []).push({ date: new Date().toISOString(), tulos: newBest, aika: null });
+    }
     if (taitoResults[j.hid].done && !j.wasDone) newlyDone = true;
   }));
   // Paivita rivit paikan paalla (ei koko nakyman uudelleenrenderointia -> kuvat eivat lataudu uudelleen)
@@ -1348,6 +1511,10 @@ async function saveTaitoTable(subId) {
   const catObj = TAITOKORTIT.find(c => c.id === catId);
   const metaEl = document.querySelector(`#viewTaito [data-taito-cat="${catId}"] .taito-cat-meta`);
   if (metaEl && catObj) metaEl.textContent = taitoCatMetaHtml(catObj);
+  if (totalReward > 0 || totalBonus > 0) {
+    const kehEl = document.querySelector('#viewTaito .taito-keh');
+    if (kehEl) { const tmp = document.createElement('div'); tmp.innerHTML = renderTaitoKehitysHtml(); kehEl.replaceWith(tmp.firstElementChild); wireTaito(); }
+  }
 }
 async function saveTaitoTime(hid) {
   const inp = document.querySelector(`#viewTaito .taito-aika-input[data-haaste="${hid}"]`);
@@ -1359,11 +1526,15 @@ async function saveTaitoTime(hid) {
   if (!inp) return;
   const val = parseFloat((inp.value || '').replace(',', '.'));
   if (isNaN(val) || val <= 0) { setMsg('Syötä aika sekunteina (esim. 9,8).', 'error'); return; }
+  const oldAika = (taitoResults[hid] && taitoResults[hid].aika != null) ? taitoResults[hid].aika : null;
   const { data, error } = await sb.rpc('save_taito_time', { p_haaste_id: hid, p_aika: val });
   if (error) { console.error(error); setMsg('Tallennus epäonnistui.', 'error'); return; }
   const row = Array.isArray(data) ? data[0] : data;
   const aika = row && row.aika != null ? parseFloat(row.aika) : val;
   taitoResults[hid] = Object.assign({}, taitoResults[hid], { aika });
+  if (oldAika == null || val < oldAika) {              // uusi ennätys → historiaan (paikallisesti)
+    (taitoHistory[hid] = taitoHistory[hid] || []).push({ date: new Date().toISOString(), tulos: null, aika });
+  }
   if (best) best.innerHTML = `Paras aikasi: <b>${fmtAika(aika)} s</b>`;
   inp.value = '';
   const catId = hid.split(':')[0];
@@ -2659,6 +2830,14 @@ function renderDailyModal() {
   doors.querySelectorAll('[data-claim]').forEach(b => { b.onclick = () => claimDaily(); });
   const sBtn = document.getElementById('dailySteadyBtn');
   if (sBtn) sBtn.onclick = () => claimDaily();
+  updateDailyBadge();
+}
+function updateDailyBadge() {
+  const btn = document.getElementById('dailyBtn');
+  if (!btn) return;
+  let dot = btn.querySelector('.daily-dot');
+  if (!dot) { dot = document.createElement('span'); dot.className = 'daily-dot'; dot.setAttribute('aria-hidden', 'true'); btn.appendChild(dot); }
+  dot.hidden = !(dailyStatus && !dailyStatus.claimed_today);
 }
 async function claimDaily() {
   const { data, error } = await sb.rpc('claim_daily');
@@ -3455,6 +3634,10 @@ function wirePlayerApp() {
   const taitoLbClose = document.getElementById('taitoLbClose');
   if (taitoLbClose) taitoLbClose.onclick = () => { taitoLb.hidden = true; };
   if (taitoLb) taitoLb.onclick = (e) => { if (e.target === taitoLb) taitoLb.hidden = true; };
+  const taitoChartOv = document.getElementById('taitoChartOverlay');
+  const taitoChartClose = document.getElementById('taitoChartClose');
+  if (taitoChartClose) taitoChartClose.onclick = () => { taitoChartOv.hidden = true; };
+  if (taitoChartOv) taitoChartOv.onclick = (e) => { if (e.target === taitoChartOv) taitoChartOv.hidden = true; };
   document.getElementById('tabFutis').onclick = () => switchView('futis');
   document.getElementById('profileHeader').onclick = () => switchView('profile');
   document.getElementById('profileBack').onclick = () => switchView('dash');
@@ -3506,6 +3689,7 @@ async function startPlayer() {
   loadCalEvents().then(ev => { calEvents = ev; renderCalendar(); renderDayPanel(); });
   // Päivittäinen palkinto: näytä luukut käynnistyksessä jos ei vielä lunastettu tänään
   dailyStatus = await loadDailyStatus();
+  updateDailyBadge();
   if (dailyStatus && !dailyStatus.claimed_today) showDailyModal();
 }
 
@@ -3524,6 +3708,13 @@ function setAuthMode(m) {
 function authError(msg) {
   const el = document.getElementById('authError');
   el.textContent = msg || '';
+  el.className = 'auth-error';
+  el.style.display = msg ? 'block' : 'none';
+}
+function authInfo(msg) {
+  const el = document.getElementById('authError');
+  el.textContent = msg || '';
+  el.className = 'auth-error' + (msg ? ' auth-ok' : '');
   el.style.display = msg ? 'block' : 'none';
 }
 function authMsg(error) {
@@ -3553,10 +3744,17 @@ async function submitAuth() {
         email: usernameToEmail(username), password, options: { data: { username } }
       });
       if (error) { authError(authMsg(error)); return; }
-    } else {
-      const { error } = await sb.auth.signInWithPassword({ email: usernameToEmail(username), password });
-      if (error) { authError(authMsg(error)); return; }
+      // Ei automaattista kirjautumista: kirjaudu ulos mahdollisesta istunnosta ja ohjaa kirjautumiseen
+      try { await sb.auth.signOut(); } catch (e) {}
+      currentUser = null;
+      setAuthMode('login');
+      const pEl = document.getElementById('authPass'); if (pEl) pEl.value = '';
+      const cEl = document.getElementById('authConfirm'); if (cEl) cEl.value = '';
+      authInfo('Tunnus luotu! Kirjaudu nyt sisään tunnuksellasi.');
+      return;
     }
+    const { error } = await sb.auth.signInWithPassword({ email: usernameToEmail(username), password });
+    if (error) { authError(authMsg(error)); return; }
     currentUser = await loadProfile();
     if (!currentUser) { authError('Profiilin lataus epäonnistui.'); return; }
     if (currentUser.role === 'coach' || currentUser.is_admin) startCoach(); else startPlayer();
