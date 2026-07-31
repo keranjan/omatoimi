@@ -1909,7 +1909,7 @@ async function loadCalEvents() {
 
 /* ---- Valmentajan kannustukset (pelaajan näkymä) ---- */
 async function loadMyEncouragements() {
-  const { data, error } = await sb.from('encouragements').select('id, text, created_at').order('created_at', { ascending: false }).limit(5);
+  const { data, error } = await sb.from('encouragements').select('id, text, created_at, coach_name').order('created_at', { ascending: false }).limit(60);
   if (error) { console.error(error); return []; }
   return data;
 }
@@ -1920,17 +1920,34 @@ function timeAgo(iso) {
   if (days < 7) return `${days} pv sitten`;
   return fmtDateShort(iso.slice(0, 10));
 }
+let feedbackPage = 0;
+const FEEDBACK_PAGE_SIZE = 3;
+function fmtDateDMY(iso) { const d = new Date(iso); return isNaN(d) ? '' : (d.getDate() + '.' + (d.getMonth() + 1) + '.' + d.getFullYear()); }
 function renderEncouragements() {
   const card = document.getElementById('coachMsgCard');
   if (!card) return;
   if (!myEncouragements.length) { card.hidden = true; return; }
   card.hidden = false;
-  card.innerHTML = `<div class="sec-head"><h2>Valmentajalta</h2></div>`
-    + `<div class="msg-list">` + myEncouragements.map(m => `
+  const total = myEncouragements.length;
+  const pages = Math.ceil(total / FEEDBACK_PAGE_SIZE);
+  if (feedbackPage > pages - 1) feedbackPage = pages - 1;
+  if (feedbackPage < 0) feedbackPage = 0;
+  const start = feedbackPage * FEEDBACK_PAGE_SIZE;
+  const rows = myEncouragements.slice(start, start + FEEDBACK_PAGE_SIZE).map(m => `
       <div class="msg-row">
         <span class="msg-icon">💬</span>
-        <div class="msg-body"><div class="msg-text">${escapeHtml(m.text)}</div><div class="msg-date">${timeAgo(m.created_at)}</div></div>
-      </div>`).join('') + `</div>`;
+        <div class="msg-body"><div class="msg-text">${escapeHtml(m.text)}</div><div class="msg-date">${m.coach_name ? '<b>' + escapeHtml(m.coach_name) + '</b> · ' : ''}${fmtDateDMY(m.created_at)}</div></div>
+      </div>`).join('');
+  const pager = pages > 1 ? `
+    <div class="msg-pager">
+      <button class="msg-page-btn" id="fbPrev" type="button" ${feedbackPage === 0 ? 'disabled' : ''} aria-label="Uudemmat">‹</button>
+      <span class="msg-page-info">Sivu ${feedbackPage + 1}/${pages}</span>
+      <button class="msg-page-btn" id="fbNext" type="button" ${feedbackPage >= pages - 1 ? 'disabled' : ''} aria-label="Vanhemmat">›</button>
+    </div>` : '';
+  card.innerHTML = `<div class="sec-head"><h2>Valmentajalta</h2></div><div class="msg-list">${rows}</div>${pager}`;
+  const prev = document.getElementById('fbPrev'), next = document.getElementById('fbNext');
+  if (prev) prev.onclick = () => { feedbackPage--; renderEncouragements(); };
+  if (next) next.onclick = () => { feedbackPage++; renderEncouragements(); };
 }
 
 /* ---- Putki ja virstanpylväät (lasketaan kirjauksista) ---- */
@@ -3919,7 +3936,7 @@ const coachStore = {
     return data;
   },
   async sendEncouragement(userId, text) {
-    return await sb.from('encouragements').insert({ user_id: userId, text });
+    return await sb.from('encouragements').insert({ user_id: userId, text, coach_name: (currentUser && currentUser.username) || 'Valmentaja' });
   }
 };
 
@@ -4156,16 +4173,16 @@ function recentSessionsSection(p) {
 function kudosSection(p) {
   const last = coachEncouragements.find(e => e.user_id === p.id);
   return `
-    <div class="rep-section-label">Kannusta pelaajaa</div>
+    <div class="rep-section-label">Palaute pelaajalle</div>
     <div class="kudos" data-user="${p.id}">
       <div class="kudos-presets">
         ${PRESET_KUDOS.map(t => `<button class="kudos-preset" type="button" data-user="${p.id}" data-text="${escapeHtml(t)}">${t}</button>`).join('')}
       </div>
       <div class="kudos-send-row">
-        <input type="text" class="kudos-input" data-user="${p.id}" maxlength="120" placeholder="Oma viesti…">
-        <button class="btn kudos-send" type="button" data-user="${p.id}">Lähetä</button>
+        <textarea class="kudos-input" data-user="${p.id}" rows="3" maxlength="1500" placeholder="Kirjoita palautetta pelaajalle — voi olla useita rivejä. Presetit lisäävät tekstin loppuun."></textarea>
+        <button class="btn kudos-send" type="button" data-user="${p.id}">Lähetä palaute</button>
       </div>
-      <div class="kudos-last">${last ? `Viimeksi: "${escapeHtml(last.text)}" (${timeAgo(last.created_at)})` : ''}</div>
+      <div class="kudos-last">${last ? `Viimeksi lähetetty: ${timeAgo(last.created_at)}` : ''}</div>
     </div>`;
 }
 const CHEAT = { dayMaxMin: 300, maxDur: 240, manySessions: 5 };
@@ -4466,7 +4483,13 @@ function wireCoachReports() {
     };
   }
   document.querySelectorAll('#coachPlayers .kudos-preset').forEach(btn => {
-    btn.onclick = () => sendKudos(btn.dataset.user, btn.dataset.text, btn.closest('.kudos'), btn);
+    btn.onclick = () => {
+      const kudosEl = btn.closest('.kudos');
+      const inp = kudosEl ? kudosEl.querySelector('.kudos-input') : null;
+      if (!inp) return;
+      inp.value = (inp.value.trim() ? inp.value.replace(/\s*$/, '') + '\n' : '') + btn.dataset.text;
+      inp.focus();
+    };
   });
   document.querySelectorAll('#coachPlayers .kudos-send').forEach(btn => {
     btn.onclick = () => {

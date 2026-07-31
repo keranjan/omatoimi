@@ -156,8 +156,13 @@
   .msg-row { display: flex; gap: 11px; align-items: flex-start; background: var(--bg); border-radius: 12px; padding: 12px 14px; }
   .msg-icon { font-size: 18px; line-height: 1.4; flex: none; }
   .msg-body { min-width: 0; }
-  .msg-text { font-size: 15px; color: var(--ink); }
+  .msg-text { font-size: 15px; color: var(--ink); white-space: pre-wrap; word-break: break-word; }
   .msg-date { font-size: 12px; color: var(--ink-faint); margin-top: 2px; }
+  .msg-pager { display: flex; align-items: center; justify-content: center; gap: 14px; margin-top: 12px; }
+  .msg-page-btn { width: 32px; height: 32px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--ink); font-size: 17px; line-height: 1; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; padding: 0; }
+  .msg-page-btn:hover:not(:disabled) { border-color: var(--brand); color: var(--brand); }
+  .msg-page-btn:disabled { opacity: 0.35; cursor: default; }
+  .msg-page-info { font-size: 13px; color: var(--ink-soft); font-weight: 600; }
 
   /* Saavutukset: putki ja virstanpylväät */
   .streak-hero { display: flex; align-items: center; gap: 12px; background: linear-gradient(135deg, rgba(197,242,62,0.22), rgba(14,94,58,0.10)); border-radius: 14px; padding: 14px 16px; margin-bottom: 14px; }
@@ -1092,9 +1097,10 @@
   .kudos-presets { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 10px; }
   .kudos-preset { font-family: inherit; font-size: 13px; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 999px; padding: 6px 12px; cursor: pointer; }
   .kudos-preset:hover { border-color: var(--brand); }
-  .kudos-send-row { display: flex; gap: 8px; }
-  .kudos-input { flex: 1; min-width: 0; }
-  .kudos-send.btn { flex: none; width: auto; padding: 10px 16px; }
+  .kudos-send-row { display: flex; flex-direction: column; gap: 8px; align-items: stretch; }
+  .kudos-input { flex: 1; min-width: 0; width: 100%; box-sizing: border-box; font-family: inherit; font-size: 15px; line-height: 1.4; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); color: var(--ink); resize: vertical; min-height: 68px; }
+  .kudos-input:focus { outline: none; border-color: var(--brand); }
+  .kudos-send.btn { flex: none; align-self: flex-end; width: auto; padding: 10px 16px; }
   .kudos-last { font-size: 12px; color: var(--ink-faint); margin-top: 8px; }
   .kudos-last:empty { display: none; }
 
