@@ -27,7 +27,7 @@ const store = {
   },
   async addEntry(entry) {
     const { data, error } = await sb.from('training_logs')
-      .insert({ date: entry.date, category: entry.category, duration: entry.duration, note: entry.note || null })
+      .insert({ date: entry.date, category: entry.category, categories: entry.categories || [entry.category], duration: entry.duration, note: entry.note || null })
       .select().single();
     if (error) { console.error(error); return null; }
     return data;
@@ -68,6 +68,9 @@ const CATEGORIES = [
   { id: 'muu',         label: 'Muu',         group: 'Muu',      color: 'var(--cat-muu)' },
 ];
 const catById = id => CATEGORIES.find(c => c.id === id) || CATEGORIES[CATEGORIES.length - 1];
+// Kirjauksen kategoriat (tukee sekä uutta monikategoriaa että vanhoja yhden kategorian kirjauksia)
+const entryCats = e => (e && Array.isArray(e.categories) && e.categories.length) ? e.categories : [e && e.category].filter(Boolean);
+const entryHasCat = (e, catId) => entryCats(e).indexOf(catId) !== -1;
 
 /* ---- Harjoitepankki (oletuskestoa ei ole – käyttäjä syöttää keston itse) ---- */
 const EXERCISES = [
@@ -649,7 +652,7 @@ const dateFmt = new Intl.DateTimeFormat('fi-FI', { day: 'numeric', month: 'numer
 const monthName = new Intl.DateTimeFormat('fi-FI', { month: 'long', year: 'numeric' });
 
 /* ---- Lomakkeen tila ---- */
-let selectedCat = CATEGORIES[0].id;
+let selectedCats = new Set([CATEGORIES[0].id]);   // treenikirjauksen kategoriat (voi valita useita)
 
 /* ---- Tavoitteiden tila ---- */
 let currentGoals = [];               // [{ category, hours }]
@@ -724,9 +727,13 @@ function renderChips() {
       const b = document.createElement('button');
       b.className = 'chip';
       b.type = 'button';
-      b.setAttribute('aria-pressed', String(c.id === selectedCat));
+      b.setAttribute('aria-pressed', String(selectedCats.has(c.id)));
       b.innerHTML = `<span class="dot" style="background:${c.color}"></span>${c.label}`;
-      b.onclick = () => { selectedCat = c.id; renderChips(); };
+      b.onclick = () => {
+        if (selectedCats.has(c.id)) { if (selectedCats.size > 1) selectedCats.delete(c.id); }
+        else selectedCats.add(c.id);
+        renderChips();
+      };
       row.appendChild(b);
     });
     wrap.appendChild(lbl);
@@ -811,7 +818,11 @@ async function renderAll() {
 
   /* Per-kategoria summat valitulla jaksolla */
   const byCat = {};
-  periodEntries.forEach(e => { byCat[e.category] = (byCat[e.category] || 0) + e.duration; });
+  periodEntries.forEach(e => {
+    const cats = entryCats(e);
+    const share = e.duration / (cats.length || 1);
+    cats.forEach(id => { byCat[id] = (byCat[id] || 0) + share; });
+  });
   const topCat = Object.entries(byCat).sort((a, b) => b[1] - a[1])[0];
   document.getElementById('statTop').textContent = topCat ? catById(topCat[0]).label : '–';
 
@@ -870,14 +881,14 @@ async function renderAll() {
   }
   log.innerHTML = '';
   recent.forEach(e => {
-    const c = catById(e.category);
+    const cats = entryCats(e).map(catById);
     const d = new Date(e.date + 'T00:00:00');
     const item = document.createElement('div');
     item.className = 'log-item';
     item.innerHTML = `
       <div class="log-date">${dayFmt.format(d)}<small>${dateFmt.format(d)}</small></div>
       <div>
-        <div class="log-cat"><span class="dot" style="background:${c.color}"></span>${c.label}</div>
+        <div class="log-cat">${cats.map(c => `<span class="log-cat-one"><span class="dot" style="background:${c.color}"></span>${c.label}</span>`).join('')}</div>
         ${e.note ? `<div class="log-note">${escapeHtml(e.note)}</div>` : ''}
         ${reactionChipsHtml(e.id)}
       </div>
@@ -1635,7 +1646,7 @@ function renderBank() {
 }
 
 function selectExercise(ex) {
-  selectedCat = ex.category;
+  selectedCats = new Set([ex.category]);
   renderChips();
   document.getElementById('inNote').value = ex.name;
   document.getElementById('inDuration').value = ex.duration || '';
@@ -1659,7 +1670,7 @@ function hoursShort(h) {
 function goalProgress(goal) {
   const { mondayISO, sundayISO } = weekRangeISO();
   const doneMin = lastAll
-    .filter(e => e.category === goal.category && e.date >= mondayISO && e.date <= sundayISO)
+    .filter(e => entryHasCat(e, goal.category) && e.date >= mondayISO && e.date <= sundayISO)
     .reduce((s, e) => s + e.duration, 0);
   const targetMin = Math.round(goal.hours * 60);
   const pct = targetMin ? Math.min(1, doneMin / targetMin) : 0;
@@ -1733,7 +1744,7 @@ function goalStreak(goal) {
     const ref = new Date(); ref.setDate(ref.getDate() - i * 7);
     const { mondayISO, sundayISO } = weekRangeISO(ref);
     const min = lastAll
-      .filter(e => e.category === goal.category && e.date >= mondayISO && e.date <= sundayISO)
+      .filter(e => entryHasCat(e, goal.category) && e.date >= mondayISO && e.date <= sundayISO)
       .reduce((s, e) => s + e.duration, 0);
     if (i === 0) { if (min >= targetMin) streak++; }   // kesken oleva viikko ei katkaise putkea
     else { if (min >= targetMin) streak++; else break; }
@@ -1875,7 +1886,7 @@ function challengeProgress(ch) {
   const startISO = (ch.created_at || '').slice(0, 10);
   const today = todayISO();
   const doneMin = lastAll
-    .filter(e => e.category === ch.category && (!startISO || e.date >= startISO) && e.date <= today)
+    .filter(e => entryHasCat(e, ch.category) && (!startISO || e.date >= startISO) && e.date <= today)
     .reduce((s, e) => s + e.duration, 0);
   const targetMin = Math.round((ch.hours || 0) * 60);
   return { doneMin, targetMin, pct: targetMin ? Math.min(1, doneMin / targetMin) : 0, achieved: doneMin >= targetMin };
@@ -1999,7 +2010,7 @@ function renderAchievements() {
     challenges: challengeDoneCount,
     quests: questClaimCount,
     footballs: myFootballs ? (myFootballs.total || 0) : 0,
-    categories: new Set(lastAll.map(e => e.category)).size,
+    categories: new Set(lastAll.flatMap(e => entryCats(e))).size,
     longest: lastAll.reduce((m, e) => Math.max(m, e.duration), 0),
     beststreak: longestStreak(),
     weeks: new Set(lastAll.map(e => mondayOfISO(e.date))).size,
@@ -3004,7 +3015,7 @@ function questProgress(q) {
   const wk = lastAll.filter(e => e.date >= mondayISO && e.date <= sundayISO);
   if (q.kind === 'sessions') return wk.length;
   if (q.kind === 'total_min') return wk.reduce((s, e) => s + e.duration, 0);
-  if (q.kind === 'category_min') return wk.filter(e => e.category === q.category).reduce((s, e) => s + e.duration, 0);
+  if (q.kind === 'category_min') return wk.filter(e => entryHasCat(e, q.category)).reduce((s, e) => s + e.duration, 0);
   if (q.kind === 'single_min') return wk.reduce((m, e) => Math.max(m, e.duration), 0);
   return 0;
 }
@@ -3077,7 +3088,7 @@ function weeklyDrill() {
 function drillDoneThisWeek(dr) {
   if (!dr) return false;
   const { mondayISO, sundayISO } = weekRangeISO();
-  return lastAll.some(e => e.date >= mondayISO && e.date <= sundayISO && e.category === dr.category);
+  return lastAll.some(e => e.date >= mondayISO && e.date <= sundayISO && entryHasCat(e, dr.category));
 }
 function drillXp(min) { return Math.round(sessionXp(min) * boostMult(todayISO())); }
 function drillFootballs(min) {
@@ -3178,16 +3189,20 @@ function checkLevelUp(xp) {
 
 /* ---- Valmentajan reaktiot omiin treeneihin (pelaajan näkymä) ---- */
 async function loadMyReactions() {
-  const { data, error } = await sb.from('log_reactions').select('log_id, emoji');
+  const { data, error } = await sb.from('log_reactions').select('log_id, emoji, coach_name');
   if (error) { console.error(error); return {}; }
   const map = {};
-  data.forEach(r => { (map[r.log_id] = map[r.log_id] || []).push(r.emoji); });
+  data.forEach(r => { (map[r.log_id] = map[r.log_id] || []).push({ emoji: r.emoji, coach: r.coach_name || '' }); });
   return map;
 }
 function reactionChipsHtml(logId) {
   const r = myReactions[logId];
   if (!r || !r.length) return '';
-  return `<div class="log-reactions" title="Valmentajan palaute">${r.map(em => `<span class="log-react">${em}</span>`).join('')}</div>`;
+  return `<div class="log-reactions">${r.map(x => {
+    const emoji = (typeof x === 'string') ? x : x.emoji;
+    const coach = (typeof x === 'string') ? '' : x.coach;
+    return `<span class="log-react">${emoji}${coach ? `<span class="log-react-who">${escapeHtml(coach)}</span>` : ''}</span>`;
+  }).join('')}</div>`;
 }
 
 /* ---- Joukkueen yhteinen viikkotavoite ---- */
@@ -3606,7 +3621,8 @@ async function save() {
   if (date > todayISO()) { showToast('Päivää ei voi asettaa tulevaisuuteen'); return; }
   if (!duration || duration < 1) { document.getElementById('inDuration').focus(); return; }
   if (duration > 240) { showToast('Kesto voi olla enintään 240 min (4 t)'); document.getElementById('inDuration').focus(); return; }
-  await store.addEntry({ date, category: selectedCat, duration, note });
+  const cats = [...selectedCats];
+  await store.addEntry({ date, category: cats[0], categories: cats, duration, note });
   document.getElementById('inDuration').value = '';
   document.getElementById('inNote').value = '';
   renderAll();
@@ -3872,7 +3888,7 @@ const coachStore = {
     return data;
   },
   async setReaction(logId, emoji) {
-    return await sb.from('log_reactions').upsert({ log_id: logId, coach_id: currentUser.id, emoji }, { onConflict: 'log_id,coach_id' });
+    return await sb.from('log_reactions').upsert({ log_id: logId, coach_id: currentUser.id, emoji, coach_name: (currentUser && currentUser.username) || 'Valmentaja' }, { onConflict: 'log_id,coach_id' });
   },
   async removeReaction(logId) {
     return await sb.from('log_reactions').delete().eq('log_id', logId).eq('coach_id', currentUser.id);

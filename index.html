@@ -146,6 +146,15 @@
   <div class="card" id="challengeCard" hidden></div>
   <div class="card" id="teamGoalCard" hidden></div>
 
+  <!-- Viimeisimmät harjoitukset (näkyvissä heti) -->
+  <div class="card">
+    <div class="sec-head">
+      <h2>Viimeisimmät harjoitukset</h2>
+      <span class="hint" id="listCount"></span>
+    </div>
+    <div class="log" id="log"></div>
+  </div>
+
   <!-- HISTORIA (avattava, kiinni oletuksena) -->
   <button class="hist-toggle" id="histToggle" type="button" aria-expanded="false" aria-controls="histBody">
     <span>Historia ja tilastot</span><span class="hist-chevron">▾</span>
@@ -196,14 +205,6 @@
     <div class="bars" id="monthBars"></div>
   </div>
 
-  <!-- Lista -->
-  <div class="card">
-    <div class="sec-head">
-      <h2>Viimeisimmät</h2>
-      <span class="hint" id="listCount"></span>
-    </div>
-    <div class="log" id="log"></div>
-  </div>
 
   </div><!-- /histBody -->
 
