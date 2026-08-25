@@ -1072,7 +1072,7 @@ function taitoAikaWidget(cat) {
         <button class="btn taito-aika-save" data-haaste="${a.id}" type="button">Tallenna</button>
       </div>
       <div class="taito-aika-best" data-haaste="${a.id}">${bestText}</div>
-      <button type="button" class="taito-aika-chart" data-hist="${a.id}" data-histname="${escapeHtml(cat.name)}" data-histtime="1">📈 Kehitys</button>
+      <button type="button" class="taito-chart-btn taito-aika-chart" data-hist="${a.id}" data-histname="${escapeHtml(cat.name)}" data-histtime="1">📈 Kehitys</button>
       <div class="taito-aika-msg" data-haaste="${a.id}"></div>
     </div>`;
 }
@@ -1245,7 +1245,7 @@ function renderTaito() {
               const r = taitoResults[hid] || { tulos: 0, done: false };
               const done = r.done || (r.tulos >= tav);
               html += `<tr class="${done ? 'done' : ''}">
-                <td class="ttc-name">${done ? '<span class="ttc-check">✓</span>' : ''}${escapeHtml(h.name)}<button type="button" class="ttc-chart" data-hist="${hid}" data-histname="${escapeHtml(h.name)}" data-histtime="0" aria-label="Kehityskäyrä">📈</button></td>
+                <td class="ttc-name">${done ? '<span class="ttc-check">✓</span>' : ''}${escapeHtml(h.name)}</td>
                 <td class="ttc-num">${tav}</td>
                 <td class="ttc-num"><input type="number" class="ttc-input" data-haaste="${hid}" data-sub="${subId}" min="0" inputmode="numeric" placeholder="—" value="${r.tulos ? r.tulos : ''}"></td>
                 <td class="ttc-num ttc-rank" data-rank="${hid}">${rankBadgeHtml(hid)}</td>
@@ -1253,7 +1253,7 @@ function renderTaito() {
               </tr>`;
             });
             html += `</tbody></table>
-              <div class="taito-table-foot"><button class="btn taito-save-btn" data-sub="${subId}" type="button">Tallenna tulokset</button><span class="taito-save-msg" data-sub="${subId}"></span></div>`;
+              <div class="taito-table-foot"><button class="btn taito-save-btn" data-sub="${subId}" type="button">Tallenna tulokset</button><button class="taito-chart-btn" data-subhist="${subId}" type="button">📈 Kehitys</button><span class="taito-save-msg" data-sub="${subId}"></span></div>`;
           }
           if (imageHs.length) {
             html += `<div class="taito-grid">`;
@@ -1283,6 +1283,9 @@ function wireTaito() {
   if (!view) return;
   view.querySelectorAll('.vk-save[data-vk]').forEach(btn => {
     btn.onclick = (e) => { if (e) e.stopPropagation(); saveVkResult(btn.getAttribute('data-vk')); };
+  });
+  view.querySelectorAll('[data-subhist]').forEach(btn => {
+    btn.onclick = (e) => { if (e) { e.stopPropagation(); e.preventDefault(); } openTaitoSubChart(btn.getAttribute('data-subhist')); };
   });
   view.querySelectorAll('[data-hist]').forEach(btn => {
     btn.onclick = (e) => {
@@ -1529,6 +1532,32 @@ function svgRecordChart(series, opts) {
     <text x="${padL}" y="${H - 6}" class="tk-axis">${d0}</text>
     ${n > 1 ? `<text x="${padL + iw}" y="${H - 6}" class="tk-axis" text-anchor="end">${d1}</text>` : ''}
   </svg>`;
+}
+// Alakategorian kehitysmodaali: yksi painike, haaste valitaan välilehdistä
+function openTaitoSubChart(subId, preferHid) {
+  const parts = subId.split(':');
+  const cat = TAITOKORTIT.find(c => c.id === parts[0]);
+  const sub = cat && cat.subs.find(s => s.id === parts[1]);
+  if (!sub) return;
+  const items = sub.haasteet.filter(h => typeof h.tavoite === 'number')
+    .map(h => ({ hid: cat.id + ':' + sub.id + ':' + h.id, name: h.name, n: (taitoHistory[cat.id + ':' + sub.id + ':' + h.id] || []).length }));
+  if (!items.length) return;
+  const active = preferHid || (items.find(i => i.n > 0) || items[0]).hid;
+  const ov = document.getElementById('taitoChartOverlay');
+  if (!ov) return;
+  document.getElementById('taitoChartTitle').textContent = sub.name;
+  const body = document.getElementById('taitoChartBody');
+  const cur = items.find(i => i.hid === active) || items[0];
+  const hist = (taitoHistory[cur.hid] || []).map(h => ({ date: h.date, v: h.tulos })).filter(p => p.v != null);
+  body.innerHTML = `
+    <div class="tchart-tabs">${items.map(i => `<button type="button" class="tchart-tab${i.hid === cur.hid ? ' active' : ''}${i.n ? '' : ' empty'}" data-subtab="${i.hid}" data-sub="${subId}">${escapeHtml(i.name)}</button>`).join('')}</div>
+    <div class="tchart-area">${hist.length
+      ? svgRecordChart(hist, { isTime: false }) + '<div class="taito-chart-note">Toistoja per ennätys — käyrä nousee kun kehityt.</div>'
+      : '<div class="tk-empty">Ei vielä ennätyshistoriaa tässä haasteessa. Tallenna uusi ennätys, niin käyrä alkaa kertyä.</div>'}</div>`;
+  body.querySelectorAll('[data-subtab]').forEach(b => {
+    b.onclick = () => openTaitoSubChart(b.getAttribute('data-sub'), b.getAttribute('data-subtab'));
+  });
+  ov.hidden = false;
 }
 function openTaitoChart(hid, name, isTime) {
   const hist = (taitoHistory[hid] || [])
