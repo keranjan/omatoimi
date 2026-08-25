@@ -1782,3 +1782,55 @@
     .taito-table { font-size: 13px; }
     .ttc-input { width: 62px; font-size: 18px; }
   }
+
+  /* ===== Voita valmentaja ===== */
+  .vk-soon { text-align: center; padding: 26px 16px; }
+  .vk-soon-ic { font-size: 42px; line-height: 1; margin-bottom: 8px; }
+  .vk-soon-title { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 22px; text-transform: uppercase; letter-spacing: 0.03em; color: var(--brand); }
+  .vk-soon-text { font-size: 14px; color: var(--ink-soft); margin-top: 8px; line-height: 1.5; max-width: 340px; margin-left: auto; margin-right: auto; }
+  .vk-card { border: 1px solid var(--line); border-radius: 12px; padding: 14px; margin-bottom: 12px; background: var(--bg); }
+  .vk-card:last-child { margin-bottom: 0; }
+  .vk-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+  .vk-title { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 18px; color: var(--ink); }
+  .vk-dl { font-size: 11.5px; color: var(--ink-faint); }
+  .vk-desc { font-size: 13.5px; color: var(--ink-soft); margin-top: 6px; line-height: 1.45; white-space: pre-wrap; }
+  .vk-video { display: inline-block; margin-top: 10px; font-size: 13.5px; font-weight: 600; color: var(--brand); text-decoration: none; }
+  .vk-video:hover { text-decoration: underline; }
+  .vk-target { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; margin-top: 12px; padding: 10px 12px; background: var(--surface); border-radius: 10px; border: 1px solid var(--line); }
+  .vk-target-lbl { font-size: 12.5px; color: var(--ink-soft); }
+  .vk-target-val { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 22px; color: var(--brand); }
+  .vk-target-hint { font-size: 11px; color: var(--ink-faint); }
+  .vk-status { margin-top: 10px; font-size: 13.5px; color: var(--ink-soft); }
+  .vk-status.vk-won { color: var(--brand); font-weight: 700; }
+  .vk-status.vk-pending { color: #9A6B00; }
+  .vk-entry { display: flex; gap: 8px; margin-top: 10px; }
+  .vk-input { flex: 1; min-width: 0; padding: 9px 11px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface); color: var(--ink); font-family: inherit; font-size: 15px; }
+  .vk-input:focus { outline: none; border-color: var(--brand); }
+  .vk-save.btn { flex: none; width: auto; margin-top: 0; padding: 9px 15px; white-space: nowrap; }
+  .vk-msg { font-size: 12.5px; color: var(--ink-soft); margin-top: 6px; min-height: 16px; }
+  .vk-msg.ok { color: var(--brand); font-weight: 600; }
+  .vk-msg.error { color: var(--cat-voima); }
+  .vk-reward { font-size: 12px; color: var(--ink-faint); margin-top: 8px; }
+  .vk-winners { margin-top: 12px; border-top: 1px solid var(--line); padding-top: 10px; }
+  .vk-winners-title { font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; color: var(--ink-faint); margin-bottom: 6px; }
+  .vk-winner { display: flex; align-items: center; gap: 8px; font-size: 13.5px; padding: 3px 0; }
+  .vk-wname { flex: 1; min-width: 0; color: var(--ink); }
+  .vk-wres { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; color: var(--brand); }
+  .vk-winners-none { margin-top: 12px; border-top: 1px solid var(--line); padding-top: 10px; font-size: 12.5px; color: var(--ink-faint); }
+
+  /* Valmentajan hallinta */
+  .cvk-item { border: 1px solid var(--line); border-radius: 10px; padding: 11px 12px; margin-bottom: 10px; background: var(--bg); }
+  .cvk-head { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; font-size: 14px; }
+  .cvk-meta { font-size: 11.5px; color: var(--ink-faint); }
+  .cvk-sub { font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--ink-faint); margin: 8px 0 3px; }
+  .cvk-row { display: flex; align-items: center; gap: 8px; font-size: 13px; padding: 3px 0; flex-wrap: wrap; }
+  .cvk-name { flex: 1; min-width: 90px; }
+  .cvk-res { font-weight: 700; color: var(--brand); }
+  .cvk-ok, .cvk-no, .cvk-toggle, .cvk-del { border: 1px solid var(--line); background: var(--surface); border-radius: 8px; font-family: inherit; font-size: 12px; font-weight: 600; padding: 5px 10px; cursor: pointer; color: var(--ink-soft); }
+  .cvk-ok { border-color: var(--brand); color: var(--brand); }
+  .cvk-del { color: var(--cat-voima); }
+  .cvk-actions { display: flex; gap: 8px; margin-top: 10px; }
+  .cvk-form { border-top: 1px solid var(--line); padding-top: 12px; margin-top: 6px; }
+  .cvk-form-title { font-size: 11.5px; font-weight: 700; text-transform: uppercase; color: var(--ink-faint); margin-bottom: 8px; }
+  .cvk-form-row { display: flex; gap: 8px; }
+  .cvk-form-row .ics-input { flex: 1; min-width: 0; }

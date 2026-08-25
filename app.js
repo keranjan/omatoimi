@@ -790,6 +790,7 @@ async function renderAll() {
     loadTeamTaitoGoals(),
     loadTaitoHistory(),
     loadTaitoRanks(),
+    loadVoitaValmentaja(),
   ]);
   lastAll = all;
   currentGoals = goals;
@@ -1077,11 +1078,117 @@ function taitoAikaWidget(cat) {
 }
 let taitoOpen = new Set(['ponnauttelu']);   // avoimet kategoriat (Ponnauttelu auki oletuksena)
 let taitoSubOpen = new Set();                // avoimet alakategoriat: "catId:subId"
+let vkChallenges = [];                       // Voita valmentaja: aktiiviset haasteet
+let vkMyAttempts = {};                       // challenge_id -> oma suoritus
+let vkWinners = {};                          // challenge_id -> [{username, tulos}]
+async function loadVoitaValmentaja() {
+  try {
+    vkChallenges = []; vkMyAttempts = {}; vkWinners = {};
+    if (!currentUser || !currentUser.team_id) return;
+    const { data, error } = await sb.from('coach_challenges')
+      .select('*').eq('team_id', currentUser.team_id).eq('active', true).order('created_at', { ascending: false });
+    if (error) { console.error(error); return; }
+    vkChallenges = data || [];
+    if (!vkChallenges.length) return;
+    const ids = vkChallenges.map(c => c.id);
+    const { data: att } = await sb.from('coach_challenge_attempts').select('*').in('challenge_id', ids);
+    (att || []).forEach(a => {
+      if (a.user_id === currentUser.id) vkMyAttempts[a.challenge_id] = a;
+    });
+    for (const c of vkChallenges) {
+      const { data: w } = await sb.rpc('coach_challenge_winners', { p_challenge_id: c.id });
+      vkWinners[c.id] = w || [];
+    }
+  } catch (e) { console.error(e); }
+}
+function vkUnit(c) { return c.unit || (c.kind === 'aika' ? 's' : 'kertaa'); }
+function vkFmt(c, v) { return (c.kind === 'aika') ? fmtAika(v) : (Math.round(v * 100) / 100); }
+function vkBeats(c, v) { return c.kind === 'aika' ? v < Number(c.coach_result) : v > Number(c.coach_result); }
+function renderVoitaValmentajaHtml() {
+  const open = taitoOpen.has('__vk');
+  let inner;
+  if (!vkChallenges.length) {
+    inner = `<div class="vk-soon">
+        <div class="vk-soon-ic">🏆</div>
+        <div class="vk-soon-title">Tulossa pian</div>
+        <div class="vk-soon-text">Valmentaja lämmittelee. Kannattaa pelätä. 😏</div>
+      </div>`;
+  } else {
+    inner = vkChallenges.map(c => {
+      const mine = vkMyAttempts[c.id];
+      const wins = vkWinners[c.id] || [];
+      const unit = vkUnit(c);
+      const won = mine && mine.status === 'confirmed';
+      const pending = mine && mine.status === 'pending';
+      let statusHtml = '';
+      if (won) statusHtml = `<div class="vk-status vk-won">🏅 Voitit valmentajan! Tuloksesi ${vkFmt(c, mine.tulos)} ${escapeHtml(unit)}</div>`;
+      else if (pending) statusHtml = `<div class="vk-status vk-pending">⏳ Tuloksesi ${vkFmt(c, mine.tulos)} ${escapeHtml(unit)} odottaa valmentajan vahvistusta</div>`;
+      else if (mine) statusHtml = `<div class="vk-status">Paras tuloksesi: <b>${vkFmt(c, mine.tulos)} ${escapeHtml(unit)}</b> — valmentaja johtaa vielä!</div>`;
+      const video = c.video_url ? `<a class="vk-video" href="${escapeHtml(c.video_url)}" target="_blank" rel="noopener">▶️ Katso valmentajan suoritus</a>` : '';
+      const dl = c.deadline ? `<span class="vk-dl">Voimassa ${fmtDateDMY(c.deadline + 'T00:00:00')} asti</span>` : '';
+      const winnersHtml = wins.length
+        ? `<div class="vk-winners"><div class="vk-winners-title">Valmentajan voittajat (${wins.length})</div>${wins.map(w => `<div class="vk-winner"><span class="vk-medal">🏅</span><span class="vk-wname">${escapeHtml(w.username)}</span><span class="vk-wres">${vkFmt(c, w.tulos)} ${escapeHtml(unit)}</span></div>`).join('')}</div>`
+        : `<div class="vk-winners-none">Kukaan ei ole vielä voittanut valmentajaa. Ole ensimmäinen! 🔥</div>`;
+      return `<div class="vk-card">
+        <div class="vk-head"><span class="vk-title">${escapeHtml(c.title)}</span>${dl}</div>
+        ${c.description ? `<div class="vk-desc">${escapeHtml(c.description)}</div>` : ''}
+        ${video}
+        <div class="vk-target">
+          <span class="vk-target-lbl">${escapeHtml(c.coach_name || 'Valmentaja')} teki</span>
+          <span class="vk-target-val">${vkFmt(c, c.coach_result)} ${escapeHtml(unit)}</span>
+          <span class="vk-target-hint">${c.kind === 'aika' ? 'nopeampi voittaa' : 'enemmän voittaa'}</span>
+        </div>
+        ${statusHtml}
+        ${won ? '' : `<div class="vk-entry">
+          <input type="text" class="vk-input" data-vk="${c.id}" inputmode="decimal" placeholder="Oma tuloksesi (${escapeHtml(unit)})">
+          <button class="btn vk-save" data-vk="${c.id}" type="button">Kirjaa tulos</button>
+        </div>
+        <div class="vk-msg" data-vk="${c.id}"></div>`}
+        <div class="vk-reward">Voitosta ${fmtBalls(c.reward)} ⚽</div>
+        ${winnersHtml}
+      </div>`;
+    }).join('');
+  }
+  const meta = vkChallenges.length ? `${vkChallenges.length} ${vkChallenges.length === 1 ? 'haaste' : 'haastetta'}` : 'Tulossa pian';
+  return `<div class="taito-cat taito-vk${open ? ' open' : ''}">
+      <button class="taito-cat-head" type="button" data-taito-cat="__vk" aria-expanded="${open}">
+        <span class="taito-cat-ic">🏆</span>
+        <span class="taito-cat-name">Voita valmentaja</span>
+        <span class="taito-cat-meta">${meta}</span>
+        <span class="taito-chev">▾</span>
+      </button>
+      <div class="taito-cat-body"${open ? '' : ' hidden'}>${inner}</div>
+    </div>`;
+}
+async function saveVkResult(chId) {
+  const c = vkChallenges.find(x => x.id === chId);
+  const inp = document.querySelector(`#viewTaito .vk-input[data-vk="${chId}"]`);
+  const msg = document.querySelector(`#viewTaito .vk-msg[data-vk="${chId}"]`);
+  const setMsg = (t, cls) => { if (msg) { msg.textContent = t; msg.className = 'vk-msg' + (cls ? ' ' + cls : ''); } };
+  if (!c || !inp) return;
+  const val = parseFloat((inp.value || '').replace(',', '.'));
+  if (isNaN(val) || val <= 0) { setMsg('Syötä tuloksesi.', 'error'); return; }
+  const { data, error } = await sb.rpc('submit_coach_challenge', { p_challenge_id: chId, p_tulos: val, p_note: null });
+  if (error) { console.error(error); setMsg('Tallennus epäonnistui.', 'error'); return; }
+  const row = Array.isArray(data) ? data[0] : data;
+  vkMyAttempts[chId] = { id: row.id, challenge_id: chId, user_id: currentUser.id, tulos: row.tulos, status: row.status };
+  inp.value = '';
+  if (row.beat) {
+    setMsg('Voitit valmentajan! 🏆 Odottaa vahvistusta.', 'ok');
+    notify('Voitit valmentajan! 🏆', `${c.title}: ${vkFmt(c, val)} ${vkUnit(c)}`);
+    if (typeof celebrate === 'function') celebrate({ big: true });
+  } else {
+    setMsg(`Tallennettu ✓ Valmentaja johtaa vielä (${vkFmt(c, c.coach_result)} ${vkUnit(c)}). Yritä uudelleen!`, '');
+  }
+  const el = document.querySelector('#viewTaito .taito-vk');
+  if (el) { const tmp = document.createElement('div'); tmp.innerHTML = renderVoitaValmentajaHtml(); el.replaceWith(tmp.firstElementChild); wireTaito(); }
+}
 function renderTaito() {
   const view = document.getElementById('viewTaito');
   if (!view) return;
   let html = `<div class="taito-intro"><h2 class="taito-title">Taitokortit</h2>
     <p class="taito-lead">Harjoittele pallonhallintaa taito kerrallaan. Valitse kategoria ja haaste — ohjekuva näyttää suorituksen.</p></div>`;
+  html += renderVoitaValmentajaHtml();
   html += renderTaitoKehitysHtml();
   TAITOKORTIT.forEach(cat => {
     const catOpen = taitoOpen.has(cat.id);
@@ -1174,6 +1281,9 @@ function renderTaito() {
 function wireTaito() {
   const view = document.getElementById('viewTaito');
   if (!view) return;
+  view.querySelectorAll('.vk-save[data-vk]').forEach(btn => {
+    btn.onclick = (e) => { if (e) e.stopPropagation(); saveVkResult(btn.getAttribute('data-vk')); };
+  });
   view.querySelectorAll('[data-hist]').forEach(btn => {
     btn.onclick = (e) => {
       if (e) { e.stopPropagation(); e.preventDefault(); }
@@ -4215,6 +4325,7 @@ async function coachRefresh() {
   await loadCoachMythics();
   await loadCoachTaitoResults();
   await loadCoachTaitoGoals();
+  await loadCoachVk();
   if (currentUser.is_admin) {
     coachTeamLinks = await coachStore.getTeamCoaches();
     coachAccounts = await coachStore.getCoachAccounts();
@@ -4828,6 +4939,121 @@ async function resetTaitoGoals(teamId) {
   coachTaitoGoals[teamId] = {};
   renderCoachTeams();
 }
+/* ---- Voita valmentaja: valmentajan hallinta ---- */
+let coachVk = {};          // team_id -> [challenges]
+let coachVkAttempts = {};  // challenge_id -> [attempts with username]
+async function loadCoachVk() {
+  try {
+    coachVk = {}; coachVkAttempts = {};
+    const ids = coachTeams.map(t => t.id);
+    if (!ids.length) return;
+    const { data, error } = await sb.from('coach_challenges').select('*').in('team_id', ids).order('created_at', { ascending: false });
+    if (error) { console.error(error); return; }
+    (data || []).forEach(c => { (coachVk[c.team_id] = coachVk[c.team_id] || []).push(c); });
+    const chIds = (data || []).map(c => c.id);
+    if (!chIds.length) return;
+    const { data: att } = await sb.from('coach_challenge_attempts').select('*').in('challenge_id', chIds);
+    (att || []).forEach(a => { (coachVkAttempts[a.challenge_id] = coachVkAttempts[a.challenge_id] || []).push(a); });
+  } catch (e) { console.error(e); }
+}
+function vkPlayerName(uid) {
+  const p = coachPlayers.find(x => x.id === uid);
+  return p ? p.username : 'Pelaaja';
+}
+function vkBlockHtml(t) {
+  const list = coachVk[t.id] || [];
+  let html = '<div class="mythic-help">Aseta haaste ja oma tuloksesi — pelaajat yrittävät voittaa sinut. Lisää videolinkki (esim. YouTube), niin pelaajat näkevät suorituksesi. Voitot tulevat sinulle vahvistettavaksi.</div>';
+  html += list.map(c => {
+    const atts = (coachVkAttempts[c.id] || []).slice().sort((a, b) => c.kind === 'aika' ? a.tulos - b.tulos : b.tulos - a.tulos);
+    const pending = atts.filter(a => a.status === 'pending');
+    const confirmed = atts.filter(a => a.status === 'confirmed');
+    const unit = vkUnit(c);
+    return `<div class="cvk-item">
+      <div class="cvk-head"><b>${escapeHtml(c.title)}</b><span class="cvk-meta">${vkFmt(c, c.coach_result)} ${escapeHtml(unit)} · ${c.active ? 'aktiivinen' : 'päättynyt'}</span></div>
+      ${pending.length ? `<div class="cvk-sub">Odottaa vahvistusta (${pending.length})</div>` + pending.map(a => `
+        <div class="cvk-row">
+          <span class="cvk-name">${escapeHtml(vkPlayerName(a.user_id))}</span>
+          <span class="cvk-res">${vkFmt(c, a.tulos)} ${escapeHtml(unit)}</span>
+          <button class="cvk-ok" data-vk-confirm="${a.id}" type="button">Vahvista ✓</button>
+          <button class="cvk-no" data-vk-reject="${a.id}" type="button">Hylkää</button>
+        </div>`).join('') : ''}
+      ${confirmed.length ? `<div class="cvk-sub">Voittajat (${confirmed.length})</div>` + confirmed.map(a => `
+        <div class="cvk-row"><span class="cvk-name">🏅 ${escapeHtml(vkPlayerName(a.user_id))}</span><span class="cvk-res">${vkFmt(c, a.tulos)} ${escapeHtml(unit)}</span></div>`).join('') : ''}
+      <div class="cvk-actions">
+        <button class="cvk-toggle" data-vk-active="${c.id}" data-active="${c.active}" type="button">${c.active ? 'Päätä haaste' : 'Aktivoi'}</button>
+        <button class="cvk-del" data-vk-del="${c.id}" type="button">Poista</button>
+      </div>
+    </div>`;
+  }).join('');
+  html += `<div class="cvk-form">
+      <div class="cvk-form-title">Uusi haaste</div>
+      <input type="text" class="ics-input vk-f-title" data-team="${t.id}" placeholder="Otsikko, esim. Ponnauttelut vuorojaloin">
+      <input type="text" class="ics-input vk-f-desc" data-team="${t.id}" placeholder="Kuvaus / säännöt (valinnainen)">
+      <input type="text" class="ics-input vk-f-video" data-team="${t.id}" placeholder="Videolinkki (valinnainen)">
+      <div class="cvk-form-row">
+        <select class="ics-input vk-f-kind" data-team="${t.id}">
+          <option value="maara">Määrä — enemmän voittaa</option>
+          <option value="aika">Aika — nopeampi voittaa</option>
+          <option value="osumat">Osumat — enemmän voittaa</option>
+        </select>
+        <input type="text" class="ics-input vk-f-unit" data-team="${t.id}" placeholder="Yksikkö (kertaa / s)">
+      </div>
+      <div class="cvk-form-row">
+        <input type="text" class="ics-input vk-f-result" data-team="${t.id}" inputmode="decimal" placeholder="Oma tuloksesi">
+        <input type="number" class="ics-input vk-f-reward" data-team="${t.id}" min="0" placeholder="Palkinto ⚽ (oletus 300)">
+      </div>
+      <input type="date" class="ics-input vk-f-deadline" data-team="${t.id}">
+      <div class="coach-add-row"><button class="btn vk-create" data-team="${t.id}" type="button">Luo haaste</button></div>
+      <div class="coach-msg vk-create-msg" data-team="${t.id}"></div>
+    </div>`;
+  return html;
+}
+async function createVkChallenge(teamId) {
+  const q = s => document.querySelector(`#coachTeamsView .${s}[data-team="${teamId}"]`);
+  const msgEl = q('vk-create-msg');
+  const setMsg = (t, cls) => { if (msgEl) { msgEl.textContent = t; msgEl.className = 'coach-msg vk-create-msg' + (cls ? ' ' + cls : ''); } };
+  const title = (q('vk-f-title').value || '').trim();
+  const result = parseFloat((q('vk-f-result').value || '').replace(',', '.'));
+  if (!title) { setMsg('Anna otsikko.', 'error'); return; }
+  if (isNaN(result) || result <= 0) { setMsg('Anna oma tuloksesi.', 'error'); return; }
+  const rewardRaw = (q('vk-f-reward').value || '').trim();
+  const row = {
+    team_id: teamId, title,
+    description: (q('vk-f-desc').value || '').trim() || null,
+    video_url: (q('vk-f-video').value || '').trim() || null,
+    kind: q('vk-f-kind').value,
+    unit: (q('vk-f-unit').value || '').trim() || null,
+    coach_result: result,
+    coach_name: (currentUser && currentUser.username) || 'Valmentaja',
+    reward: rewardRaw ? parseInt(rewardRaw, 10) : 300,
+    deadline: (q('vk-f-deadline').value || '') || null,
+    active: true
+  };
+  const { error } = await sb.from('coach_challenges').insert(row);
+  if (error) { console.error(error); setMsg('Luonti epäonnistui.', 'error'); return; }
+  setMsg('Haaste luotu ✓', 'ok');
+  await loadCoachVk();
+  renderCoachTeams();
+}
+async function vkConfirm(attemptId, confirm) {
+  const { error } = await sb.rpc('confirm_coach_challenge', { p_attempt_id: attemptId, p_confirm: confirm });
+  if (error) { console.error(error); return; }
+  await loadCoachVk();
+  renderCoachTeams();
+}
+async function vkSetActive(chId, active) {
+  const { error } = await sb.from('coach_challenges').update({ active }).eq('id', chId);
+  if (error) { console.error(error); return; }
+  await loadCoachVk();
+  renderCoachTeams();
+}
+async function vkDelete(chId) {
+  if (!confirm('Poistetaanko haaste ja kaikki siihen liittyvät suoritukset?')) return;
+  const { error } = await sb.from('coach_challenges').delete().eq('id', chId);
+  if (error) { console.error(error); return; }
+  await loadCoachVk();
+  renderCoachTeams();
+}
 function renderCoachTeams() {  const view = document.getElementById('coachTeamsView');
   const isAdmin = !!currentUser.is_admin;
   if (coachTeamsOpen === null) coachTeamsOpen = new Set(coachTeams.length === 1 ? coachTeams.map(t => t.id) : []);
@@ -4945,6 +5171,7 @@ ${boostBlockHtml(t)}
         `)}
         ${subAcc(t.id, 'mythic', 'Myyttiset (Tekstifutis)', mythicBlockHtml(t))}
         ${subAcc(t.id, 'taitogoals', 'Taitokortit — tavoitteet', taitoGoalsBlockHtml(t))}
+        ${subAcc(t.id, 'vk', 'Voita valmentaja', vkBlockHtml(t))}
       </div></div>`;
   });
   view.innerHTML = html;
@@ -4961,6 +5188,21 @@ function wireCoachTeams() {
   });
   document.querySelectorAll('#coachTeamsView [data-del-mythic]').forEach(btn => {
     btn.onclick = () => delMythic(btn.getAttribute('data-del-mythic'));
+  });
+  document.querySelectorAll('#coachTeamsView .vk-create').forEach(btn => {
+    btn.onclick = () => createVkChallenge(btn.getAttribute('data-team'));
+  });
+  document.querySelectorAll('#coachTeamsView [data-vk-confirm]').forEach(btn => {
+    btn.onclick = () => vkConfirm(btn.getAttribute('data-vk-confirm'), true);
+  });
+  document.querySelectorAll('#coachTeamsView [data-vk-reject]').forEach(btn => {
+    btn.onclick = () => vkConfirm(btn.getAttribute('data-vk-reject'), false);
+  });
+  document.querySelectorAll('#coachTeamsView [data-vk-active]').forEach(btn => {
+    btn.onclick = () => vkSetActive(btn.getAttribute('data-vk-active'), btn.getAttribute('data-active') !== 'true');
+  });
+  document.querySelectorAll('#coachTeamsView [data-vk-del]').forEach(btn => {
+    btn.onclick = () => vkDelete(btn.getAttribute('data-vk-del'));
   });
   document.querySelectorAll('#coachTeamsView .tgoal-save-btn').forEach(btn => {
     btn.onclick = () => saveTaitoGoals(btn.getAttribute('data-team'));
