@@ -704,6 +704,7 @@ let myMythics = [];                  // oman joukkueen myyttiset (Tekstifutis-ke
 let taitoResults = {};               // taitokorttien tulokset: haaste_id -> {tulos, done}
 let teamTaitoGoals = {};             // oman joukkueen ponnauttelutavoitteet: haaste_id -> tavoite
 let taitoHistory = {};               // ennätyshistoria: haaste_id -> [{date, tulos, aika}]
+let taitoRanks = {};                 // sijoitukset: haaste_id -> {sija, yhteensa}
 
 /* ---- Lomakkeen päivämäärä (oma suomenkielinen valitsin) ---- */
 let formDate = todayISO();
@@ -788,6 +789,7 @@ async function renderAll() {
     loadTaitoResults(),
     loadTeamTaitoGoals(),
     loadTaitoHistory(),
+    loadTaitoRanks(),
   ]);
   lastAll = all;
   currentGoals = goals;
@@ -865,6 +867,8 @@ async function renderAll() {
   renderDrill();
   renderSeasonReport();
   renderSettings();
+  checkFeedbackNotify();
+  renderNudges();
   renderTeamGoal();
   updateZoneHeaders();
   renderCalendar();
@@ -1127,7 +1131,7 @@ function renderTaito() {
           const targetHs = sub.haasteet.filter(h => typeof h.tavoite === 'number');
           const imageHs = sub.haasteet.filter(h => typeof h.tavoite !== 'number');
           if (targetHs.length) {
-            html += `<table class="taito-table"><thead><tr><th>Suorite</th><th class="ttc-num">Tavoite</th><th class="ttc-num">Oma ennätys</th></tr></thead><tbody>`;
+            html += `<table class="taito-table"><thead><tr><th>Suorite</th><th class="ttc-num">Tavoite</th><th class="ttc-num">Oma ennätys</th><th class="ttc-num">Sija</th><th class="ttc-num">Kaikkien paras</th></tr></thead><tbody>`;
             targetHs.forEach(h => {
               const hid = cat.id + ':' + sub.id + ':' + h.id;
               const tav = effTavoite(hid, h.tavoite);
@@ -1137,6 +1141,8 @@ function renderTaito() {
                 <td class="ttc-name">${done ? '<span class="ttc-check">✓</span>' : ''}${escapeHtml(h.name)}<button type="button" class="ttc-chart" data-hist="${hid}" data-histname="${escapeHtml(h.name)}" data-histtime="0" aria-label="Kehityskäyrä">📈</button></td>
                 <td class="ttc-num">${tav}</td>
                 <td class="ttc-num"><input type="number" class="ttc-input" data-haaste="${hid}" data-sub="${subId}" min="0" inputmode="numeric" placeholder="—" value="${r.tulos ? r.tulos : ''}"></td>
+                <td class="ttc-num ttc-rank" data-rank="${hid}">${rankBadgeHtml(hid)}</td>
+                <td class="ttc-num ttc-best" data-best="${hid}">${bestAllHtml(hid)}</td>
               </tr>`;
             });
             html += `</tbody></table>
@@ -1241,6 +1247,14 @@ function subComplete(subId, results) {
     return !!(r && (r.done || r.tulos >= effTavoite(hid, h.tavoite)));
   });
 }
+async function loadTaitoRanks() {
+  try {
+    taitoRanks = {};
+    const { data, error } = await sb.rpc('taito_ranks');
+    if (error) { console.error(error); return; }
+    (data || []).forEach(r => { taitoRanks[r.haaste_id] = { sija: r.sija, yhteensa: r.yhteensa, paras: r.paras }; });
+  } catch (e) { console.error(e); }
+}
 async function loadTaitoHistory() {
   try {
     taitoHistory = {};
@@ -1285,6 +1299,23 @@ function taitoFootballsFor(catId) {
   const rows = (myFootballs && myFootballs.rows) || [];
   return rows.filter(r => r.ref && (r.ref.indexOf('taito:' + catId + ':') === 0 || r.ref.indexOf('taito_bonus:' + catId + ':') === 0))
     .reduce((s, r) => s + (r.amount || 0), 0);
+}
+// Sijoitusmerkki: kolme parasta saavat kulta/hopea/pronssi-tyylin
+function rankBadgeHtml(hid) {
+  const r = taitoRanks[hid];
+  if (!r || !r.sija) return '<span class="rank-none">—</span>';
+  const medal = r.sija === 1 ? 'gold' : (r.sija === 2 ? 'silver' : (r.sija === 3 ? 'bronze' : ''));
+  const icon = r.sija === 1 ? '🥇' : (r.sija === 2 ? '🥈' : (r.sija === 3 ? '🥉' : ''));
+  const title = `Sija ${r.sija} / ${r.yhteensa}`;
+  return `<span class="rank-badge${medal ? ' rank-' + medal : ''}" title="${title}">${icon ? icon + ' ' : ''}${r.sija}.</span>`;
+}
+// Kaikkien käyttäjien paras tulos haasteessa
+function bestAllHtml(hid) {
+  const r = taitoRanks[hid];
+  if (!r || !r.paras) return '<span class="rank-none">—</span>';
+  const mine = taitoResults[hid] && taitoResults[hid].tulos;
+  const isMine = mine && mine >= r.paras;
+  return `<span class="best-all${isMine ? ' best-mine' : ''}" title="${isMine ? 'Sinä olet ennätyksen haltija!' : 'Kaikkien paras tulos'}">${r.paras}${isMine ? ' \u2605' : ''}</span>`;
 }
 function taitoCatMetaHtml(cat) {
   const { done, total } = taitoCatDone(cat);
@@ -1515,9 +1546,23 @@ async function saveTaitoTable(subId) {
   if (totalBonus > 0) msg = `Koko kategoria suoritettu! +${totalReward + totalBonus} \u26bd`;
   else if (totalReward > 0) msg = `Tavoite saavutettu! +${totalReward} \u26bd`;
   setMsg(anyError ? 'Osaa ei voitu tallentaa.' : msg, anyError ? 'error' : 'ok');
+  if (totalBonus > 0) notify('Koko kategoria suoritettu! \ud83c\udfc6', `Ansaitsit ${fmtBalls(totalReward + totalBonus)} jalkapalloa.`);
+  else if (totalReward > 0) notify('Taitotavoite saavutettu! \ud83c\udfaf', `Ansaitsit ${fmtBalls(totalReward)} jalkapalloa.`);
   if ((totalReward > 0 || totalBonus > 0) && typeof celebrate === 'function') celebrate({ big: totalBonus > 0 });
   else if (newlyDone && typeof celebrate === 'function') celebrate();
   if (totalReward > 0 || totalBonus > 0) { try { myFootballs = await loadFootballEvents(); } catch (e) {} }
+  // Päivitä sijoitukset (uusi tulos voi muuttaa sijaa)
+  if (!anyError) {
+    try {
+      await loadTaitoRanks();
+      document.querySelectorAll('#viewTaito .ttc-rank[data-rank]').forEach(td => {
+        td.innerHTML = rankBadgeHtml(td.getAttribute('data-rank'));
+      });
+      document.querySelectorAll('#viewTaito .ttc-best[data-best]').forEach(td => {
+        td.innerHTML = bestAllHtml(td.getAttribute('data-best'));
+      });
+    } catch (e) { console.error(e); }
+  }
   // Päivitä kategorian otsikko (suoritetut + ansaitut ⚽) ilman koko näkymän renderöintiä
   const catId = subId.split(':')[0];
   const catObj = TAITOKORTIT.find(c => c.id === catId);
@@ -1546,6 +1591,7 @@ async function saveTaitoTime(hid) {
   taitoResults[hid] = Object.assign({}, taitoResults[hid], { aika });
   if (oldAika == null || val < oldAika) {              // uusi ennätys → historiaan (paikallisesti)
     (taitoHistory[hid] = taitoHistory[hid] || []).push({ date: new Date().toISOString(), tulos: null, aika });
+    notify('Uusi ennätys! ⏱️', `Uusi paras aikasi: ${fmtAika(aika)} s`);
   }
   if (best) best.innerHTML = `Paras aikasi: <b>${fmtAika(aika)} s</b>`;
   inp.value = '';
@@ -2860,6 +2906,7 @@ function renderDailyModal() {
   const sBtn = document.getElementById('dailySteadyBtn');
   if (sBtn) sBtn.onclick = () => claimDaily();
   updateDailyBadge();
+  if (typeof renderNudges === 'function') renderNudges();
 }
 function updateDailyBadge() {
   const btn = document.getElementById('dailyBtn');
@@ -3146,6 +3193,82 @@ function notify(title, body) {
     } else { new Notification(title, opts); }
   } catch (e) {}
 }
+/* ---- Sovelluksen sisäiset muistutukset (taso 1) ---- */
+function trainedThisWeek() {
+  const { mondayISO, sundayISO } = weekRangeISO();
+  return lastAll.some(e => e.date >= mondayISO && e.date <= sundayISO);
+}
+function buildNudges() {
+  const out = [];
+  // 1) Päivittäinen palkinto lunastamatta
+  if (dailyStatus && !dailyStatus.claimed_today) {
+    out.push({ icon: '🎁', text: 'Päivittäinen palkinto on lunastamatta.', cta: 'Lunasta', act: 'daily' });
+  }
+  // 2) Viikkoputki katkeamassa (torstaista alkaen, jos putki menossa eikä vielä treeniä)
+  const dow = (new Date().getDay() + 6) % 7;        // ma=0 … su=6
+  const streak = weeklyStreak();
+  if (streak > 0 && !trainedThisWeek() && dow >= 3) {
+    const daysLeft = 6 - dow + 1;
+    out.push({
+      icon: '🔥',
+      text: `Viikkoputkesi (${streak} ${streak === 1 ? 'viikko' : 'viikkoa'}) katkeaa, jos et kirjaa treeniä ${daysLeft === 1 ? 'tänään' : `${daysLeft} päivän sisällä`}.`,
+      cta: 'Kirjaa treeni', act: 'log'
+    });
+  }
+  // 3) Uusi palaute valmentajalta (lukemattomat)
+  const unseen = unseenFeedbackCount();
+  if (unseen > 0) {
+    out.push({ icon: '💬', text: unseen === 1 ? 'Sinulle on uutta palautetta valmentajalta.' : `Sinulle on ${unseen} uutta palautetta valmentajalta.`, cta: 'Lue', act: 'feedback' });
+  }
+  return out.slice(0, 3);
+}
+function renderNudges() {
+  const box = document.getElementById('nudgeBox');
+  if (!box) return;
+  const list = buildNudges();
+  if (!list.length) { box.hidden = true; box.innerHTML = ''; return; }
+  box.hidden = false;
+  box.innerHTML = list.map((n, i) => `
+    <div class="nudge">
+      <span class="nudge-ic">${n.icon}</span>
+      <span class="nudge-text">${escapeHtml(n.text)}</span>
+      <button class="nudge-cta" type="button" data-nudge="${n.act}">${escapeHtml(n.cta)}</button>
+    </div>`).join('');
+  box.querySelectorAll('[data-nudge]').forEach(btn => {
+    btn.onclick = () => {
+      const act = btn.getAttribute('data-nudge');
+      if (act === 'daily') { showDailyModal(); }
+      else if (act === 'log') { const el = document.getElementById('inDuration'); if (el) { if (el.scrollIntoView) el.scrollIntoView({ behavior: 'smooth', block: 'center' }); el.focus(); } }
+      else if (act === 'feedback') {
+        markFeedbackSeen();
+        const card = document.getElementById('coachMsgCard');
+        if (card && !card.hidden && card.scrollIntoView) card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        renderNudges();
+      }
+    };
+  });
+}
+/* ---- Uuden palautteen tunnistus (taso 1 + 2) ---- */
+function lastSeenFeedbackId() { try { return parseInt(localStorage.getItem('lastFeedbackId') || '0', 10) || 0; } catch (e) { return 0; } }
+function markFeedbackSeen() {
+  const newest = myEncouragements.length ? Math.max(...myEncouragements.map(m => m.id || 0)) : 0;
+  try { localStorage.setItem('lastFeedbackId', String(newest)); } catch (e) {}
+}
+function unseenFeedbackCount() {
+  const seen = lastSeenFeedbackId();
+  return myEncouragements.filter(m => (m.id || 0) > seen).length;
+}
+function checkFeedbackNotify() {
+  const seen = lastSeenFeedbackId();
+  const fresh = myEncouragements.filter(m => (m.id || 0) > seen);
+  if (!fresh.length) return;
+  if (seen > 0) {                                  // ei ilmoitusta ensimmäisellä käynnistyksellä
+    const m = fresh[0];
+    notify('Uusi palaute valmentajalta 💬', (m.coach_name ? m.coach_name + ': ' : '') + String(m.text || '').split('\n')[0].slice(0, 120));
+  } else {
+    markFeedbackSeen();                            // alusta ilman ilmoitustulvaa
+  }
+}
 function renderSettings() {
   const card = document.getElementById('settingsCard');
   if (!card) return;
@@ -3155,8 +3278,8 @@ function renderSettings() {
     <div class="sec-head"><h2>Ilmoitukset</h2></div>
     <div class="set-row">
       <div class="set-text">
-        <b>Tason ja haasteiden ilmoitukset</b>
-        <span>Ilmoitus kun nouset tasolle tai suoritat haasteen.</span>
+        <b>Ilmoitukset</b>
+        <span>Ilmoitus kun nouset tasolle, suoritat haasteen tai taitotavoitteen, teet uuden ennätyksen tai saat palautetta valmentajalta.</span>
       </div>
       <button class="set-toggle${on ? ' on' : ''}" id="notifToggle" type="button" role="switch" aria-checked="${on}">
         <span class="set-knob"></span>
